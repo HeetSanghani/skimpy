@@ -1,0 +1,125 @@
+from fastapi import HTTPException
+from app.db.mongodb import user_collection, otp_collection
+from app.core.security import get_password_hash, verify_password, create_access_token
+from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest
+from datetime import datetime, timedelta
+import uuid
+import random
+from app.utils.email_service import send_otp_email
+
+
+
+def login_logic(email: str, password: str):
+    user = user_collection.find_one({"email": email})
+
+    if not user or not verify_password(password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    access_token = create_access_token(data={"sub": user["email"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+def register_user_logic(request: UserRegisterSchema):
+    user_data = request.dict()
+    user_data.pop("confirm_password")
+
+    # Check OTP verification first
+    otp_record = otp_collection.find_one({"email": user_data["email"], "verified": True})
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Please verify OTP before registering")
+
+    # Create user
+    user_data["user_id"] = str(uuid.uuid4())
+    user_data["password"] = get_password_hash(user_data["password"])
+    user_data["created_date"] = datetime.utcnow()
+    user_data["verified"] = True   # mark as verified directly
+
+    try:
+        user_collection.insert_one(user_data)
+        otp_collection.delete_one({"email": user_data["email"]})  # cleanup OTP
+        return {
+            "message": f"User {request.first_name} created successfully",
+            "user_id": user_data["user_id"],
+        }
+    except Exception as e:
+        if "email" in str(e):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        else:
+            raise HTTPException(status_code=400, detail="User creation failed")
+
+
+
+
+def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
+    user_id = str(current_user["user_id"])
+
+    # Old password verification
+    if not verify_password(request.old_password, current_user["password"]):
+        raise HTTPException(status_code=401, detail="Old password is incorrect")
+
+    # Hash new password
+    new_hashed_password = get_password_hash(request.new_password)
+
+    # Update in DB
+    result = user_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"password": new_hashed_password, "updated_date": datetime.utcnow()}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Password not updated")
+
+    return {"message": "Password updated successfully"}
+
+
+def generate_and_send_otp(email: str):
+    existing_otp = otp_collection.find_one({"email": email})
+
+    if existing_otp:
+        # Check expiry
+        if existing_otp["expires_at"] > datetime.now():
+            otp_collection.delete_one({"email": email})
+
+    # Create new OTP
+    otp = str(random.randint(100000, 999999))
+    otp_data = {
+        "email": email,
+        "otp": otp,
+        "expires_at": datetime.now() + timedelta(minutes=5),
+        "verified": False
+    }
+
+    otp_collection.insert_one(otp_data)
+    send_otp_email(email, otp)
+
+    return {"message": "New OTP sent to your email"}
+
+
+
+
+def verify_otp_service(email: str, otp: str):
+    record = otp_collection.find_one({"email": email})
+
+    if not record:
+        return {"success": False, "message": "OTP expired or not found"}
+
+    if record["otp"] != otp:
+        return {"success": False, "message": "Invalid OTP"}
+    
+    existing_otp = otp_collection.find_one({"email": email})
+
+    if existing_otp:
+        # Check expiry
+        if existing_otp["expires_at"] < datetime.now():
+            otp_collection.delete_one({"email": email})
+            return {"invalid otp"}
+    
+
+    # ✅ Mark OTP as verified
+    otp_collection.update_one(
+        {"email": email},
+        {"$set": {"verified": True}}
+    )
+
+    return {"success": True, "message": "OTP verified"}
+
