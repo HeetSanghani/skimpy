@@ -31,7 +31,7 @@ def register_user_logic(request: UserRegisterSchema):
     # Create user
     user_data["user_id"] = str(uuid.uuid4())
     user_data["password"] = get_password_hash(user_data["password"])
-    user_data["created_date"] = datetime.utcnow()
+    user_data["created_date"] = datetime.now()
     user_data["verified"] = True   # mark as verified directly
 
     try:
@@ -63,7 +63,7 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
     # Update in DB
     result = user_collection.update_one(
         {"user_id": user_id},
-        {"$set": {"password": new_hashed_password, "updated_date": datetime.utcnow()}}
+        {"$set": {"password": new_hashed_password, "updated_date": datetime.now()}}
     )
 
     if result.modified_count == 0:
