@@ -59,3 +59,9 @@ class ResetPasswordRequest(BaseModel):
             raise ValueError("Passwords do not match")
         return v
 
+class EmailModel(BaseModel):
+    email: str
+
+class VerifyOtpModel(BaseModel):
+    email: str
+    otp: str
