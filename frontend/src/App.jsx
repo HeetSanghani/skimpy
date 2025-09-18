@@ -1,18 +1,20 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+
+import AppRouter from './routes/AppRouter';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <h1 className="text-3xl font-bold underline">
-      Hello world!
-    </h1>
-    </>
-  )
+    <Router>
+      <div className="flex flex-col min-h-screen">
+       
+        <main className="flex-grow container mx-auto px-4 py-6">
+          <AppRouter />
+        </main>
+       
+      </div>
+    </Router>
+  );
 }
 
-export default App
+export default App;
