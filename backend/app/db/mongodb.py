@@ -1,8 +1,16 @@
 
 from pymongo.mongo_client import MongoClient
+from dotenv import load_dotenv
+import os
 
-uri = "mongodb+srv://akshay:akshay1234@skimpy.vhdtrbd.mongodb.net/?retryWrites=true&w=majority&appName=skimpy"
+load_dotenv()
 
+
+uri = os.getenv("MONGO_URI")
+                
+if not uri:
+    raise ValueError("MONGO_URI not set in .env file")
+                
 # Create a new client and connect to the server
 client = MongoClient(uri)
 
