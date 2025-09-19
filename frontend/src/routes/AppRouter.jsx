@@ -10,6 +10,9 @@ import Contact from '../pages/Contact';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Cart from '../pages/Cart';
+import ResetPassword from "../pages/ResetPassword";
+import ForgotPassword from '../pages/ForgotPassword';   
+
 
 
 
@@ -20,12 +23,15 @@ function AppRouter() {
 
 
            
-             <Route path="/Cart" element={<Cart />} />
+            <Route path="/Cart" element={<Cart />} />
             <Route path="/About" element={<About />} />
             <Route path="/Contact" element={<Contact />} />
             <Route path="/Profile" element={<Profile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
            
 
         </Routes>

@@ -1,13 +1,10 @@
 from fastapi import HTTPException
 from app.db.mongodb import user_collection, otp_collection
 from app.core.security import get_password_hash, verify_password, create_access_token
-from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest
+from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
 from datetime import datetime, timedelta
-import uuid
-import random
+import uuid, os, shutil, random
 from app.utils.email_service import send_otp_email
-
-
 
 def login_logic(email: str, password: str):
     user = user_collection.find_one({"email": email})
@@ -58,7 +55,7 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
         raise HTTPException(status_code=401, detail="Old password is incorrect")
 
     # Hash new password
-    new_hashed_password = get_password_hash(request.new_password)
+    new_hashed_password = get_password_hash(request.password)
 
     # Update in DB
     result = user_collection.update_one(
@@ -123,3 +120,53 @@ def verify_otp_service(email: str, otp: str):
 
     return {"success": True, "message": "OTP verified"}
 
+
+# ---------------- VERIFY FORGOT PASSWORD OTP ---------------- #
+def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
+    user = user_collection.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp_record = otp_collection.find_one({"email": request.email})
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="No OTP found. Request again.")
+
+    if otp_record["otp"] != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    if datetime.now() > otp_record["expires_at"]:
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    new_hashed_password = get_password_hash(request.new_password)
+    user_collection.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"password": new_hashed_password, "updated_date": datetime.now()}}
+    )
+
+    otp_collection.delete_one({"email": request.email})
+
+    return {"message": "Password reset successfully"}
+
+
+
+# ---------------- DELETE USER ---------------- #
+def delete_user_logic(current_user: dict):
+    user_id = current_user["user_id"]
+
+    # 1. Find user
+    user = user_collection.find_one({"user_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 2. Delete OTPs related to this user
+    otp_collection.delete_many({"email": user["email"]})
+
+    # 3. Delete user record
+    user_collection.delete_one({"user_id": user_id})
+
+    # 4. Delete user files (local storage cleanup)
+    user_folder = os.path.join("uploads", str(user_id))
+    if os.path.exists(user_folder):
+        shutil.rmtree(user_folder)
+
+    return {"status": True, "message": "User and all related data deleted"}
