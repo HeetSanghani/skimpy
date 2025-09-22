@@ -1,5 +1,5 @@
 
-from pydantic import EmailStr, constr
+from pydantic import EmailStr, constr,BaseModel
 from typing import Optional
 from app.db.models.base import CustomBaseModel
 from app.db.models.user import UserRole,Gender
@@ -46,7 +46,34 @@ class GetUserDetails(CustomBaseModel):
     email: EmailStr
     phone: constr(regex=r"^\d{10}$")
     DOB: Optional[date] = ""
-    role: UserRole = UserRole.user
     gender: Optional[Gender] = None
-    address: Optional[str] = None
-    photo: Optional[str] = ""
+    
+    
+    
+class AddAccountDetails(CustomBaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: constr(regex=r"^\d{10}$")
+    DOB: Optional[date] = ""
+    gender: Optional[Gender] = None
+
+
+    
+# ---------------- DELETE USER ---------------- #
+class DeleteUserResponse(BaseModel):
+    status: bool
+    message: str
+    
+class AddDeliveryAddress(BaseModel):
+    first_name: str
+    last_name: str
+    phone: constr(regex=r"^\d{10}$")
+    street_address: str
+    city: str
+    postcode: int
+    state: str
+    country: str
+class GetDeliveryAddress(AddDeliveryAddress):
+    pass
+    

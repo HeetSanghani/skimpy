@@ -83,8 +83,3 @@ class VerifyForgotOtpRequest(BaseModel):
         if "new_password" in values and v != values["new_password"]:
             raise ValueError("Passwords do not match")
         return v
-    
-# ---------------- DELETE USER ---------------- #
-class DeleteUserResponse(BaseModel):
-    status: bool
-    message: str
