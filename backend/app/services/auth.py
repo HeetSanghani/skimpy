@@ -149,24 +149,3 @@ def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
 
 
 
-# ---------------- DELETE USER ---------------- #
-def delete_user_logic(current_user: dict):
-    user_id = current_user["user_id"]
-
-    # 1. Find user
-    user = user_collection.find_one({"user_id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # 2. Delete OTPs related to this user
-    otp_collection.delete_many({"email": user["email"]})
-
-    # 3. Delete user record
-    user_collection.delete_one({"user_id": user_id})
-
-    # 4. Delete user files (local storage cleanup)
-    user_folder = os.path.join("uploads", str(user_id))
-    if os.path.exists(user_folder):
-        shutil.rmtree(user_folder)
-
-    return {"status": True, "message": "User and all related data deleted"}

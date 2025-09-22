@@ -17,6 +17,7 @@ client = MongoClient(uri)
 db = client["skimpy"]              # database
 user_collection = db["users"]# collection
 otp_collection = db["otp"]
+delivery_addresses_collection = db["delivery_addresses"]
 
 user_collection.create_index("email", unique=True)
 user_collection.create_index("user_id", unique=True)

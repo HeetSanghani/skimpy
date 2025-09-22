@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest, EmailModel, VerifyOtpModel, VerifyForgotOtpRequest
 from app.core.security import get_current_user
-from app.services.auth import login_logic, reset_password_logic, generate_and_send_otp, verify_otp_service, register_user_logic,delete_user_logic,verify_forgot_otp_logic
+from app.services.auth import login_logic, reset_password_logic, generate_and_send_otp, verify_otp_service, register_user_logic,verify_forgot_otp_logic
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -36,7 +36,3 @@ def verify_otp(request: VerifyOtpModel):
 def verify_forgot_otp(request: VerifyForgotOtpRequest):
     return verify_forgot_otp_logic(request)
 
-# ---------------- DELETE USER ---------------- #
-@router.delete("/delete-account")
-def delete_user(current_user: dict = Depends(get_current_user)):
-    return delete_user_logic(current_user)
