@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends,UploadFile,File
+from fastapi import APIRouter, Depends,UploadFile,File,Query
 from app.schemas.user import GetUserDetails, CreateUser,AddAccountDetails, AddDeliveryAddress, GetDeliveryAddress
 from app.core.security import get_current_user
 from app.services.users import account_details_logic,get_account_details_logic,delete_user_logic, add_delivery_address_logic, update_delivery_address_logic,get_delivery_address_logic, delete_delivery_address_logic,add_profile_avatar_logic,delete_profile_avatar_logic,get_profile_avatar_logic
@@ -35,7 +35,8 @@ def update_delivery_address(address_id:str, request:AddDeliveryAddress,current_u
 
 
 @router.delete("/delete-delivery-address", tags=["Delivery Address"])
-def delete_delivery_address(address_id: str, current_user: dict = Depends(get_current_user)):
+def delete_delivery_address(address_id: str= Query(...), current_user: dict = Depends(get_current_user)):
+    print(f"Received address_id: {address_id}")  # debug
     return delete_delivery_address_logic(address_id, current_user)
 
 @router.get("/get-profile-avatar", tags=["Avatar"])

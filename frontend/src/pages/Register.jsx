@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { sendOtp, verifyOtp, registerUser } from "../api/authApi";
 
+const userRoles = ["user", "seller", "admin"];
+
 export default function Register() {
   const [formData, setFormData] = useState({
     firstName: "",
@@ -9,6 +11,7 @@ export default function Register() {
     email: "",
     password: "",
     confirmPassword: "",
+    role: "",
   });
 
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -49,6 +52,7 @@ export default function Register() {
           email: formData.email,
           password: formData.password,
           confirm_password: formData.confirmPassword,
+          role: formData.role,
         });
         alert("Account created successfully!");
         setShowOtpModal(false);
@@ -143,6 +147,27 @@ export default function Register() {
                 required
                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+             {/* Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Role
+              </label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Role</option>
+                {userRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button

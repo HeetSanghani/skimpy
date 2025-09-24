@@ -1,507 +1,461 @@
-// import Navbar from '../components/Navbar';
-// import Footer from '../components/Footer';
-// import React, { useState, useEffect } from "react";
-// import { updateUserProfile, getUserProfile } from "../api/authApi";
-
-// export default function Profile() {
-//   const [formData, setFormData] = useState({
-//     first_name: "",
-//     last_name: "",
-//     email: "",
-//     phone: "",
-//     password: "",
-//     address: "",
-//     gender: "",
-//     DOB: "",
-//     photo: null,
-//   });
-
-//   // Fetch profile data
-//   useEffect(() => {
-//     const fetchProfile = async () => {
-
-//       const token = localStorage.getItem("token"); // get token stored after login
-//       if (!token) {
-//         console.error("No token found");
-//         return;
-//       }
-
-//       try {
-//         const response = await getUserProfile(token);
-//         const data = response.data;
-
-//         setFormData({
-//           first_name: data.first_name || "",
-//           last_name: data.last_name || "",
-//           email: data.email || "",
-//           phone: data.phone || "",
-//           password: "",
-//           address: data.address || "",
-//           gender: data.gender || "",
-//           DOB: data.DOB || "",
-//           photo: null,
-//         });
-//       } catch (error) {
-//         console.error("Error fetching profile:", error);
-//       }
-//     };
-//     fetchProfile();
-//   }, []);
-
-//   const handleChange = (e) => {
-//     const { name, value, files } = e.target;
-//     if (name === "photo") {
-//       setFormData({ ...formData, photo: files[0] });
-//     } else {
-//       setFormData({ ...formData, [name]: value });
-//     }
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     try {
-//       const data = new FormData();
-//       Object.keys(formData).forEach((key) => {
-//         if (formData[key]) data.append(key, formData[key]);
-//       });
-
-//       const response = await updateUserProfile(data);
-//       alert("Profile updated successfully!");
-//       console.log("Updated Profile:", response.data);
-//     } catch (error) {
-//       console.error("Error updating profile:", error);
-//       alert("Error: " + (error.response?.data?.detail || error.message));
-//     }
-//   };
-
-//   return (
-//     <>
-//       <Navbar />
-//       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
-//         <div className="bg-white w-full max-w-3xl p-8 rounded-2xl shadow-md">
-//           <h2 className="text-3xl font-extrabold text-center mb-8 tracking-tight">
-//             Profile Page
-//           </h2>
-
-//           <form onSubmit={handleSubmit} className="space-y-6">
-//             {/* Conditionally render fields only if they have values */}
-//             {formData.first_name || formData.last_name ? (
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//                 {formData.first_name && (
-//                   <div>
-//                     <label className="block text-sm font-medium mb-2">First Name</label>
-//                     <input
-//                       type="text"
-//                       name="first_name"
-//                       value={formData.first_name}
-//                       onChange={handleChange}
-//                       className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                     />
-//                   </div>
-//                 )}
-//                 {formData.last_name && (
-//                   <div>
-//                     <label className="block text-sm font-medium mb-2">Last Name</label>
-//                     <input
-//                       type="text"
-//                       name="last_name"
-//                       value={formData.last_name}
-//                       onChange={handleChange}
-//                       className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                     />
-//                   </div>
-//                 )}
-//               </div>
-//             ) : null}
-
-//             {formData.email && (
-//               <div>
-//                 <label className="block text-sm font-medium mb-2">Email</label>
-//                 <input
-//                   type="email"
-//                   name="email"
-//                   value={formData.email}
-//                   onChange={handleChange}
-//                   className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                 />
-//               </div>
-//             )}
-
-//             {formData.phone && (
-//               <div>
-//                 <label className="block text-sm font-medium mb-2">Phone</label>
-//                 <input
-//                   type="tel"
-//                   name="phone"
-//                   value={formData.phone}
-//                   onChange={handleChange}
-//                   className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                 />
-//               </div>
-//             )}
-
-//             {formData.DOB && (
-//               <div>
-//                 <label className="block text-sm font-medium mb-2">Date of Birth</label>
-//                 <input
-//                   type="date"
-//                   name="DOB"
-//                   value={formData.DOB}
-//                   onChange={handleChange}
-//                   className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                 />
-//               </div>
-//             )}
-
-//             {formData.gender && (
-//               <div>
-//                 <label className="block text-sm font-medium mb-2">Gender</label>
-//                 <select
-//                   name="gender"
-//                   value={formData.gender}
-//                   onChange={handleChange}
-//                   className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                 >
-//                   <option value="">Select</option>
-//                   <option value="male">Male</option>
-//                   <option value="female">Female</option>
-//                   <option value="other">Other</option>
-//                 </select>
-//               </div>
-//             )}
-
-//             {formData.address && (
-//               <div>
-//                 <label className="block text-sm font-medium mb-2">Address</label>
-//                 <textarea
-//                   name="address"
-//                   value={formData.address}
-//                   onChange={handleChange}
-//                   className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-//                 ></textarea>
-//               </div>
-//             )}
-
-//             <div>
-//               <label className="block text-sm font-medium mb-2">Profile Photo</label>
-//               <input
-//                 type="file"
-//                 name="photo"
-//                 accept="image/*"
-//                 onChange={handleChange}
-//                 className="w-full border border-gray-300 rounded-md p-2"
-//               />
-//             </div>
-
-//             <div>
-//               <button
-//                 type="submit"
-//                 className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-800 transition"
-//               >
-//                 Update Profile
-//               </button>
-//             </div>
-//           </form>
-//         </div>
-//       </div>
-//       <Footer />
-//     </>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import React, { useState, useEffect } from "react";
-import { updateUserProfile, getUserProfile, sendOtp, verifyOtp } from "../api/authApi";
+import { useState, useEffect } from "react";
+import {
+  getAccountDetails,
+  updateAccountDetails,
+  deleteAccount,
+  getDeliveryAddresses,
+  addDeliveryAddress,
+  updateDeliveryAddress,
+  deleteDeliveryAddress,
+  getProfileAvatar,
+  addProfileAvatar,
+  deleteProfileAvatar,
+} from "../api/settingsApi";
 
 export default function Profile() {
+  const [activeTab, setActiveTab] = useState("account");
+
+  // ----------------- ACCOUNT DETAILS -----------------
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
     email: "",
     phone: "",
-    password: "",
-    address: "",
-    gender: "",
     DOB: "",
-    photo: null,
+    gender: "",
   });
 
-  const [originalEmail, setOriginalEmail] = useState("");
-  const [otpModalVisible, setOtpModalVisible] = useState(false);
-  const [otp, setOtp] = useState("");
-
-  // Fetch profile data
   useEffect(() => {
-    const fetchProfile = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const response = await getUserProfile(token);
-        const data = response.data;
-
-        setFormData({
-          first_name: data.first_name || "",
-          last_name: data.last_name || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          password: "",
-          address: data.address || "",
-          gender: data.gender || "",
-          DOB: data.DOB || "",
-          photo: null,
-        });
-
-        setOriginalEmail(data.email || "");
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-    };
-    fetchProfile();
-  }, []);
+    if (activeTab === "account") {
+      getAccountDetails()
+        .then((data) => setFormData(data))
+        .catch((err) =>
+          alert(err.detail || "Failed to load account details")
+        );
+    }
+  }, [activeTab]);
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === "photo") {
-      setFormData({ ...formData, photo: files[0] });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleOtpChange = (e) => setOtp(e.target.value);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    try {
-      if (formData.email === originalEmail) {
-        // Email unchanged → update directly
-        const data = new FormData();
-        Object.keys(formData).forEach((key) => {
-          if (formData[key]) data.append(key, formData[key]);
-        });
-
-        const response = await updateUserProfile(data, token);
-        alert("Profile updated successfully!");
-        console.log("Updated Profile:", response.data);
-
-      } else {
-        // Email changed → show OTP modal
-        await sendOtp(formData.email);
-        setOtpModalVisible(true);
-      }
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      alert("Error: " + (error.response?.data?.detail || error.message));
-    }
+  const handleSave = () => {
+    updateAccountDetails(formData)
+      .then(() => alert("Account details updated successfully"))
+      .catch((err) => alert(err.detail || "Failed to update account"));
   };
 
-  const handleVerifyOtp = async () => {
-    const token = localStorage.getItem("token");
-    if (!otp) {
-      alert("Please enter the OTP.");
+  const handleDeleteAccount = () => {
+    if (!window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       return;
     }
 
-    try {
-      const verifyResponse = await verifyOtp(formData.email, otp);
-      if (verifyResponse.data.success) {
-        // OTP verified → update profile
-        const data = new FormData();
-        Object.keys(formData).forEach((key) => {
-          if (formData[key]) data.append(key, formData[key]);
-        });
+    deleteAccount()
+      .then(() => {
+        alert("Account deleted successfully");
+        localStorage.removeItem("token"); // clear session
+        window.location.href = "/login"; // redirect to login page
+      })
+      .catch((err) => alert(err.detail || "Failed to delete account"));
+  };
 
-        const response = await updateUserProfile(data, token);
-        alert("Profile updated successfully with new email!");
-        console.log("Updated Profile:", response.data);
-        setOriginalEmail(formData.email);
-        setOtp("");
-        setOtpModalVisible(false);
-      } else {
-        alert("OTP verification failed. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      alert("Error: " + (error.response?.data?.detail || error.message));
+
+
+  // ----------------- DELIVERY ADDRESSES -----------------
+  const [deliveryForm, setDeliveryForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
+    street_address: "",
+    city: "",
+    postcode: "",
+    state: "",
+    country: "",
+  });
+  const [addresses, setAddresses] = useState([]);
+  const [editId, setEditId] = useState(null);
+
+  useEffect(() => {
+    if (activeTab === "delivery") {
+      getDeliveryAddresses()
+        .then((data) => setAddresses(data))
+        .catch((err) =>
+          alert(err.detail || "Failed to load delivery addresses")
+        );
+    }
+  }, [activeTab]);
+
+  const handleDeliveryChange = (e) => {
+    const { name, value } = e.target;
+    setDeliveryForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveDelivery = () => {
+    if (editId) {
+      updateDeliveryAddress(editId, deliveryForm) // editId is address_id now
+        .then((updated) => {
+          setAddresses((prev) =>
+            prev.map((addr) => (addr.address_id === editId ? updated : addr))
+          );
+          resetForm();
+          alert("Address updated successfully");
+        })
+        .catch((err) => alert(err.detail || "Failed to update address"));
+    }
+    else {
+      addDeliveryAddress(deliveryForm)
+        .then((newAddr) => {
+          setAddresses((prev) => [...prev, newAddr]);
+          resetForm();
+          alert("Address added successfully");
+        })
+        .catch((err) => alert(err.detail || "Failed to add address"));
     }
   };
 
-  return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
-        <div className="bg-white w-full max-w-3xl p-8 rounded-2xl shadow-md">
-          <h2 className="text-3xl font-extrabold text-center mb-8 tracking-tight">
-            Profile Page
-          </h2>
+  const handleEditDelivery = (addr) => {
+    setDeliveryForm(addr);
+    setEditId(addr.address_id); // 👈 use address_id instead of id
+  };
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-  {/* Name Fields */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-      <label className="block text-sm font-medium mb-2">First Name</label>
-      <input
-        type="text"
-        name="first_name"
-        value={formData.first_name}
-        onChange={handleChange}
-        className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium mb-2">Last Name</label>
-      <input
-        type="text"
-        name="last_name"
-        value={formData.last_name}
-        onChange={handleChange}
-        className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-      />
-    </div>
-  </div>
+const handleDeleteDelivery = (address_id) => {
+  console.log("Deleting address_id:", address_id);
+  deleteDeliveryAddress(address_id)
+    .then(() => {
+      alert("Address deleted successfully");
+      setAddresses((prev) => prev.filter((a) => a.address_id !== address_id)); // update UI
+    })
+    .catch((err) => alert(err.detail || "Failed to delete address"));
+};
 
-  {/* Email */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Email</label>
-    <input
-      type="email"
-      name="email"
-      value={formData.email}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-    />
-  </div>
 
-  {/* Phone */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Phone</label>
-    <input
-      type="tel"
-      name="phone"
-      value={formData.phone}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-    />
-  </div>
 
-  {/* Date of Birth */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Date of Birth</label>
-    <input
-      type="date"
-      name="DOB"
-      value={formData.DOB}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-    />
-  </div>
+  const resetForm = () => {
+    setDeliveryForm({
+      first_name: "",
+      last_name: "",
+      phone: "",
+      street_address: "",
+      city: "",
+      postcode: "",
+      state: "",
+      country: "",
+    });
+    setEditId(null);
+  };
 
-  {/* Gender */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Gender</label>
-    <select
-      name="gender"
-      value={formData.gender}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-    >
-      <option value="">Select</option>
-      <option value="male">Male</option>
-      <option value="female">Female</option>
-      <option value="other">Other</option>
-    </select>
-  </div>
 
-  {/* Address */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Address</label>
-    <textarea
-      name="address"
-      value={formData.address}
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-black"
-    ></textarea>
-  </div>
+// ----------------- PROFILE AVATAR -----------------
+const [avatarUrl, setAvatarUrl] = useState(null);
+const [uploading, setUploading] = useState(false);
 
-  {/* Photo Upload */}
-  <div>
-    <label className="block text-sm font-medium mb-2">Profile Photo</label>
-    <input
-      type="file"
-      name="photo"
-      accept="image/*"
-      onChange={handleChange}
-      className="w-full border border-gray-300 rounded-md p-2"
-    />
-  </div>
+useEffect(() => {
+  if (activeTab === "visibility") {
+    getProfileAvatar()
+      .then((data) => setAvatarUrl(data.avatar_url))
+      .catch((err) => alert(err.detail || "Failed to load avatar"));
+  }
+}, [activeTab]);
 
-  {/* Submit */}
-  <div>
-    <button
-      type="submit"
-      className="w-full bg-black text-white py-3 rounded-lg hover:bg-gray-800 transition"
-    >
-      Update Profile
-    </button>
-  </div>
-</form>
+const handleAvatarUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-        </div>
-      </div>
+  setUploading(true);
+  try {
+    const res = await addProfileAvatar(file);
+    setAvatarUrl(res.avatar_url);
+    alert("Profile avatar uploaded successfully");
+  } catch (err) {
+    alert(err.detail || "Failed to upload avatar");
+  } finally {
+    setUploading(false);
+  }
+};
 
-      {/* OTP Modal */}
-      {otpModalVisible && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-80 shadow-lg">
-            <h3 className="text-xl font-semibold mb-4">Enter OTP</h3>
+const handleAvatarDelete = async () => {
+  if (!window.confirm("Are you sure you want to delete your avatar?")) return;
+
+  try {
+    await deleteProfileAvatar();
+    setAvatarUrl(null);
+    alert("Profile avatar deleted successfully");
+  } catch (err) {
+    alert(err.detail || "Failed to delete avatar");
+  }
+};
+
+
+  // ----------------- TABS -----------------
+  const tabs = [
+    {
+      id: "account",
+      title: "Account Details",
+      content: (
+        <div className="space-y-4 ">
+          <div className="grid grid-cols-2 gap-4">
             <input
-              type="text"
-              value={otp}
-              onChange={handleOtpChange}
-              className="w-full border border-gray-300 rounded-md p-3 mb-4 focus:ring-2 focus:ring-black"
-              placeholder="Enter OTP"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              placeholder="First Name"
+              className="border rounded-lg p-2 w-full"
             />
-            <div className="flex justify-end gap-2">
+            <input
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              placeholder="Last Name"
+              className="border rounded-lg p-2 w-full"
+            />
+          </div>
+
+          <input
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Email"
+            className="border rounded-lg p-2 w-full"
+          />
+          <input
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            placeholder="Phone"
+            className="border rounded-lg p-2 w-full"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="date"
+              name="DOB"
+              value={formData.DOB}
+              onChange={handleChange}
+              className="border rounded-lg p-2 w-full"
+            />
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="border rounded-lg p-2 w-full"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+            >
+              Delete Account
+            </button>
+          </div>
+        </div>
+      ),
+
+    },
+    {
+      id: "delivery",
+      title: "Delivery Addresses",
+      content: (
+        <div className="space-y-6">
+          {/* Add / Edit form */}
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              name="first_name"
+              placeholder="First Name"
+              value={deliveryForm.first_name}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+            <input
+              name="last_name"
+              placeholder="Last Name"
+              value={deliveryForm.last_name}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+            <input
+              name="phone"
+              placeholder="Phone"
+              value={deliveryForm.phone}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+              maxLength="10"
+            />
+            <input
+              name="street_address"
+              placeholder="Street Address"
+              value={deliveryForm.street_address}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2 col-span-2"
+            />
+            <input
+              name="city"
+              placeholder="City"
+              value={deliveryForm.city}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+            <input
+              name="postcode"
+              placeholder="Postcode"
+              value={deliveryForm.postcode}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+            <input
+              name="state"
+              placeholder="State"
+              value={deliveryForm.state}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+            <input
+              name="country"
+              placeholder="Country"
+              value={deliveryForm.country}
+              onChange={handleDeliveryChange}
+              className="border rounded-lg p-2"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveDelivery}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+            >
+              {editId ? "Update Address" : "Add Address"}
+            </button>
+            {editId && (
               <button
-                onClick={() => setOtpModalVisible(false)}
-                className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400"
+                onClick={resetForm}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleVerifyOtp}
-                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
-              >
-                Verify OTP
-              </button>
-            </div>
+            )}
+          </div>
+
+          {/* List of addresses */}
+          <div className="space-y-4 mt-6">
+            {addresses.map((address) => (
+              <div key={address.address_id} className="p-4 border rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="font-medium">
+                    {address.first_name} {address.last_name}
+                  </p>
+                  <p>{address.phone}</p>
+                  <p>
+                    {address.street_address}, {address.city}, {address.state} {address.postcode}
+                  </p>
+                  <p>{address.country}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditDelivery(address)}
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDelivery(address.address_id)} // 👈 fix here
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+
+            }
           </div>
         </div>
-      )}
+      ),
+    },
+    {
+  id: "visibility",
+  title: "Profile Visibility",
+  content: (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Profile Avatar</h2>
 
-      <Footer />
-    </>
+      {avatarUrl ? (
+        <div className="space-y-2">
+          <img
+            src={avatarUrl}
+            alt="Profile Avatar"
+            className="w-32 h-32 rounded-full object-cover border"
+          />
+          <div className="flex gap-2">
+            <label className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
+              Change Avatar
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+            </label>
+            <button
+              onClick={handleAvatarDelete}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-700"
+            >
+              Delete Avatar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="text-gray-600 mb-2">No avatar uploaded</p>
+          <label className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
+            Upload Avatar
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+              disabled={uploading}
+            />
+          </label>
+        </div>
+      )}
+    </div>
+  ),
+}
+
+  ];
+
+  // ----------------- LAYOUT -----------------
+  return (
+    <div className="flex">
+      {/* Sidebar */}
+      <div className="w-1/4 border-r p-4 space-y-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`w-full text-left p-2 rounded-lg ${
+              activeTab === tab.id ? "bg-black text-white" : "hover:bg-gray-700 hover:text-white"
+            }`}
+          >
+            {tab.title}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="w-3/4 p-6">{tabs.find((t) => t.id === activeTab)?.content}</div>
+    </div>
   );
 }

@@ -89,15 +89,15 @@ export const getUserProfile = async (token) => {
 
 
 
-export const updateUserProfile = async (data) => {
-  const token = localStorage.getItem("token"); // get token after login
-  return axios.put(`${BASE_URL}/user/profile`, data, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-};
+// export const updateUserProfile = async (data) => {
+//   const token = localStorage.getItem("token"); // get token after login
+//   return axios.put(`${BASE_URL}/user/profile`, data, {
+//     headers: {
+//       "Content-Type": "multipart/form-data",
+//       Authorization: `Bearer ${token}`,
+//     },
+//   });
+// };
 
 
 // ✅ Reset Password API

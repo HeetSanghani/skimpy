@@ -21,6 +21,7 @@ class UserRegisterSchema(BaseModel):
         regex=r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*$"
     )
     confirm_password: str
+    role: UserRole = UserRole.user 
 
     @validator("confirm_password")
     def passwords_match(cls, v, values):
