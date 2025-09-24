@@ -4,7 +4,7 @@ from datetime import datetime,date
 from fastapi import HTTPException
 from app.db.mongodb import user_collection, delivery_addresses_collection
 from app.schemas.user import GetUserDetails
-import os
+import os, uuid
 from dotenv import load_dotenv
 load_dotenv()
 import requests, shutil
@@ -89,6 +89,7 @@ def delete_user_logic(current_user: dict):
 
     return {"status": True, "message": "User, avatar, addresses, OTPs, and all related data deleted successfully"}
 
+
 def add_delivery_address_logic(request, current_user):
     try:
         # Get user_id from token/session
@@ -97,24 +98,27 @@ def add_delivery_address_logic(request, current_user):
             raise ValueError("Invalid user data")
 
         user_data = request.dict()
-        user_data["user_id"] =user_id  # foreign key reference
+        user_data["user_id"] = user_id  # foreign key reference
+
+        # Generate unique custom address id
+        address_id = f"ADDR-{uuid.uuid4().hex[:8].upper()}"
+        user_data["address_id"] = address_id  
 
         result = delivery_addresses_collection.insert_one(user_data)
 
         return {
             "status": "success",
-            "address_id": str(result.inserted_id),
+            "address_id": address_id,
             "message": "Delivery address added successfully"
         }
 
     except ValueError as ve:
         return {"status": "error", "message": str(ve)}
-
     except PyMongoError as pe:
         return {"status": "error", "message": f"Database error: {str(pe)}"}
-
     except Exception as e:
         return {"status": "error", "message": f"Unexpected error: {str(e)}"}
+
 
 
 def update_delivery_address_logic(address_id, request, current_user):
@@ -127,9 +131,9 @@ def update_delivery_address_logic(address_id, request, current_user):
         updated_data = request.dict()
         updated_data["user_id"] = user_id  # ensure only owner can update
 
-        # Update the address
+        # Update the address using custom address_id
         result = delivery_addresses_collection.update_one(
-            {"_id": ObjectId(address_id), "user_id": user_id},  # filter by address & user
+            {"address_id": address_id, "user_id": user_id},  # filter by custom id & user
             {"$set": updated_data}
         )
 
@@ -137,7 +141,9 @@ def update_delivery_address_logic(address_id, request, current_user):
             raise HTTPException(status_code=404, detail="Address not found or not owned by user")
 
         # Fetch updated document
-        updated_address = delivery_addresses_collection.find_one({"_id": ObjectId(address_id)})
+        updated_address = delivery_addresses_collection.find_one(
+            {"address_id": address_id, "user_id": user_id}
+        )
 
         # Convert ObjectId to string for response
         updated_address["_id"] = str(updated_address["_id"])
@@ -145,6 +151,7 @@ def update_delivery_address_logic(address_id, request, current_user):
         return {
             "status": "success",
             "message": "Delivery address updated successfully",
+            "address_id": updated_address["address_id"],  # return custom id
         }
 
     except PyMongoError as pe:
@@ -152,6 +159,7 @@ def update_delivery_address_logic(address_id, request, current_user):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
     
 def get_delivery_address_logic(current_user):
     user_id = current_user.get("user_id")
@@ -177,9 +185,9 @@ def delete_delivery_address_logic(address_id, current_user):
         raise HTTPException(status_code=400, detail="Invalid user data")
 
     try:
-        # Ensure only the user's own address is deleted
+        # Ensure only the user's own address is deleted using custom address_id
         result = delivery_addresses_collection.delete_one({
-            "_id": ObjectId(address_id),
+            "address_id": address_id,  # use custom address_id
             "user_id": user_id
         })
 
@@ -188,9 +196,12 @@ def delete_delivery_address_logic(address_id, current_user):
 
         return {"status": "success", "message": "Address deleted successfully"}
 
+    except PyMongoError as pe:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(pe)}")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-    
+
     
     
 async def add_profile_avatar_logic(avatar,current_user):

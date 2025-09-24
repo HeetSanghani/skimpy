@@ -75,5 +75,6 @@ class AddDeliveryAddress(BaseModel):
     state: str
     country: str
 class GetDeliveryAddress(AddDeliveryAddress):
+    address_id: str
     pass
     
