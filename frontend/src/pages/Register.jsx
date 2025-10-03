@@ -1,6 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { sendOtp, verifyOtp, registerUser } from "../api/authApi";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  sendOtpThunk,
+  verifyOtpThunk,
+  registerThunk,
+  resetOtpFlow,
+} from "../features/auth/authSlice";
 
 const userRoles = ["user", "seller", "admin"];
 
@@ -13,58 +19,51 @@ export default function Register() {
     confirmPassword: "",
     role: "",
   });
-
-  const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const { loading, error, otpSent, otpVerified } = useSelector((state) => state.auth);
 
-  const handleRegisterClick = async (e) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-    try {
-      setLoading(true);
-      await sendOtp(formData.email);
-      setShowOtpModal(true); // open OTP modal
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    try {
-      setLoading(true);
-      const res = await verifyOtp(formData.email, otp);
-      if (res.data.success) {
-        await registerUser({
+  useEffect(() => {
+    if (otpVerified) {
+      // Once OTP is verified, proceed with registration
+      dispatch(
+        registerThunk({
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
           password: formData.password,
           confirm_password: formData.confirmPassword,
           role: formData.role,
-        });
-        alert("Account created successfully!");
-        setShowOtpModal(false);
-        navigate("/login");
-      } else {
-        alert(res.data.message || "Invalid OTP");
-      }
-    } catch (err) {
-      alert(err.response?.data?.detail || "OTP verification failed");
-    } finally {
-      setLoading(false);
+        })
+      ).then((res) => {
+        if (registerThunk.fulfilled.match(res)) {
+          alert("Account created successfully!");
+          dispatch(resetOtpFlow());
+          navigate("/login");
+        }
+      });
     }
+  }, [otpVerified]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegisterClick = (e) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+    dispatch(sendOtpThunk(formData.email));
+  };
+
+  const handleVerifyOtp = () => {
+    dispatch(verifyOtpThunk({ email: formData.email, otp }));
   };
 
   return (
@@ -78,11 +77,10 @@ export default function Register() {
           </p>
 
           <form onSubmit={handleRegisterClick} className="space-y-4">
+            {/* Names */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  First Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700">First Name</label>
                 <input
                   type="text"
                   name="firstName"
@@ -93,9 +91,7 @@ export default function Register() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Last Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Last Name</label>
                 <input
                   type="text"
                   name="lastName"
@@ -107,10 +103,9 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Email Address
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Email Address</label>
               <input
                 type="email"
                 name="email"
@@ -121,10 +116,9 @@ export default function Register() {
               />
             </div>
 
+            {/* Passwords */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
                 name="password"
@@ -134,11 +128,8 @@ export default function Register() {
                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
               <input
                 type="password"
                 name="confirmPassword"
@@ -149,11 +140,9 @@ export default function Register() {
               />
             </div>
 
-             {/* Role Selection */}
+            {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Role
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Role</label>
               <select
                 name="role"
                 value={formData.role}
@@ -170,6 +159,10 @@ export default function Register() {
               </select>
             </div>
 
+            {/* Error */}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -189,13 +182,11 @@ export default function Register() {
       </div>
 
       {/* OTP Modal */}
-      {showOtpModal && (
+      {otpSent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-80">
             <h3 className="text-xl font-semibold mb-4">Verify Email</h3>
-            <p className="mb-2 text-sm">
-              Enter the 6-digit OTP sent to your email.
-            </p>
+            <p className="mb-2 text-sm">Enter the 6-digit OTP sent to your email.</p>
             <input
               type="text"
               maxLength="6"
