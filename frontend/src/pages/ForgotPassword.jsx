@@ -1,12 +1,16 @@
+
 import React, { useState } from "react";
-import { sendOtp, forgotPassword } from "../api/authApi"; // ✅ removed verifyOtp
+import { useDispatch, useSelector } from "react-redux";
+import { sendOtpThunk, forgotPasswordThunk } from "../features/auth/authSlice";
 
 export default function ForgotPassword() {
+  const dispatch = useDispatch();
+  const { loading, error } = useSelector((state) => state.auth);
+
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   // ✅ Send OTP
@@ -16,14 +20,15 @@ export default function ForgotPassword() {
       return;
     }
     try {
-      setLoading(true);
-      await sendOtp(email);
-      setShowModal(true); 
-      alert("OTP sent to your email!");
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to send OTP");
-    } finally {
-      setLoading(false);
+      const resultAction = await dispatch(sendOtpThunk(email));
+      if (sendOtpThunk.fulfilled.match(resultAction)) {
+        setShowModal(true);
+        alert("OTP sent to your email!");
+      } else {
+        alert(resultAction.payload || "Failed to send OTP");
+      }
+    } catch {
+      alert("Unexpected error while sending OTP");
     }
   };
 
@@ -39,24 +44,27 @@ export default function ForgotPassword() {
     }
 
     try {
-      setLoading(true);
-      const res = await forgotPassword({
-        email,
-        otp,
-        new_password: newPassword,
-        confirm_password: confirmPassword,
-      });
-    //   alert(res.message); // ✅ shows backend success message
-      // reset states
-      setShowModal(false);
-      setOtp("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setEmail("");
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to update password");
-    } finally {
-      setLoading(false);
+      const resultAction = await dispatch(
+        forgotPasswordThunk({
+          email,
+          otp,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        })
+      );
+
+      if (forgotPasswordThunk.fulfilled.match(resultAction)) {
+        alert("Password updated successfully!");
+        setShowModal(false);
+        setOtp("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setEmail("");
+      } else {
+        alert(resultAction.payload || "Failed to update password");
+      }
+    } catch {
+      alert("Unexpected error while resetting password");
     }
   };
 
@@ -67,6 +75,7 @@ export default function ForgotPassword() {
         <p className="text-sm text-gray-600 text-center">
           Enter your email to receive an OTP and reset your password.
         </p>
+
         {/* Email + Send OTP */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -89,6 +98,7 @@ export default function ForgotPassword() {
               {loading ? "Sending..." : "Send OTP"}
             </button>
           </div>
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </div>
       </div>
 
@@ -99,9 +109,7 @@ export default function ForgotPassword() {
             <h3 className="text-xl font-semibold text-center">Reset Password</h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                OTP
-              </label>
+              <label className="block text-sm font-medium text-gray-700">OTP</label>
               <input
                 type="text"
                 maxLength="6"

@@ -1,76 +1,62 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Search } from "lucide-react"; // 👉 icon (install lucide-react if not already)
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import defaultAvatar from "../assets/default-avatar.png";
+import { fetchAvatar } from "../features/settings/settingsSlice";
 
-function Navbar() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const navigate = useNavigate();
+export default function Navbar() {
+  const dispatch = useDispatch();
+  const { token } = useSelector((state) => state.auth);
+  const { avatarUrl } = useSelector((state) => state.settings);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log("Searching for:", searchTerm);
-    // navigate(`/search?query=${encodeURIComponent(searchTerm)}`);
-  };
+  // Fetch avatar when navbar loads (only if logged in)
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchAvatar());
+    }
+  }, [token, dispatch]);
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        {/* 🟢 Left: Logo */}
-        <Link
-          to="/"
-          className="text-2xl font-extrabold tracking-wide text-black hover:text-gray-700"
-        >
-          SKIMPY
-        </Link>
+    <nav className="bg-white shadow p-4 flex items-center justify-between">
+      {/* Logo */}
+      <Link to="/" className="font-bold text-xl">
+        SKIMPY
+      </Link>
 
-        {/* 🔍 Middle: Search Bar */}
-        <form
-          onSubmit={handleSearch}
-          className="hidden md:flex items-center w-full max-w-md mx-6 bg-gray-100 rounded-full px-4"
-        >
-          <input
-            type="text"
-            placeholder="Search products"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-grow bg-gray-100 border-none focus:ring-0 text-sm py-2 px-2 placeholder-gray-500 outline-none"
-          />
-          <button
-            type="submit"
-            className="p-2 text-gray-600 hover:text-black transition-colors"
-            aria-label="Search"
-          >
-            <Search size={20} />
-          </button>
-        </form>
+      {/* Search Bar */}
+      <div className="flex-1 mx-4">
+        <input
+          type="text"
+          placeholder="Search products"
+          className="w-full border rounded-lg p-2"
+        />
+      </div>
 
-        {/* 🔵 Right: Nav Links */}
-        <div className="flex items-center space-x-6 text-sm font-medium">
-          <Link to="/" className="hover:text-gray-700">
-            Home
+      {/* Navigation Links */}
+      <div className="flex items-center gap-4">
+        <Link to="/" className="hover:underline">Home</Link>
+        <Link to="/about" className="hover:underline">About</Link>
+        <Link to="/contact" className="hover:underline">Contact</Link>
+        <Link to="/cart" className="hover:underline">Cart</Link>
+
+        {/* Profile / Login */}
+        {token ? (
+          <Link to="/profile">
+            <img
+              src={avatarUrl || defaultAvatar}
+              alt="User Avatar"
+              className="w-10 h-10 rounded-full object-cover border"
+            />
           </Link>
-          <Link to="/about" className="hover:text-gray-700">
-            About
-          </Link>
-          <Link to="/contact" className="hover:text-gray-700">
-            Contact
-          </Link>
-          <Link to="/cart" className="hover:text-gray-700">
-            Cart
-          </Link>
-          <Link to="/profile" className="hover:text-gray-700">
-            Profile
-          </Link>
+        ) : (
           <Link
             to="/login"
-            className="bg-black text-white px-4 py-1.5 rounded-full hover:bg-gray-900 transition-colors"
+            className="px-4 py-2 bg-black text-white rounded-full"
           >
             Login
           </Link>
-        </div>
+        )}
       </div>
     </nav>
   );
 }
-
-export default Navbar;
