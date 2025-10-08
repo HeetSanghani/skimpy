@@ -1,6 +1,5 @@
 
-from pymongo.mongo_client import MongoClient
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 
@@ -28,7 +27,7 @@ MONGO_URL = os.getenv("MONGO_URL")
 if not MONGO_URL:
     raise ValueError("MONGO_URL not set in .env file")
 
-cate_client = AsyncIOMotorClient(MONGO_URL)
+cate_client = MongoClient(MONGO_URL)
 cate_db = cate_client["cate"]
 
 category_collection = cate_db["categories"]
