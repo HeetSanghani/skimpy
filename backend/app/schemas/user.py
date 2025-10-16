@@ -44,8 +44,9 @@ class GetUserDetails(CustomBaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    phone: constr(regex=r"^\d{10}$")
-    DOB: Optional[date] = ""
+    # Phone and DOB can be absent; validate only when provided
+    phone: Optional[constr(regex=r"^\d{10}$")] = None
+    DOB: Optional[date] = None
     gender: Optional[Gender] = None
     
     

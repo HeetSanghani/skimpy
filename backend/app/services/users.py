@@ -22,17 +22,33 @@ def get_account_details_logic(current_user: dict):
     user = user_collection.find_one({"email": email})
 
     if not user:
-        # If no user found, return empty profile
-        return GetUserDetails()
+        # If no user found, return empty profile with required fields blank
+        return GetUserDetails(
+            first_name="",
+            last_name="",
+            email=current_user.get("email", "")
+        )
+
+    # Normalize optional fields so validation doesn't fail
+    raw_phone = user.get("phone")
+    phone = raw_phone if isinstance(raw_phone, str) and raw_phone.strip() else None
+
+    raw_dob = user.get("DOB")
+    if isinstance(raw_dob, datetime):
+        DOB = raw_dob.date()
+    elif isinstance(raw_dob, date):
+        DOB = raw_dob
+    else:
+        # treat empty string or invalid formats as None for response
+        DOB = None
 
     profile = GetUserDetails(
         first_name=user.get("first_name", ""),
         last_name=user.get("last_name", ""),
         email=user.get("email", ""),
-        phone=user.get("phone", ""),
+        phone=phone,
         gender=user.get("gender"),
-        DOB=user.get("DOB", "") 
-
+        DOB=DOB
     )
 
     return profile
