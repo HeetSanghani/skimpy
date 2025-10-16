@@ -98,3 +98,19 @@ pnpm-lock.yaml
 
 # Docker
 docker-compose.override.yml
+
+
+# Personal Use for Run The Code!
+
+# Frontend=>
+
+#    cd Frontend
+#    npm update
+#    npm run dev
+
+# Backend=>
+    source venv/bin/activate
+    pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+    pip install requests
+    uvicorn app.main:app --reload
