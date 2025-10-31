@@ -11,8 +11,6 @@ class VendorBase(BaseModel):
     address: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None  
-    parent_id: Optional[str] = None
-
 class VendorCreate(VendorBase):
     pass
 
