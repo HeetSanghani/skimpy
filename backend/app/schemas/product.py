@@ -20,6 +20,7 @@ class ProductBase(BaseModel):
     price: float
     stock: int
     product_condition: ProductCondition = ProductCondition.NEW
+    brand: Optional[str] = None
     images: Optional[List[str]] = []  # supports multiple images
     category_id: Optional[str] = None
     vendor_id: Optional[str] = None

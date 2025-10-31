@@ -48,7 +48,8 @@ def get_account_details_logic(current_user: dict):
         email=user.get("email", ""),
         phone=phone,
         gender=user.get("gender"),
-        DOB=DOB
+        DOB=DOB,
+        role = user.get("role","")
     )
 
     return profile

@@ -114,3 +114,4 @@ docker-compose.override.yml
     pip install -r requirements.txt
     pip install requests
     uvicorn app.main:app --reload
+.pyc

@@ -127,3 +127,137 @@ export const deleteProfileAvatar = async () => {
   });
   return res.data;
 };
+
+
+
+export const fetchAllCategories = async () => {
+  try {
+    console.log("🟢 Calling GET /Category API...");
+    const res = await axios.get(`${BASE_URL}/Category`, {
+      params: { parent_only: false },
+    });
+    console.log("✅ Response from /Category:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching categories:", error.response?.data || error);
+    throw error; // ❗ throw so that Redux knows it's failed
+  }
+};
+
+// ✅ Get subcategories by parent category id (includes recursive children per backend)
+export const fetchSubcategoriesByParentId = async (parentId) => {
+  try {
+    if (!parentId) throw new Error("parentId is required");
+    const res = await axios.get(`${BASE_URL}/Category/`, {
+      params: { category_id: parentId },
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching subcategories:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ----------------- PRODUCT APIS -----------------
+
+// ✅ Create Product
+export const createProduct = async (formData) => {
+  try {
+    const res = await axios.post(`${BASE_URL}/Product`, formData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error creating product:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Get all products
+export const fetchAllProducts = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/Product/`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching products:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Get single product
+export const fetchProductById = async (productId) => {
+  try {
+    const res = await axios.get(`${BASE_URL}/Product/${productId}`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching product:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Update product
+export const updateProduct = async (productId, formData) => {
+  try {
+    const res = await axios.put(`${BASE_URL}/Product/${productId}`, formData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error updating product:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Delete product
+export const deleteProduct = async (productId) => {
+  try {
+    const res = await axios.delete(`${BASE_URL}/Product/${productId}`, {
+      headers: getAuthHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error deleting product:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ----------------- ATTRIBUTE APIS -----------------
+
+// ✅ Get all attributes with their values
+export const fetchAllAttributes = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/Attribute/`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching attributes:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Get all attribute values
+export const fetchAllAttributeValues = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/AttributeValue/`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching attribute values:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Get attributes with their values
+export const fetchAttributesWithValues = async () => {
+  try {
+    const res = await axios.get(`${BASE_URL}/AttributeValue/with_attributes/all`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching attributes with values:", error.response?.data || error);
+    throw error;
+  }
+};

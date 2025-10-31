@@ -48,6 +48,7 @@ class GetUserDetails(CustomBaseModel):
     phone: Optional[constr(regex=r"^\d{10}$")] = None
     DOB: Optional[date] = None
     gender: Optional[Gender] = None
+    role: str
     
     
     

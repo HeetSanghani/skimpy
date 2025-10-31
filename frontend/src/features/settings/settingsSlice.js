@@ -10,6 +10,7 @@ import {
   getProfileAvatar,
   addProfileAvatar,
   deleteProfileAvatar,
+  fetchAllCategories,
 } from "../../api/settingsApi";
 
 /* ---------------- ACCOUNT ---------------- */
@@ -129,6 +130,30 @@ export const removeAvatar = createAsyncThunk(
   }
 );
 
+export const fetchCategories = createAsyncThunk(
+  "settings/fetchCategories",
+  async (_, { rejectWithValue }) => {
+    try {
+      return await fetchAllCategories();
+    } catch (err) {
+      return rejectWithValue(err.detail || "Failed to load categories");
+    }
+  }
+);
+
+// ✅ New: fetch subcategories by parent id
+import { fetchSubcategoriesByParentId } from "../../api/settingsApi";
+export const fetchSubcategories = createAsyncThunk(
+  "settings/fetchSubcategories",
+  async (parentId, { rejectWithValue }) => {
+    try {
+      return await fetchSubcategoriesByParentId(parentId);
+    } catch (err) {
+      return rejectWithValue(err.detail || "Failed to load subcategories");
+    }
+  }
+);
+
 /* ---------------- SLICE ---------------- */
 const settingsSlice = createSlice({
   name: "settings",
@@ -136,6 +161,8 @@ const settingsSlice = createSlice({
     account: null,
     addresses: [],
     avatarUrl: null,
+    categories: [],
+    subcategories: [],
     loading: false,
     error: null,
   },
@@ -144,6 +171,8 @@ const settingsSlice = createSlice({
       state.account = null;
       state.addresses = [];
       state.avatarUrl = null;
+      state.categories = [];
+      state.subcategories = [];
       state.error = null;
       state.loading = false;
     },
@@ -190,6 +219,16 @@ const settingsSlice = createSlice({
       })
       .addCase(removeAvatar.fulfilled, (state) => {
         state.avatarUrl = null;
+      })
+
+      /* Categories */
+      .addCase(fetchCategories.fulfilled, (state, action) => {
+        console.log("✅ Redux: categories updated:", action.payload);
+        state.categories = action.payload;
+      })
+      /* Subcategories */
+      .addCase(fetchSubcategories.fulfilled, (state, action) => {
+        state.subcategories = action.payload;
       })
 
       /* handle pending/error */
