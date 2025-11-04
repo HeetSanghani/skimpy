@@ -49,7 +49,9 @@ def get_account_details_logic(current_user: dict):
         phone=phone,
         gender=user.get("gender"),
         DOB=DOB,
-        role = user.get("role","")
+        role = user.get("role",""),
+        store_name=user.get("store_name", ""),
+        store_description=user.get("store_description", "")
     )
 
     return profile

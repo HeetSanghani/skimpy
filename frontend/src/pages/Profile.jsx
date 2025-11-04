@@ -16,7 +16,8 @@ import {
 import { sendOtpThunk, verifyOtpThunk } from "../features/auth/authSlice";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { createVendor, getVendorByUserId, updateVendor } from "../api/vendorApi";
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState("account");
@@ -46,9 +47,12 @@ export default function Profile() {
   const [otp, setOtp] = useState("");
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [storeName, setStoreName] = useState("");
+  const [storeDescription, setStoreDescription] = useState("");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { account, addresses, avatarUrl, categories, loading, error } =
     useSelector((state) => state.settings);
 
@@ -56,27 +60,29 @@ export default function Profile() {
 
   /* ---------------- Load data on tab change ---------------- */
   useEffect(() => {
+    // Support deep-linking to a specific tab (sell removed)
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["account", "delivery", "visibility"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
     if (activeTab === "account") {
       dispatch(fetchAccountDetails()).then((res) => {
         if (fetchAccountDetails.fulfilled.match(res)) {
           setFormData(res.payload);
           setOriginalEmail(res.payload.email);
+          // preload seller store fields if present
+          if (res.payload?.store_name) setStoreName(res.payload.store_name);
+          if (res.payload?.store_description) setStoreDescription(res.payload.store_description);
         }
       });
     } else if (activeTab === "delivery") {
       dispatch(fetchAddresses());
     } else if (activeTab === "visibility") {
       dispatch(fetchAvatar());
-    } else if (activeTab === "sell") {
-      console.log("🟢 Entered SELL tab — dispatching fetchCategories()");
-      dispatch(fetchCategories())
-        .unwrap()
-        .then((data) => {
-          console.log("✅ Categories fetched successfully:", data);
-        })
-        .catch((err) => {
-          console.error("❌ Failed to fetch categories:", err);
-        });
     }
   }, [activeTab, dispatch]);
 
@@ -93,11 +99,41 @@ export default function Profile() {
         }
       });
     } else {
-      dispatch(saveAccountDetails(formData)).then((res) => {
+      const payload =
+        account?.role === "seller"
+          ? { ...formData, store_name: storeName, store_description: storeDescription }
+          : formData;
+      dispatch(saveAccountDetails(payload)).then(async (res) => {
         if (saveAccountDetails.fulfilled.match(res)) {
           alert("Account updated successfully");
           setOriginalEmail(formData.email);
           setIsEditingEmail(false);
+
+          // If seller, persist store info to vendor API (update or create)
+          try {
+            if ((account?.role === "seller") && (storeName || storeDescription)) {
+              const userId = account?.user_id || account?._id || account?.id || "";
+              const vendor = await getVendorByUserId(userId);
+              if (vendor && vendor._id) {
+                // Already exists, update
+                await updateVendor({
+                  vendor_id: vendor._id,
+                  user_id: userId,
+                  shop_name: storeName,
+                  address: storeDescription,
+                });
+              } else {
+                // Create new
+                await createVendor({
+                  user_id: userId,
+                  shop_name: storeName,
+                  address: storeDescription,
+                });
+              }
+            }
+          } catch(e) {
+            console.error("Failed to save/update vendor info.", e);
+          }
         }
       });
     }
@@ -221,6 +257,26 @@ export default function Profile() {
               className="border rounded-lg p-2"
             />
           </div>
+
+          {/* Seller-only store fields */}
+          {account?.role === "seller" && (
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                name="store_name"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Store Name"
+                className="border rounded-lg p-2"
+              />
+              <input
+                name="store_description"
+                value={storeDescription}
+                onChange={(e) => setStoreDescription(e.target.value)}
+                placeholder="Store Description"
+                className="border rounded-lg p-2"
+              />
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <input
@@ -491,45 +547,7 @@ export default function Profile() {
       ),
     },
 
-    // ✅ SELL TAB (fully working with image cards)
-    {
-      id: "sell",
-      title: "Sell",
-      content: (
-        <div className="p-4">
-          <h1 className="text-2xl font-bold mb-6">Sell Items</h1>
-
-          {loading ? (
-            <p>Loading categories...</p>
-          ) : categories?.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-              {categories.map((cat) => (
-                <div
-                  key={cat._id || cat.id}
-                  className="border rounded-lg p-4 flex flex-col items-center hover:shadow-lg transition cursor-pointer"
-                  onClick={() => navigate(`/category/${cat._id || cat.id}`)}
-                >
-                  <img
-                    src={
-                      cat.image
-                        ? `http://127.0.0.1:8000/${cat.image}`
-                        : "https://via.placeholder.com/100x100?text=No+Image"
-                    }
-                    alt={cat.category_name}
-                    className="w-24 h-24 object-cover rounded mb-3"
-                  />
-                  <p className="capitalize font-medium">
-                    {cat.category_name}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 mt-4">No categories found.</p>
-          )}
-        </div>
-      ),
-    },
+    // Sell tab removed
   ];
 
   return (
@@ -549,6 +567,15 @@ export default function Profile() {
               {tab.title}
             </button>
           ))}
+
+          {account?.role === "seller" && (
+            <button
+              onClick={() => navigate("/seller/dashboard")}
+              className="block w-full text-left p-2 rounded hover:bg-gray-200"
+            >
+              Seller Dashboard
+            </button>
+          )}
 
           <button
             onClick={() => {
