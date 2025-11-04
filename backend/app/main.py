@@ -8,7 +8,9 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",  # Vite default
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -16,7 +18,6 @@ app.add_middleware(
     allow_methods=["*"],   # allow all HTTP methods
     allow_headers=["*"],   # allow all headers
 )
-
 
 app.include_router(auth.router) 
 app.include_router(users.router) 

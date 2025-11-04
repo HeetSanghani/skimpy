@@ -487,6 +487,7 @@ export default function Profile() {
   return (
     <>
       <Navbar />
+     
       <div className="flex">
         {/* Sidebar */}
         {/* Sidebar */}

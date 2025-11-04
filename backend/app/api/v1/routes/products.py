@@ -183,3 +183,6 @@ def delete_product(category_id: str, product_id: str, current_user: dict = Depen
         raise HTTPException(status_code=404, detail="Product not found")
     
     return {"message": "Product deleted successfully"}
+
+
+

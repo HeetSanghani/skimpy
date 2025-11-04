@@ -1,4 +1,5 @@
 import Navbar from '../components/Navbar';
+import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
 
 
@@ -6,6 +7,7 @@ export default function Home() {
     return (
         <>
           <Navbar />
+          <CateNavbar/>
         <div className="flex flex-col min-h-screen bg-gray-50">
            
 

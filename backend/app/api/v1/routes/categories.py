@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException,File, UploadFile, Form, Query,Depends
+from fastapi import APIRouter, HTTPException,File, UploadFile, Form, Query, Depends
 from bson import ObjectId
 from typing import List, Optional, Union
 from datetime import datetime
@@ -7,6 +7,7 @@ from ....schemas.category import CategoryResponse
 from ....utils.slug import simple_slugify, generate_unique_slug, delete_category_and_children  
 import os, shutil
 from app.core.security import get_current_user 
+
 
 router = APIRouter(prefix="/Category", tags=["Categories"])
 
@@ -81,6 +82,8 @@ def create_category(category_name: str = Form(""),
 
 
 # ------------------- Get -------------------
+
+
 
 @router.get("", response_model=List[CategoryResponse])
 def list_categories(parent_only: Optional[bool] = None):
@@ -219,18 +222,16 @@ def delete_category(category_id: str, current_user: dict = Depends(get_current_u
 
 
 
-# @router.delete("/{category_id}", response_model=dict)
-# def delete_category(category_id: str):
-#     try:
-#         category_id = ObjectId(category_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid category id")
 
-#     result = cate_db.categories.delete_one({"_id": category_id})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Category not found")
+#---------delete all categories--------------------------
+@router.delete("/categories", response_model=dict)
+def delete_all_categories():
+    result = cate_db.categories.delete_many({})  # Deletes all documents in the categories collection
+    return {
+        "deleted_count": result.deleted_count,
+        "message": "All categories have been deleted"
+    }
 
-#     return {"message": "Category deleted successfully"}
 
 
 
@@ -239,13 +240,6 @@ def delete_category(category_id: str, current_user: dict = Depends(get_current_u
 
 
 
-# @router.delete("/vendors", response_model=dict)
-# def delete_all_vendors():
-#     result = cate_db.vendors.delete_many({})  # Deletes all documents in the vendors collection
-#     return {
-#         "deleted_count": result.deleted_count,
-#         "message": "All vendors have been deleted"
-#     }
 
 
 
@@ -258,284 +252,3 @@ def delete_category(category_id: str, current_user: dict = Depends(get_current_u
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
-# # ------------------- Subcategory -------------------
-
-# #---------------- add -----------------------
-# @router.post("/categories/{cate_id}/subcategories", response_model=SubcategoryResponse)
-# def create_subcategory(cate_id: str, subcat: SubcategoryBase):
-#     try:
-#         cate_id = ObjectId(cate_id) 
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid category id")
-
-    
-#     parent_category = cate_db.categories.find_one({"_id": cate_id})
-#     if not parent_category:
-#         raise HTTPException(status_code=404, detail="Category not found")
-
-#     subcat_dict = subcat.dict(exclude={"slug"})
-#     subcat_dict["slug"] = generate_unique_slug(simple_slugify(subcat_dict["subcate_name"]), cate_db.subcategories)
-
-#     subcat_dict["cate_id"] = cate_id  
-#     result = cate_db.subcategories.insert_one(subcat_dict)
-
-#     new_subcat = cate_db.subcategories.find_one({"_id": result.inserted_id})
-#     return objectid_str(new_subcat)
-
-
-# # ------------------- Get -------------------
-# @router.get("/subcategories/", response_model=List[SubcategoryResponse])
-# def list_subcategories():
-#     subcate_list = []
-#     for subcat in cate_db.subcategories.find():
-#         subcate_list.append(objectid_str(subcat))
-#     return subcate_list
-
-# # ------------------- Update Subcategory -------------------
-# @router.put("/categories/{cate_id}/subcategories/{subcat_id}", response_model=SubcategoryResponse)
-# def update_subcategory(cate_id: str, subcat_id: str, subcat: SubcategoryBase):
-#     try:
-#         cate_id = ObjectId(cate_id)
-#         subcat_id = ObjectId(subcat_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.subcategories.update_one(
-#         {"_id": subcat_id, "cate_id": cate_id},
-#         {"$set": subcat.dict()}
-#     )
-#     if result.matched_count == 0:
-#         raise HTTPException(status_code=404, detail="Subcategory not found")
-
-#     updated = cate_db.subcategories.find_one({"_id": subcat_id})
-#     return objectid_str(updated)
-
-
-# # ------------------- Delete Subcategory -------------------
-# @router.delete("/categories/{cate_id}/subcategories/{subcat_id}", response_model=dict)
-# def delete_subcategory(cate_id: str, subcat_id: str):
-#     try:
-#         cate_id = ObjectId(cate_id)
-#         subcat_id = ObjectId(subcat_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.subcategories.delete_one({"_id": subcat_id, "cate_id": cate_id})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Subcategory not found")
-
-#     return {"message": "Subcategory deleted successfully"}
-
-
-
-# #---------------- add ---------------
-# @router.post("/categories/{cate_id}/vendors", response_model=VendorResponse)
-# def create_vendor(cate_id: str, vendor: VendorBase ):
-#     # print(f"______________________________174: {subcate_id} {type(subcate_id)}")
-#     try:
-#         cate_id = ObjectId(cate_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid cate_id")
-    
-#     parent_subcategory = cate_db.subcategories.find_one({"_id": cate_id}) 
-#     if not parent_subcategory:
-#         raise HTTPException(status_code=404, detail="Subcategory not found")
-
-#     vendor_dict = vendor.dict(exclude={"slug"})
-#     vendor_dict["slug"] = generate_unique_slug(simple_slugify(vendor_dict["vendor_name"]), cate_db.vendors)
-
-#     vendor_dict["subcate_id"] = cate_id 
-#     print(cate_id)
-
-#     result = cate_db.vendors.insert_one(vendor_dict)
-#     new_vendor = cate_db.vendors.find_one({"_id": result.inserted_id})
-#     return objectid_str(new_vendor)
-
-# #----------------- get -------------------------
-# @router.get("/vendors/", response_model=List[VendorResponse])
-# def list_vendors():
-#     vendors = []
-#     for vendor in cate_db.vendors.find():
-#         vendors.append(objectid_str(vendor))
-#     return vendors
-
-# # ------------------- Update -------------------
-# @router.put("/subcategories/{subcate_id}/vendors/{vendor_id}", response_model=VendorResponse)
-# def update_vendor(subcat_id: str, vendor_id: str, vendor: VendorBase):
-#     try:
-#         subcat_id = ObjectId(subcat_id)
-#         vendor_id = ObjectId(vendor_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.vendors.update_one(
-#         {"_id": vendor_id, "subcat_id": subcat_id},
-#         {"$set": vendor.dict()}
-#     )
-#     if result.matched_count == 0:
-#         raise HTTPException(status_code=404, detail="Vendor not found")
-
-#     updated = cate_db.vendors.find_one({"_id": vendor_id})
-#     return objectid_str(updated)
-
-
-# # ------------------- Delete -------------------
-# @router.delete("/subcategories/{subcate_id}/vendors/{vendor_id}", response_model=dict)
-# def delete_vendor(subcat_id: str, vendor_id: str):
-#     try:
-#         subcat_id = ObjectId(subcat_id)
-#         vendor_id = ObjectId(vendor_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.vendors.delete_one({"_id": vendor_id, "subcat_id": subcat_id})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Vendor not found")
-
-#     return {"message": "Vendor deleted successfully"}
-
-
-
-# # ---------------- Model CRUD ----------------
-
-# #----------------- add -------------------
-# @router.post("/vendors/models", response_model=ModelResponse)
-# def create_model(vendor_id: str, model: ModelBase):
-#     try:
-#         vendor_id = ObjectId(vendor_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid cate_id")
-    
-#     parent_vendor = cate_db.vendor.find_one({"_id": vendor_id})
-#     if not parent_vendor:
-#         raise HTTPException(status_code=404, detail="Vendor not found")
-
-#     model_dict = model.dict(exclude={"slug"})
-#     model_dict["slug"] = generate_unique_slug(simple_slugify(model_dict["model_name"]), cate_db.models)
-
-#     model_dict["vendor_id"] = vendor_id
-
-#     result = cate_db.models.insert_one(model_dict)
-#     new_model = cate_db.models.find_one({"_id": result.inserted_id})
-#     return objectid_str(new_model)
-
-# #----------- get ------------------
-# @router.get("/models/", response_model=List[ModelResponse])
-# def list_models():
-#     models = []
-#     for m in cate_db.models.find():
-#         models.append(objectid_str(m))
-#     return models
-
-# # ------------------- Update -------------------
-# @router.put("/vendors/{vendor_id}/models/{model_id}", response_model=ModelResponse)
-# def update_model(vendor_id: str, model_id: str, model: ModelBase):
-#     try:
-#         vendor_id = ObjectId(vendor_id)
-#         model_id = ObjectId(model_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.models.update_one(
-#         {"_id": model_id, "vendor_id": vendor_id},
-#         {"$set": model.dict()}
-#     )
-#     if result.matched_count == 0:
-#         raise HTTPException(status_code=404, detail="Model not found")
-
-#     updated = cate_db.models.find_one({"_id": model_id})
-#     return objectid_str(updated)
-
-
-# # ------------------- Delete -------------------
-# @router.delete("/vendors/{vendor_id}/models/{model_id}", response_model=dict)
-# def delete_model(vendor_id: str, model_id: str):
-#     try:
-#         vendor_id = ObjectId(vendor_id)
-#         model_id = ObjectId(model_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid ID format")
-
-#     result = cate_db.models.delete_one({"_id": model_id, "vendor_id": vendor_id})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Model not found")
-
-#     return {"message": "Model deleted successfully"}
-
-#-------------------- update_category --------------------------------
-# @router.put("/{category_id}", response_model=CategoryResponse)
-# def update_category(
-#     category_id: str,
-#     category_name: Optional[str] = Form(None),
-#     slug: Optional[str] = Form(None),
-#     parent_id: Optional[str] = Form(None, description=" ID or Leave empty id"),
-#     file: Optional[UploadFile] = File(None)
-# ):
-#     # Convert category_id to ObjectId
-#     try:
-#         category_oid = ObjectId(category_id)
-#     except:
-#         raise HTTPException(status_code=400, detail="Invalid category id")
-
-#     # Fetch existing category
-#     existing = cate_db.categories.find_one({"_id": category_oid})
-#     if not existing:
-#         raise HTTPException(status_code=404, detail="Category not found")
-
-#     image_path = existing.get("image")
-
-#     # Build update dictionary
-#     category_dict = {
-#         "category_name": category_name or existing["category_name"],
-#         "slug": slug or existing.get("slug"),
-#         "parent_id": existing.get("parent_id"),
-#         "updated_at": datetime.now(),
-#         "image": image_path 
-#     }
-
-#     print("----cate ", category_dict)
-#     # Handle file upload
-#     if file:
-#         UPLOAD_DIR = "uploads/categories"
-#         os.makedirs(UPLOAD_DIR, exist_ok=True)
-#         file_path = os.path.join(UPLOAD_DIR, file.filename)
-#         with open(file_path, "wb") as buffer:
-#             shutil.copyfileobj(file.file, buffer)
-#         image_path = file_path 
-
-#     # Update in MongoDB
-#     result = cate_db.categories.update_one({"_id": category_oid}, {"$set": category_dict})
-#     if result.matched_count == 0:
-#         raise HTTPException(status_code=404, detail="Category not found")
-
-#     updated_category = cate_db.categories.find_one({"_id": category_oid})
-#     return objectid_str(updated_category)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  

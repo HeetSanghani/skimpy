@@ -1,4 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+/* Tailwind helper for nested dropdowns */
+.group:hover > ul {
+  display: block !important;
+}
