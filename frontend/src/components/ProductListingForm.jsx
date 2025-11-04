@@ -14,7 +14,6 @@ const CLOTHING_ATTRIBUTES = [
   { name: "Sleeve Type", values: ["Half Sleeve", "Full Sleeve", "Sleeveless"] },
   { name: "Neck/Collar Type", values: ["Round Neck", "V-Neck", "Collared"] },
 ];
-// NOTE: Brand is handled as a separate input field below.
 
 const BOOK_ATTRIBUTES = [
   { name: "Language", values: ["English", "Hindi", "Gujarati", "Marathi", "Tamil", "Telugu", "Kannada", "Malayalam", "Bengali", "Urdu"] },
@@ -39,19 +38,26 @@ const ProductListingForm = ({ category, onBack }) => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
+
+  // Keep top-level state for product name and files
   const [formData, setFormData] = useState({
     product_name: '',
+    files: [],
+    category_id: category._id || category.id,
+  });
+
+  const blankSpec = {
+    brand: '',
+    attributes: {},
     description: '',
     price: '',
     stock: '',
     product_condition: 'NEW',
-    category_id: category._id || category.id,
-    brand: '', // <<< NEW STATE FIELD FOR BRAND
-    files: []
-  });
-
+  };
+  // itemSpecs holds the details for all variants (the first one is the "main" one)
+  const [itemSpecs, setItemSpecs] = useState([ { ...blankSpec } ]);
+  
   const [attributes, setAttributes] = useState([]);
-  const [selectedAttributes, setSelectedAttributes] = useState({});
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
@@ -61,7 +67,8 @@ const ProductListingForm = ({ category, onBack }) => {
     const fetchDynamicAttributes = async () => {
       try {
         if (!category._id) return;
-        const res = await axios.get(`/Attribute/by_category/${category._id}`); // adjust baseURL if needed
+        // NOTE: Adjust the API endpoint as per your backend route
+        const res = await axios.get(`${API_BASE}/Attribute/by_category/${category._id}`, { headers: getAuthHeaders() });
         setAttributes(res.data.attributes || []);
       } catch (e) {
         setAttributes([]);
@@ -127,129 +134,150 @@ const ProductListingForm = ({ category, onBack }) => {
     setPreviewImages(newPreviews);
   };
 
+  // Update functions for item spec fields
+  const handleSpecChange = (i, field, value) => {
+    setItemSpecs(prev => {
+      const updated = [...prev];
+      updated[i] = { ...updated[i], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleAttributeChange = (i, attrKey, value) => {
+    setItemSpecs(prev => {
+      const updated = [...prev];
+      // Use attrKey as provided (either name or _id)
+      updated[i] = { ...updated[i], attributes: { ...updated[i].attributes, [attrKey]: value } };
+      return updated;
+    });
+  };
+
+  const addSpecification = () => {
+    // Add new spec, defaulting condition to the first spec's condition for convenience
+    setItemSpecs(prev => [ ...prev, { ...blankSpec, product_condition: prev[0].product_condition } ]); 
+  };
+
+  const removeSpecification = (i) => {
+    setItemSpecs(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+  };
+
+  // Helper function to create/find attribute and value IDs
+  const ensureAttributeAndValueExist = async (attributeName, chosenValue, allAttributes, allValues) => {
+    const findAttributeByName = (name) => allAttributes.find(a => a.name === name);
+    const findValueId = (attributeId, valueName) => allValues.find(v => v.attribute_id === attributeId && v.value === valueName)?._id;
+
+    // 1. Ensure Attribute exists (create if missing)
+    let attributeId;
+    let existingAttr = findAttributeByName(attributeName);
+    if (existingAttr) {
+      attributeId = existingAttr._id;
+    } else {
+      const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+      });
+      attributeId = addAttrResp.data?.id;
+      allAttributes.push({ _id: attributeId, name: attributeName, values: [] });
+    }
+
+    // 2. Ensure Value exists for this attribute (create if missing)
+    let valueId = findValueId(attributeId, chosenValue);
+    if (!valueId) {
+      try {
+        const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+        });
+        valueId = addValResp.data?.id;
+        allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
+      } catch (err) {
+        // If value already exists (e.g., duplicate key error), refetch id
+        valueId = findValueId(attributeId, chosenValue);
+        if (!valueId) throw err;
+      }
+    }
+
+    return { attribute_id: attributeId, value_id: valueId };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
+    const mainSpec = itemSpecs[0]; // The first spec provides the main product details
+
     try {
-      const submitData = new FormData();
-      submitData.append('category_id', formData.category_id);
-      submitData.append('product_name', formData.product_name);
-      submitData.append('description', formData.description);
-      submitData.append('price', formData.price);
-      submitData.append('stock', formData.stock);
-      submitData.append('product_condition', formData.product_condition);
+      // --- 1. Create the Main Product Record ---
+      const productData = new FormData();
+      productData.append('category_id', formData.category_id);
+      productData.append('product_name', formData.product_name);
+      // Use description, price, stock, condition, and brand from the FIRST item spec
+      productData.append('description', mainSpec.description);
+      productData.append('price', mainSpec.price);
+      productData.append('stock', mainSpec.stock);
+      productData.append('product_condition', mainSpec.product_condition);
       
-      // <<< ATTACH BRAND FIELD >>>
-      if (formData.brand) {
-          submitData.append('brand', formData.brand);
+      if (mainSpec.brand) {
+        productData.append('brand', mainSpec.brand);
       }
       
       formData.files.forEach((file) => {
-        submitData.append('files', file);
+        productData.append('files', file); // Attach all files to the main product
       });
 
-      // 1) Create Product
-      const product = await createProduct(submitData);
+      const product = await createProduct(productData); // Assuming this returns the created product object
       const productId = product._id || product.id;
 
-      // If no item specifics were chosen, we're done
-      const hasAttributes = selectedAttributes && Object.keys(selectedAttributes).length > 0;
-      if (!hasAttributes) {
-        alert('Product created successfully!');
-        onBack();
-        return;
-      }
-
-      // 2) Ensure Attributes and Values exist → gather IDs
-      // Fetch existing attributes and all values to resolve IDs quickly
+      // --- 2. Resolve Attribute IDs (Setup for Variant Creation) ---
       const [allAttrsResp, allValsResp] = await Promise.all([
         axios.get(`${API_BASE}/Attribute/`),
         axios.get(`${API_BASE}/AttributeValue/`)
       ]);
-
-      const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({
-        _id: a._id,
-        name: a.name,
-        values: a.values || []
-      }));
+      // Use flat arrays for fast lookup and modification
+      const allAttributes = (allAttrsResp.data?.attributes || []);
       const allValues = allValsResp.data?.attribute_values || [];
 
-      const findAttributeByName = (name) => allAttributes.find(a => a.name === name);
-      const findValueId = (attributeId, valueName) => {
-        const found = allValues.find(v => v.attribute_id === attributeId && v.value === valueName);
-        return found ? found._id : null;
-      };
-
-      // Build a map from id->name for UI-provided keys
-      const attrIdToName = {};
+      // Build a map from UI key (name or _id) to Attribute name for all possible attributes
+      const attrKeyToName = {};
+      const attributesToShow = attributes && attributes.length > 0 ? attributes : (isClothingCategory(category) ? CLOTHING_ATTRIBUTES : isBookCategory(category) ? BOOK_ATTRIBUTES : []);
       (attributesToShow || []).forEach(a => {
-        if (a._id) attrIdToName[a._id] = a.name;
+        attrKeyToName[a._id || a.name] = a.name;
       });
 
-      const attributePairs = [];
+      // --- 3. Create Variants for ALL item specs ---
+      for (let i = 0; i < itemSpecs.length; i++) {
+        const spec = itemSpecs[i];
+        const attributePairs = [];
+        const selectedAttributes = spec.attributes;
 
-      for (const key of Object.keys(selectedAttributes)) {
-        const chosenValue = selectedAttributes[key];
-
-        // Derive attribute name and id (if present)
-        const attributeIdFromUI = key.length === 24 ? key : null; // crude ObjectId length check
-        const attributeName = attributeIdFromUI ? (attrIdToName[attributeIdFromUI] || key) : key;
-
-        // Ensure attribute exists (create if missing)
-        let attributeId = attributeIdFromUI;
-        if (!attributeId) {
-          const existingAttr = findAttributeByName(attributeName);
-          if (existingAttr) {
-            attributeId = existingAttr._id;
-          } else {
-            const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
-              headers: { 
-                'Content-Type': 'application/x-www-form-urlencoded',
-                ...getAuthHeaders()
-              }
-            });
-            attributeId = addAttrResp.data?.id;
-            // Track newly created in local cache for subsequent lookups
-            allAttributes.push({ _id: attributeId, name: attributeName, values: [] });
+        for (const key of Object.keys(selectedAttributes)) {
+          const chosenValue = selectedAttributes[key];
+          if (chosenValue) {
+            // Determine the attribute name from the key
+            const attributeName = attrKeyToName[key] || key;
+            const pair = await ensureAttributeAndValueExist(attributeName, chosenValue, allAttributes, allValues);
+            attributePairs.push(pair);
           }
         }
 
-        // Ensure value exists for this attribute (create if missing)
-        let valueId = findValueId(attributeId, chosenValue);
-        if (!valueId) {
-          try {
-            const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
-              headers: { 
-                'Content-Type': 'application/x-www-form-urlencoded',
-                ...getAuthHeaders()
-              }
-            });
-            valueId = addValResp.data?.id;
-            allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
-          } catch (err) {
-            // If value already exists (409/400), refetch id from cache/list
-            valueId = findValueId(attributeId, chosenValue);
-            if (!valueId) throw err;
-          }
+        // Create Variant
+        const variantData = new FormData();
+        variantData.append('price', spec.price);
+        variantData.append('stock', spec.stock);
+        variantData.append('product_condition', spec.product_condition);
+        variantData.append('description', spec.description); // Variant-specific description
+        variantData.append('attribute_values', JSON.stringify(attributePairs));
+        
+        // Use brand from spec
+        if (spec.brand) {
+            variantData.append('brand', spec.brand);
         }
 
-        attributePairs.push({ attribute_id: attributeId, value_id: valueId });
+        // POST variant:
+        await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
+          headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
+        });
       }
 
-      // 3) Create Variant for this product using selected attributes/values
-      const variantData = new FormData();
-      variantData.append('price', formData.price);
-      variantData.append('stock', formData.stock);
-      variantData.append('attribute_values', JSON.stringify(attributePairs));
-      // Optionally attach variant images (can be skipped). Uncomment to upload same files to variant
-      // formData.files.forEach((file) => variantData.append('images', file));
-
-      await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
-        headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
-      });
-
-      alert('Product and variant created successfully!');
+      alert('Product and all variants created successfully!');
       onBack();
     } catch (error) {
       console.error('Error creating product:', error);
@@ -258,17 +286,19 @@ const ProductListingForm = ({ category, onBack }) => {
       setLoading(false);
     }
   };
-
+  
+  // Determine which attributes to show (dynamic from API or fallback constants)
   let attributesToShow = attributes && attributes.length > 0 ? attributes : [];
   let isClothing = false;
   
   if (!attributesToShow.length && isClothingCategory(category)) {
     attributesToShow = CLOTHING_ATTRIBUTES;
-    isClothing = true; // Flag to show the Brand field
+    isClothing = true; 
   } else if (!attributesToShow.length && isBookCategory(category)) {
     attributesToShow = BOOK_ATTRIBUTES;
   }
 
+  // --- JSX START ---
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -382,109 +412,132 @@ const ProductListingForm = ({ category, onBack }) => {
           </div>
         </div>
 
-        {/* ITEM SPECIFICS Section */}
+        {/* ITEM SPECIFICS Section - REPEATED for VARIANTS */}
         <div className="bg-white border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">ITEM SPECIFICS</h2>
+            <button type="button" onClick={addSpecification} className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-700">Add</button>
           </div>
-          
-          {/* <<< NEW: BRAND INPUT FIELD FOR CLOTHING >>> */}
-          {isClothing && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">Brand</label>
-              <input
-                type="text"
-                name="brand"
-                value={formData.brand}
-                onChange={handleInputChange}
-                placeholder="e.g., Nike, Zara, Levi's"
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
-          
-          {/* Default/Fetched Attributes (Dropdowns) */}
-          {attributesToShow.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-              {attributesToShow.map((attr) => (
-                <div key={attr.name || attr._id}>
-                  <label className="block text-sm font-medium mb-2">{attr.name}</label>
-                  <select
-                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={selectedAttributes[attr._id ?? attr.name] || ''}
-                    onChange={e => setSelectedAttributes(prev => ({ ...prev, [attr._id ?? attr.name]: e.target.value }))}
-                    required
-                  >
-                    <option value=''>Select {attr.name}</option>
-                    {Array.isArray(attr.values) && attr.values.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+          <div className="space-y-8">
+            {itemSpecs.map((spec, idx) => (
+              <div key={idx} className={`relative pt-4 ${idx < itemSpecs.length - 1 ? 'border-b pb-8 mb-8' : 'pb-4'}`}>
+                
+                {/* Variant Number/Title and Delete Button */}
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-md font-semibold text-gray-700">Item {idx + 1} Details</h3>
+                    
+                    {/* *** FIXED DELETE BUTTON POSITION *** */}
+                    {itemSpecs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSpecification(idx)}
+                        className="px-3 py-1 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50 hover:text-red-700"
+                      >
+                        Delete Listing
+                      </button>
+                    )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-gray-500">No specific fields for this category.</div>
-          )}
-        </div>
 
-        {/* Additional Fields */}
-        <div className="bg-white border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">ADDITIONAL DETAILS</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe your item in detail..."
-              />
-            </div>
+                {/* Brand Field (for clothing) */}
+                {isClothing && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium mb-2">Brand</label>
+                    <input
+                      type="text"
+                      name="brand"
+                      value={spec.brand}
+                      onChange={e => handleSpecChange(idx, 'brand', e.target.value)}
+                      placeholder="e.g., Nike, Zara, Levi's"
+                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Price ($)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  min="0"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+                {/* Dynamic/Preset Attributes (Size, Color, etc.) */}
+                {attributesToShow.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    {attributesToShow.map((attr) => (
+                      <div key={attr.name || attr._id}>
+                        <label className="block text-sm font-medium mb-2">{attr.name}</label>
+                        <select
+                          className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          // Key is attr._id if available, otherwise attr.name
+                          value={spec.attributes[attr._id ?? attr.name] || ''} 
+                          onChange={e => handleAttributeChange(idx, attr._id ?? attr.name, e.target.value)}
+                          // required // Uncomment if all attributes must be selected
+                        >
+                          <option value=''>Select {attr.name}</option>
+                          {Array.isArray(attr.values) && attr.values.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 mb-4">No specific fields for this category.</div>
+                )}
+                
+                {/* Description, Price, Stock, Condition - BINDED TO SPEC */}
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Description</label>
+                    <textarea
+                      name="description"
+                      value={spec.description}
+                      onChange={e => handleSpecChange(idx, 'description', e.target.value)}
+                      rows={4}
+                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Describe your item in detail..."
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Price ($)</label>
+                      <input
+                        type="number"
+                        name="price"
+                        value={spec.price}
+                        onChange={e => handleSpecChange(idx, 'price', e.target.value)}
+                        step="0.01"
+                        min="0"
+                        className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Stock Quantity</label>
+                      <input
+                        type="number"
+                        name="stock"
+                        value={spec.stock}
+                        onChange={e => handleSpecChange(idx, 'stock', e.target.value)}
+                        min="1"
+                        className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Condition</label>
+                    <select
+                      name="product_condition"
+                      value={spec.product_condition}
+                      onChange={e => handleSpecChange(idx, 'product_condition', e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="NEW">New</option>
+                      <option value="USED">Used</option>
+                      <option value="REFURBISHED">Refurbished</option>
+                    </select>
+                  </div>
+                </div>
+
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Stock Quantity</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  min="1"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Condition</label>
-              <select
-                name="product_condition"
-                value={formData.product_condition}
-                onChange={handleInputChange}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="NEW">New</option>
-                <option value="USED">Used</option>
-                <option value="REFURBISHED">Refurbished</option>
-              </select>
-            </div>
+            ))}
           </div>
         </div>
 

@@ -12,6 +12,9 @@ import ForgotPassword from '../pages/ForgotPassword';
 import CategorySubcategories from '../pages/CategorySubcategories';
 import BookListingForm from '../components/BookListingForm';
 import AntiqueJewelryListingForm from '../components/AntiqueJewelryListingForm';
+import SellerDashboard from '../pages/SellerDashboard';
+import Sell from '../pages/Sell';
+import ProductDetail from '../pages/ProductDetail';
 
 // <<< IMPORT NEW FORMS HERE >>>
 import PotteryListingForm from '../components/PotteryListingForm'; 
@@ -30,6 +33,9 @@ function AppRouter() {
             <Route path="/About" element={<About />} />
             <Route path="/Contact" element={<Contact />} />
             <Route path="/Profile" element={<Profile />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/seller/dashboard" element={<SellerDashboard />} />
+            <Route path="/sell" element={<Sell />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -43,6 +49,7 @@ function AppRouter() {
             <Route path="/pottery-listing-form/:id" element={<PotteryListingForm />} />
             <Route path="/home-decor-listing-form/:id" element={<HomeDecorListingForm />} />
             <Route path="/flowers-handcrafts-listing-form/:id" element={<FlowersHandcraftsListingForm />} />
+            <Route path="/product/:productId" element={<ProductDetail />} />
 
            
 
