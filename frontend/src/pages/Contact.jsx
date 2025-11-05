@@ -6,6 +6,7 @@ export default function Home() {
     return (
         <>
          <Navbar />
+        
         <div className="flex flex-col min-h-screen bg-gray-50">
           
 

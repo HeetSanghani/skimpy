@@ -7,8 +7,10 @@ import {
   registerThunk,
   resetOtpFlow,
 } from "../features/auth/authSlice";
+import { loginUser } from "../api/authApi";
+import { createVendor } from "../api/vendorApi";
 
-const userRoles = ["user", "seller", "admin"];
+const userRoles = ["user", "seller"];
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -38,8 +40,39 @@ export default function Register() {
           confirm_password: formData.confirmPassword,
           role: formData.role,
         })
-      ).then((res) => {
+      ).then(async (res) => {
         if (registerThunk.fulfilled.match(res)) {
+          try {
+            // If user selected seller, auto-create a vendor record
+            if (formData.role === "seller") {
+              // 1) Login to obtain token (Vendor API requires auth)
+              const loginRes = await loginUser({
+                email: formData.email,
+                password: formData.password,
+              });
+              const token = loginRes.data?.access_token;
+              if (token) {
+                localStorage.setItem("token", token);
+              }
+
+              // 2) Create vendor with the newly created user_id
+              const vendor = await createVendor({
+                user_id: res.payload?.user_id,
+                token,
+              });
+
+              if (vendor?._id) {
+                localStorage.setItem("vendor_id", vendor._id);
+              }
+
+              // Optional: clean up token to keep existing flow to login page
+              // Remove this line if you want to keep the user logged in
+              localStorage.removeItem("token");
+            }
+          } catch (err) {
+            console.error("Vendor setup after signup failed:", err);
+          }
+
           alert("Account created successfully!");
           dispatch(resetOtpFlow());
           navigate("/login");

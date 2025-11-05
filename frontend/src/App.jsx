@@ -6,6 +6,8 @@ import AppRouter from "./routes/AppRouter";
 // import Navbar from "./components/Navbar";
 // import Footer from "./components/Footer";
 
+
+
 function App() {
   return (
     <Router>
@@ -16,6 +18,7 @@ function App() {
         <main className="flex-grow container mx-auto px-4 py-6">
           {/* All your route-based pages will load here */}
           <AppRouter />
+             <AppRouter />
         </main>
 
         {/* Optional Footer */}
@@ -26,3 +29,6 @@ function App() {
 }
 
 export default App;
+
+
+

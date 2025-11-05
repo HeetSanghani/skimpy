@@ -6,6 +6,7 @@ from typing import List, Optional
 import os, uuid, json
 from ....db.mongodb import cate_db
 from app.core.security import get_current_user
+from app.services.image_upload import upload_image_to_imgbb
 
 
 router = APIRouter(prefix="/Variant", tags=["Variants"])
@@ -16,23 +17,19 @@ variant_collection = cate_db.variants
 attribute_collection = cate_db.attributes
 value_collection = cate_db.attribute_values
 
-# Upload Directory
-UPLOAD_DIR = "uploads/variants"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# No local upload directory needed when using ImgBB
 
 
-# ---------- Save Multiple Images ----------
 def save_images(files: Optional[List[UploadFile]]):
-    image_urls = []
+    image_urls: List[str] = []
     if not files:
         return image_urls
     for file in files:
-        ext = file.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
-        image_urls.append(file_path.replace("\\", "/"))
+        file_bytes = file.file.read()
+        if not file_bytes:
+            continue
+        url, _ = upload_image_to_imgbb(file_bytes)
+        image_urls.append(url)
     return image_urls
 
 

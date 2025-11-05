@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values
 from app.api.v1.routes import chat
+from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +12,9 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",  # Vite default
     "http://127.0.0.1:5173",
+    "http://localhost:3000",  # For Docker use
+    "http://127.0.0.1:3000",
+    "http://frontend:3000", 
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -71,4 +75,5 @@ app.include_router(chat.router)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
+app.include_router(seller_dashboard.router)
 

@@ -112,3 +112,9 @@ docker-compose.override.yml
     # source venv/bin/activate
     # pip install -r requirements.txt
     # uvicorn app.main:app --reload
+    source venv/bin/activate
+    pip install --upgrade pip setuptools wheel
+    pip install -r requirements.txt
+    pip install requests
+    uvicorn app.main:app --reload
+.pyc

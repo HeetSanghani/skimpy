@@ -6,6 +6,7 @@ import os, shutil, uuid
 from ....db.mongodb import cate_db
 from ....schemas.product import ProductResponse, ProductCondition
 from app.core.security import get_current_user
+from app.services.image_upload import upload_image_to_imgbb
 
 router = APIRouter(prefix="/Product", tags=["Products"])
 
@@ -31,22 +32,21 @@ def validate_objectid(id_str: str) -> ObjectId:
     return ObjectId(id_str)
 
 
-def save_images(files: Union[List[UploadFile], UploadFile, None], folder="uploads/products") -> List[str]:
-    """Save uploaded images to disk and return their file paths."""
-    os.makedirs(folder, exist_ok=True)
-    saved_files = []
+def save_images(files: Union[List[UploadFile], UploadFile, None]) -> List[str]:
+    """Upload images to ImgBB and return their URLs."""
+    image_urls: List[str] = []
     if not files:
-        return saved_files
+        return image_urls
     if isinstance(files, UploadFile):
         files = [files]
     for file in files:
-        ext = file.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        file_path = os.path.join(folder, filename)
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        saved_files.append(file_path.replace("\\", "/"))
-    return saved_files
+        # Read bytes and upload to ImgBB
+        file_bytes = file.file.read()
+        if not file_bytes:
+            continue
+        url, _ = upload_image_to_imgbb(file_bytes)
+        image_urls.append(url)
+    return image_urls
 
 
 # ---------- CREATE PRODUCT ----------
@@ -58,6 +58,7 @@ async def create_product(
     price: float = Form(..., description="Base price of the product", example=499.99),
     stock: int = Form(..., description="Available stock quantity", example=100),
     product_condition: ProductCondition = Form(ProductCondition.NEW, description="Condition of the product (new/used/refurbished)"),
+    brand: Optional[str] = Form(None, description="Brand name for the product", example="Nike"),
     vendor_id: Optional[str] = Form(None, description="Vendor ID (if product belongs to a specific vendor)", example="670e8b3f111111112"),
     files: Optional[List[UploadFile]] = File(None, description="One or more product images"),
     current_user: dict = Depends(get_current_user)
@@ -66,12 +67,17 @@ async def create_product(
     Create a new product and upload its images.
     """
     category_oid = validate_objectid(category_id)
-    vendor_oid = validate_objectid(vendor_id) if vendor_id else None
+    # If vendor_id is not provided, use the current logged-in user's id as vendor
+    if vendor_id:
+        vendor_oid = validate_objectid(vendor_id)
+    else:
+        user_id = current_user.get("id") or current_user.get("_id")
+        vendor_oid = validate_objectid(str(user_id)) if user_id else None
 
     if not cate_db.categories.find_one({"_id": category_oid}):
         raise HTTPException(status_code=404, detail="Category not found")
-    if vendor_oid and not cate_db.vendors.find_one({"_id": vendor_oid}):
-        raise HTTPException(status_code=404, detail="Vendor not found")
+    # Accept current user's id as vendor without enforcing presence in vendors collection
+    # If you need strict validation, ensure your auth user ids are stored in vendors
 
     product_dict = {
         "product_name": product_name,
@@ -79,6 +85,7 @@ async def create_product(
         "price": price,
         "stock": stock,
         "product_condition": product_condition.value,
+        "brand": brand,
         "category_id": category_oid,
         "vendor_id": vendor_oid,
         "images": save_images(files),
@@ -141,6 +148,7 @@ def update_product(
     price: Optional[float] = Form(None, description="Updated price", example=549.99),
     stock: Optional[int] = Form(None, description="Updated stock quantity", example=120),
     product_condition: Optional[ProductCondition] = Form(None, description="Updated product condition (new/used/refurbished)"),
+    brand: Optional[str] = Form(None, description="Updated brand name", example="Nike"),
     vendor_id: Optional[str] = Form(None, description="Updated vendor ID", example="670e8b3f111111112"),
     files: Optional[List[UploadFile]] = File(None, description="Upload additional product images"),
     current_user: dict = Depends(get_current_user)
@@ -160,6 +168,7 @@ def update_product(
     if price is not None: update_fields["price"] = price
     if stock is not None: update_fields["stock"] = stock
     if product_condition: update_fields["product_condition"] = product_condition.value
+    if brand is not None: update_fields["brand"] = brand
     if vendor_id: update_fields["vendor_id"] = validate_objectid(vendor_id)
     if files:
         update_fields["images"] = product.get("images", []) + save_images(files)

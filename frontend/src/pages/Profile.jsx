@@ -11,14 +11,17 @@ import {
   fetchAvatar,
   uploadAvatar,
   removeAvatar,
+  fetchCategories,
 } from "../features/settings/settingsSlice";
-
 import { sendOtpThunk, verifyOtpThunk } from "../features/auth/authSlice";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { useNavigate, useLocation } from "react-router-dom";
+import { createVendor, getVendorByUserId, updateVendor } from "../api/vendorApi";
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState("account");
+  const [innerSellTab, setInnerSellTab] = useState(null);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -27,9 +30,8 @@ export default function Profile() {
     DOB: "",
     gender: "",
   });
-  const [originalEmail, setOriginalEmail] = useState(""); // store original email
-  const [isEditingEmail, setIsEditingEmail] = useState(false); // email edit mode
-
+  const [originalEmail, setOriginalEmail] = useState("");
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({
     first_name: "",
     last_name: "",
@@ -41,27 +43,40 @@ export default function Profile() {
     country: "",
   });
   const [editId, setEditId] = useState(null);
-
-  // OTP modal
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
-
-  // Delivery address modal
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [storeName, setStoreName] = useState("");
+  const [storeDescription, setStoreDescription] = useState("");
 
   const dispatch = useDispatch();
-  const { account, addresses, avatarUrl, loading, error } = useSelector(
-    (state) => state.settings
-  );
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { account, addresses, avatarUrl, categories, loading, error } =
+    useSelector((state) => state.settings);
+
+  console.log("Categories in Redux:", categories);
 
   /* ---------------- Load data on tab change ---------------- */
+  useEffect(() => {
+    // Support deep-linking to a specific tab (sell removed)
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["account", "delivery", "visibility"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (activeTab === "account") {
       dispatch(fetchAccountDetails()).then((res) => {
         if (fetchAccountDetails.fulfilled.match(res)) {
           setFormData(res.payload);
           setOriginalEmail(res.payload.email);
+          // preload seller store fields if present
+          if (res.payload?.store_name) setStoreName(res.payload.store_name);
+          if (res.payload?.store_description) setStoreDescription(res.payload.store_description);
         }
       });
     } else if (activeTab === "delivery") {
@@ -69,7 +84,7 @@ export default function Profile() {
     } else if (activeTab === "visibility") {
       dispatch(fetchAvatar());
     }
-  }, [activeTab]);
+  }, [activeTab, dispatch]);
 
   /* ---------------- Account ---------------- */
   const handleChange = (e) =>
@@ -77,7 +92,6 @@ export default function Profile() {
 
   const handleSave = () => {
     if (formData.email !== originalEmail) {
-      // Email changed → send OTP
       dispatch(sendOtpThunk(formData.email)).then((res) => {
         if (sendOtpThunk.fulfilled.match(res)) {
           alert("OTP sent to your new email");
@@ -85,12 +99,41 @@ export default function Profile() {
         }
       });
     } else {
-      // Email unchanged → save directly
-      dispatch(saveAccountDetails(formData)).then((res) => {
+      const payload =
+        account?.role === "seller"
+          ? { ...formData, store_name: storeName, store_description: storeDescription }
+          : formData;
+      dispatch(saveAccountDetails(payload)).then(async (res) => {
         if (saveAccountDetails.fulfilled.match(res)) {
           alert("Account updated successfully");
           setOriginalEmail(formData.email);
-          setIsEditingEmail(false); // disable editing after save
+          setIsEditingEmail(false);
+
+          // If seller, persist store info to vendor API (update or create)
+          try {
+            if ((account?.role === "seller") && (storeName || storeDescription)) {
+              const userId = account?.user_id || account?._id || account?.id || "";
+              const vendor = await getVendorByUserId(userId);
+              if (vendor && vendor._id) {
+                // Already exists, update
+                await updateVendor({
+                  vendor_id: vendor._id,
+                  user_id: userId,
+                  shop_name: storeName,
+                  address: storeDescription,
+                });
+              } else {
+                // Create new
+                await createVendor({
+                  user_id: userId,
+                  shop_name: storeName,
+                  address: storeDescription,
+                });
+              }
+            }
+          } catch(e) {
+            console.error("Failed to save/update vendor info.", e);
+          }
         }
       });
     }
@@ -103,13 +146,12 @@ export default function Profile() {
           alert("Email verified successfully!");
           setShowOtpModal(false);
 
-          // Now save the account details
           dispatch(saveAccountDetails(formData)).then((res) => {
             if (saveAccountDetails.fulfilled.match(res)) {
               alert("Account updated successfully");
               setOriginalEmail(formData.email);
-              setOtp(""); // reset OTP
-              setIsEditingEmail(false); // disable editing
+              setOtp("");
+              setIsEditingEmail(false);
             }
           });
         } else {
@@ -198,28 +240,48 @@ export default function Profile() {
       title: "Account Details",
       content: (
         <div className="space-y-4">
+          {/* Account Fields */}
           <div className="grid grid-cols-2 gap-4">
             <input
               name="first_name"
-              value={formData.first_name}
+              value={formData.first_name || ""}
               onChange={handleChange}
               placeholder="First Name"
               className="border rounded-lg p-2"
             />
             <input
               name="last_name"
-              value={formData.last_name}
+              value={formData.last_name || ""}
               onChange={handleChange}
               placeholder="Last Name"
               className="border rounded-lg p-2"
             />
           </div>
 
-          {/* Email with inline Edit */}
+          {/* Seller-only store fields */}
+          {account?.role === "seller" && (
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                name="store_name"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Store Name"
+                className="border rounded-lg p-2"
+              />
+              <input
+                name="store_description"
+                value={storeDescription}
+                onChange={(e) => setStoreDescription(e.target.value)}
+                placeholder="Store Description"
+                className="border rounded-lg p-2"
+              />
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <input
               name="email"
-              value={formData.email}
+              value={formData.email || ""}
               onChange={handleChange}
               placeholder="Email"
               className={`border rounded-lg p-2 w-full ${
@@ -249,22 +311,23 @@ export default function Profile() {
 
           <input
             name="phone"
-            value={formData.phone}
+            value={formData.phone || ""}
             onChange={handleChange}
             placeholder="Phone"
             className="border rounded-lg p-2 w-full"
           />
+
           <div className="grid grid-cols-2 gap-4">
             <input
               type="date"
               name="DOB"
-              value={formData.DOB}
+              value={formData.DOB || ""}
               onChange={handleChange}
               className="border rounded-lg p-2"
             />
             <select
               name="gender"
-              value={formData.gender}
+              value={formData.gender || ""}
               onChange={handleChange}
               className="border rounded-lg p-2"
             >
@@ -273,6 +336,7 @@ export default function Profile() {
               <option value="female">Female</option>
             </select>
           </div>
+
           <div className="flex gap-2">
             <button
               onClick={handleSave}
@@ -326,7 +390,6 @@ export default function Profile() {
       title: "Delivery Addresses",
       content: (
         <div className="space-y-4">
-          {/* Form */}
           <div className="grid grid-cols-2 gap-4">
             {Object.keys(deliveryForm)
               .filter((key) => key !== "address_id")
@@ -334,13 +397,14 @@ export default function Profile() {
                 <input
                   key={key}
                   name={key}
-                  value={deliveryForm[key]}
+                  value={deliveryForm[key] || ""}
                   onChange={handleDeliveryChange}
                   placeholder={key.replace("_", " ")}
                   className="border rounded-lg p-2"
                 />
               ))}
           </div>
+
           <div className="flex gap-2">
             <button
               onClick={handleSaveDelivery}
@@ -482,13 +546,15 @@ export default function Profile() {
         </div>
       ),
     },
+
+    // Sell tab removed
   ];
 
   return (
     <>
       <Navbar />
+     
       <div className="flex">
-        {/* Sidebar */}
         {/* Sidebar */}
         <div className="w-1/4 border-r p-4 space-y-2">
           {tabs.map((tab) => (
@@ -503,12 +569,20 @@ export default function Profile() {
             </button>
           ))}
 
-          {/* Logout Button */}
+          {account?.role === "seller" && (
+            <button
+              onClick={() => navigate("/seller/dashboard")}
+              className="block w-full text-left p-2 rounded hover:bg-gray-200"
+            >
+              Seller Dashboard
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (window.confirm("Are you sure you want to logout?")) {
-                localStorage.removeItem("token"); // remove JWT if stored
-                window.location.href = "/login";  // redirect to login
+                localStorage.removeItem("token");
+                window.location.href = "/login";
               }
             }}
             className="block w-full text-left p-2 text-black rounded mt-4 hover:bg-gray-200 transition"
@@ -518,9 +592,11 @@ export default function Profile() {
         </div>
 
         {/* Content */}
-        <div className="w-3/4 p-6">{tabs.find((t) => t.id === activeTab)?.content}</div>
+        <div className="w-3/4 p-6">
+          {tabs.find((t) => t.id === activeTab)?.content}
+        </div>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 }

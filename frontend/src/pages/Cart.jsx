@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Navbar from '../components/Navbar';
+import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
 
 
@@ -54,6 +55,7 @@ export default function Cart() {
   return (
      <>
       <Navbar />
+      <CateNavbar/>
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
       <div className="bg-white w-full max-w-4xl p-8 rounded-2xl shadow-md">
         {/* Nike-style Heading */}
