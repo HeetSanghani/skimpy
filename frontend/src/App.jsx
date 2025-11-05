@@ -18,7 +18,7 @@ function App() {
         <main className="flex-grow container mx-auto px-4 py-6">
           {/* All your route-based pages will load here */}
           <AppRouter />
-             <AppRouter />
+             
         </main>
 
         {/* Optional Footer */}

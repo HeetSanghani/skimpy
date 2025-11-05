@@ -423,7 +423,7 @@ export default function SellerDashboard() {
                         <div
                           key={product._id || product.id}
                           className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                          onClick={() => navigate(`/product/${product._id ?? product.id}`)}
+                          onClick={() => navigate(`/seller/product/${product._id ?? product.id}`)}
                         >
                           {product.images && product.images.length > 0 ? (
                             <img
