@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException,File, UploadFile, Form, Query,Depends
+from fastapi import APIRouter, HTTPException,File, UploadFile, Form, Query, Depends
 from bson import ObjectId
 from typing import List, Optional, Union
 from datetime import datetime
@@ -7,6 +7,8 @@ from ....schemas.category import CategoryResponse
 from ....utils.slug import simple_slugify, generate_unique_slug, delete_category_and_children  
 import os, shutil
 from app.core.security import get_current_user 
+from app.services.image_upload import upload_image_to_imgbb
+
 
 router = APIRouter(prefix="/Category", tags=["Categories"])
 
@@ -63,12 +65,10 @@ def create_category(category_name: str = Form(""),
         "image": None
     }
     if file:
-        UPLOAD_DIR = "uploads/categories"
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        category_dict["image"] = file_path
+        file_bytes = file.file.read()
+        if file_bytes:
+            image_url, _ = upload_image_to_imgbb(file_bytes)
+            category_dict["image"] = image_url
 
     # category_dict = category.dict() 
 
@@ -81,6 +81,8 @@ def create_category(category_name: str = Form(""),
 
 
 # ------------------- Get -------------------
+
+
 
 @router.get("", response_model=List[CategoryResponse])
 def list_categories(parent_only: Optional[bool] = None):
@@ -187,12 +189,10 @@ def update_category(
 
     # Handle file upload
     if file and hasattr(file, "filename") and file.filename:
-        UPLOAD_DIR = "uploads/categories"
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        update_fields["image"] = file_path.replace("\\", "/")
+        file_bytes = file.file.read()
+        if file_bytes:
+            image_url, _ = upload_image_to_imgbb(file_bytes)
+            update_fields["image"] = image_url
     else:
         update_fields["image"] = existing.get("image", "")
 
@@ -216,6 +216,36 @@ def delete_category(category_id: str, current_user: dict = Depends(get_current_u
 
     delete_category_and_children(cate_db.categories, str(category_id))
     return {"message": "Category and all its children deleted successfully"}
+
+
+
+
+#---------delete all categories--------------------------
+@router.delete("/categories", response_model=dict)
+def delete_all_categories():
+    result = cate_db.categories.delete_many({})  # Deletes all documents in the categories collection
+    return {
+        "deleted_count": result.deleted_count,
+        "message": "All categories have been deleted"
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

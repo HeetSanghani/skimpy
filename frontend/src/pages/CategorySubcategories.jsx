@@ -123,7 +123,13 @@ export default function CategorySubcategories() {
                 onClick={() => handleCategoryClick(sub)}
               >
                 <img
-                  src={sub.image ? `http://127.0.0.1:8000/${sub.image}` : "https://via.placeholder.com/120x120?text=No+Image"}
+                  src={
+                    sub.image
+                      ? (sub.image.startsWith("http")
+                          ? sub.image
+                          : `http://127.0.0.1:8000/${sub.image}`)
+                      : "https://via.placeholder.com/120x120?text=No+Image"
+                  }
                   alt={sub.category_name}
                   className="w-28 h-28 object-cover rounded mb-3"
                 />
