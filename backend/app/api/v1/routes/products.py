@@ -6,6 +6,7 @@ import os, shutil, uuid
 from ....db.mongodb import cate_db
 from ....schemas.product import ProductResponse, ProductCondition
 from app.core.security import get_current_user
+from app.services.image_upload import upload_image_to_imgbb
 
 router = APIRouter(prefix="/Product", tags=["Products"])
 
@@ -31,22 +32,21 @@ def validate_objectid(id_str: str) -> ObjectId:
     return ObjectId(id_str)
 
 
-def save_images(files: Union[List[UploadFile], UploadFile, None], folder="uploads/products") -> List[str]:
-    """Save uploaded images to disk and return their file paths."""
-    os.makedirs(folder, exist_ok=True)
-    saved_files = []
+def save_images(files: Union[List[UploadFile], UploadFile, None]) -> List[str]:
+    """Upload images to ImgBB and return their URLs."""
+    image_urls: List[str] = []
     if not files:
-        return saved_files
+        return image_urls
     if isinstance(files, UploadFile):
         files = [files]
     for file in files:
-        ext = file.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        file_path = os.path.join(folder, filename)
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        saved_files.append(file_path.replace("\\", "/"))
-    return saved_files
+        # Read bytes and upload to ImgBB
+        file_bytes = file.file.read()
+        if not file_bytes:
+            continue
+        url, _ = upload_image_to_imgbb(file_bytes)
+        image_urls.append(url)
+    return image_urls
 
 
 # ---------- CREATE PRODUCT ----------

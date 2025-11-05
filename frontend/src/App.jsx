@@ -3,13 +3,15 @@ import { BrowserRouter as Router } from 'react-router-dom';
 
 import AppRouter from './routes/AppRouter';
 
+
+
 function App() {
   return (
     <Router>
       <div className="flex flex-col min-h-screen">
        
         <main className="flex-grow container mx-auto px-4 py-6">
-          <AppRouter />
+             <AppRouter />
         </main>
        
       </div>
@@ -18,3 +20,6 @@ function App() {
 }
 
 export default App;
+
+
+

@@ -295,7 +295,7 @@ export default function SellerDashboard() {
                           >
                             {product.images && product.images.length > 0 && (
                               <img
-                                src={`http://127.0.0.1:8000/${product.images[0]}`}
+                                src={(product.images[0] || "").startsWith("http") ? product.images[0] : `http://127.0.0.1:8000/${product.images[0]}`}
                                 alt={product.product_name}
                                 className="w-full h-48 object-cover"
                               />
@@ -427,7 +427,7 @@ export default function SellerDashboard() {
                         >
                           {product.images && product.images.length > 0 ? (
                             <img
-                              src={`http://127.0.0.1:8000/${product.images[0]}`}
+                              src={(product.images[0] || "").startsWith("http") ? product.images[0] : `http://127.0.0.1:8000/${product.images[0]}`}
                               alt={product.product_name}
                               className="w-full h-64 object-cover"
                             />
