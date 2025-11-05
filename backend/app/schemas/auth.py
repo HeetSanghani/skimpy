@@ -21,6 +21,7 @@ class UserRegisterSchema(BaseModel):
         regex=r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*$"
     )
     confirm_password: str
+    role: UserRole = UserRole.user 
 
     @validator("confirm_password")
     def passwords_match(cls, v, values):
@@ -59,3 +60,27 @@ class ResetPasswordRequest(BaseModel):
             raise ValueError("Passwords do not match")
         return v
 
+class EmailModel(BaseModel):
+    email: str
+
+class VerifyOtpModel(BaseModel):
+    email: str
+    otp: str
+    
+
+    
+# ---------------- VERIFY FORGOT PASSWORD OTP ---------------- #
+class VerifyForgotOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: constr(
+        min_length=8,
+        regex=r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*$"
+    )
+    confirm_password: str
+
+    @validator("confirm_password")
+    def passwords_match(cls, v, values):
+        if "new_password" in values and v != values["new_password"]:
+            raise ValueError("Passwords do not match")
+        return v

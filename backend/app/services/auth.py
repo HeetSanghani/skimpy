@@ -1,13 +1,10 @@
 from fastapi import HTTPException
 from app.db.mongodb import user_collection, otp_collection
 from app.core.security import get_password_hash, verify_password, create_access_token
-from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest
+from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
 from datetime import datetime, timedelta
-import uuid
-import random
+import uuid, os, shutil, random
 from app.utils.email_service import send_otp_email
-
-
 
 def login_logic(email: str, password: str):
     user = user_collection.find_one({"email": email})
@@ -31,7 +28,7 @@ def register_user_logic(request: UserRegisterSchema):
     # Create user
     user_data["user_id"] = str(uuid.uuid4())
     user_data["password"] = get_password_hash(user_data["password"])
-    user_data["created_date"] = datetime.utcnow()
+    user_data["created_date"] = datetime.now()
     user_data["verified"] = True   # mark as verified directly
 
     try:
@@ -58,12 +55,12 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
         raise HTTPException(status_code=401, detail="Old password is incorrect")
 
     # Hash new password
-    new_hashed_password = get_password_hash(request.new_password)
+    new_hashed_password = get_password_hash(request.password)
 
     # Update in DB
     result = user_collection.update_one(
         {"user_id": user_id},
-        {"$set": {"password": new_hashed_password, "updated_date": datetime.utcnow()}}
+        {"$set": {"password": new_hashed_password, "updated_date": datetime.now()}}
     )
 
     if result.modified_count == 0:
@@ -122,4 +119,33 @@ def verify_otp_service(email: str, otp: str):
     )
 
     return {"success": True, "message": "OTP verified"}
+
+
+# ---------------- VERIFY FORGOT PASSWORD OTP ---------------- #
+def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
+    user = user_collection.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    otp_record = otp_collection.find_one({"email": request.email})
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="No OTP found. Request again.")
+
+    if otp_record["otp"] != request.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    if datetime.now() > otp_record["expires_at"]:
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    new_hashed_password = get_password_hash(request.new_password)
+    user_collection.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"password": new_hashed_password, "updated_date": datetime.now()}}
+    )
+
+    otp_collection.delete_one({"email": request.email})
+
+    return {"message": "Password reset successfully"}
+
+
 

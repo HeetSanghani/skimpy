@@ -9,8 +9,6 @@ from datetime import date
 class UserRole(str, Enum):
     user = "user"
     seller = "seller"
-    admin = "admin"
-
 class Gender(str, Enum):
     male = "male"
     female = "female"
