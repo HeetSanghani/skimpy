@@ -65,6 +65,7 @@ You can attach color, fabric, size, or other attributes.
 Each variant can have its own SKU, price, stock, and images.    
 
 <pre>{"attribute_id": "id", "value_id": "id"}</pre>
+<pre>Ex:- [{"attribute_id":"690451adc16f50c706ad6cef","value_id":"690451d8c16f50c706ad6cf0"}]</pre>
 
 ⚙️ ATTRIBUTE + VALUE IDS (for testing / seller UI reference)
 

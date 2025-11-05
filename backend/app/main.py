@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values
+from app.api.v1.routes import chat
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 
 app = FastAPI()
@@ -52,6 +54,8 @@ def home():
 
 
 
+
+
 app.include_router(auth.router) 
 app.include_router(users.router) 
 app.include_router(vendors.router)
@@ -60,5 +64,11 @@ app.include_router(products.router)
 app.include_router(variants.router)
 app.include_router(attributes.router)
 app.include_router(attribute_values.router)
+app.include_router(chat.router)
+
+
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 
 

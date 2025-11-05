@@ -1,0 +1,194 @@
+/* ===== PRODUCT PAGE MAIN CONTAINER ===== */
+.product-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* ---------------------------------------------------- */
+/* ✅ NEW: IMAGE ASPECT RATIO (Nike Style)              */
+/* ---------------------------------------------------- */
+.main-product-image-container {
+  /* Creates a 4:5 aspect ratio (height is 125% of width) */
+  padding-top: 125%; 
+  height: 0; /* Important: removes the default height */
+  position: relative; /* Needed for absolute positioning of the image */
+  
+  /* Inherited styles: border, border-radius, shadow, bg-white, overflow-hidden */
+}
+
+/* NEW: Image positioning within the aspect ratio container */
+.main-product-image-container img {
+  position: absolute; /* Image fills the padding-defined container */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Old styles commented out as they are less flexible */
+/*
+.product-image-wrapper {
+  width: 550px;
+  height: 650px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.product-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform .3s ease;
+}
+.product-img:hover {
+  transform: scale(1.05);
+}
+*/
+
+/* ===== PRODUCT INFO SECTION ===== */
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-info h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.price {
+  font-size: 1.6rem;
+  color: #2a7a2e;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.description {
+  margin: 15px 0;
+  color: #444;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* ACTION BUTTONS */
+.actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.add-to-cart {
+  background-color: #111;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.add-to-cart:hover {
+  background-color: #333;
+}
+
+.back-btn {
+  text-decoration: none;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 12px 20px;
+  border-radius: 8px;
+  transition: 0.3s;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.back-btn:hover {
+  background-color: #f0f0f0;
+}
+
+/* ====== VARIANT SECTION BELOW PRODUCT ====== */
+.variant-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 1200px;
+  width: 100%;
+  padding: 30px;
+}
+
+.variant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.variant-card {
+  flex: 1 1 calc(33% - 10px);
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 18px;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+/* ===== TEXT STATES ===== */
+.loading-text,
+.error-text {
+  text-align: center;
+  color: #555;
+  margin-top: 50px;
+  font-size: 1.1rem;
+}
+
+/* ===== SKU GRID LIKE NIKE SIZE SELECTOR ===== */
+.sku-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 12px;
+}
+
+.sku-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sku-option:hover {
+  border-color: #111;
+}
+
+.sku-option--selected {
+  border-color: #111;
+  background-color: #f3f3f3;
+}
+
+.sku-option--disabled {
+  opacity: 0.5;
+  color: #9ca3af;
+  background-color: #f9fafb;
+  cursor: not-allowed;
+}

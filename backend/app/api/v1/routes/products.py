@@ -111,15 +111,24 @@ def list_product(vendor: Optional[bool] = None):
 
 
 # ---------- GET SINGLE PRODUCT ----------
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}")
 def get_product(product_id: str):
-    """
-    Get a single product by its ID.
-    """
     product = product_collection.find_one({"_id": validate_objectid(product_id)})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return objectid_str(product)
+
+    return {
+        "id": str(product["_id"]),
+        "name": product.get("product_name") or product.get("name") or "Untitled Product",
+        "description": product.get("description", "No description available"),
+        "price": product.get("price"),
+        "stock": product.get("stock"),
+        "condition": product.get("product_condition") or product.get("condition") or "N/A",
+        "images": product.get("images", []),  # ✅ return list of all image paths
+        "category_id": str(product.get("category_id")) if product.get("category_id") else None,
+        "vendor_id": str(product.get("vendor_id")) if product.get("vendor_id") else None
+    }
+
 
 
 # ---------- UPDATE PRODUCT ----------
