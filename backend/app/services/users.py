@@ -42,7 +42,9 @@ def get_account_details_logic(current_user: dict):
         # treat empty string or invalid formats as None for response
         DOB = None
 
+    computed_user_id = user.get("user_id") or user.get("_id")
     profile = GetUserDetails(
+        user_id=str(computed_user_id) if computed_user_id else "",
         first_name=user.get("first_name", ""),
         last_name=user.get("last_name", ""),
         email=user.get("email", ""),
@@ -50,8 +52,9 @@ def get_account_details_logic(current_user: dict):
         gender=user.get("gender"),
         DOB=DOB,
         role = user.get("role",""),
-        store_name=user.get("store_name", ""),
-        store_description=user.get("store_description", "")
+        # Prefer new shop_* keys; fallback to legacy store_*
+        shop_name=user.get("shop_name") or user.get("store_name", ""),
+        shop_description=user.get("shop_description") or user.get("store_description", "")
     )
 
     return profile
@@ -66,7 +69,20 @@ def account_details_logic(request, current_user):
     if isinstance(user_data.get("DOB"), date):
         user_data["DOB"] = datetime.combine(user_data["DOB"], datetime.min.time())
         
-    result = user_collection.update_one({"user_id": user_id}, {"$set": user_data})
+    # Clean up legacy keys so only shop_* remain
+    unset_fields = {}
+    if "shop_name" in user_data:
+        unset_fields["store_name"] = ""
+    if "shop_description" in user_data:
+        unset_fields["store_description"] = ""
+
+    if unset_fields:
+        result = user_collection.update_one(
+            {"user_id": user_id},
+            {"$set": user_data, "$unset": unset_fields}
+        )
+    else:
+        result = user_collection.update_one({"user_id": user_id}, {"$set": user_data})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     

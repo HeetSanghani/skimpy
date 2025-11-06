@@ -8,7 +8,9 @@ class VendorBase(BaseModel):
     user_id: Optional[str] = None
     shop_name: str
     image: Optional[str] = None
-    address: str
+    # Keep legacy "address" field for backward compatibility
+    # New explicit field for store description
+    shop_description: Optional[str] = ""
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None  
 class VendorCreate(VendorBase):

@@ -30,15 +30,19 @@ def validate_objectid(id_str: str) -> ObjectId:
 @router.post("", response_model=VendorResponse)
 def create_vendor(  user_id: Optional[str] = Form(""),
     shop_name: str = Form(""),
-    address: str = Form(""),
+    shop_description: str = Form(""),
     parent_id: Optional[str] = Form("", description=" ID or Leave empty id"),
     file: Union[UploadFile, None, str] = File(None),
     current_user: dict = Depends(get_current_user)
 ):
+    # If user_id is not provided, fall back to the authenticated user
+    resolved_user_id = user_id if user_id else current_user.get("user_id")
+
     vendor_dict = {
-        "user_id": user_id if user_id else None,
+        "user_id": resolved_user_id if resolved_user_id else None,
         "shop_name": shop_name,
-        "address": address,
+        # keep legacy address; also store new shop_description field
+        "shop_description": shop_description ,
         "parent_id": parent_id if parent_id else None,
         "created_at": datetime.now(),
         "updated_at": None,
@@ -51,8 +55,26 @@ def create_vendor(  user_id: Optional[str] = Form(""),
             image_url, _ = upload_image_to_imgbb(file_bytes)
             vendor_dict["image"] = image_url  
     
-    # vendor_dict = vendor.dict()
+    # If a vendor already exists for this user, update it instead of creating a new one
+    existing_for_user = None
+    if vendor_dict["user_id"]:
+        existing_for_user = cate_db.vendors.find_one({"user_id": vendor_dict["user_id"]})
 
+    if existing_for_user:
+        cate_db.vendors.update_one(
+            {"_id": existing_for_user["_id"]},
+            {"$set": {
+                "shop_name": vendor_dict["shop_name"],
+                "shop_description": vendor_dict["shop_description"],
+                "parent_id": vendor_dict["parent_id"],
+                "image": vendor_dict["image"],
+                "updated_at": datetime.now(),
+            }}
+        )
+        updated = cate_db.vendors.find_one({"_id": existing_for_user["_id"]})
+        return objectid_str(updated)
+
+    # No existing vendor; create a new one
     vendor_dict["updated_at"] = None
     result = cate_db.vendors.insert_one(vendor_dict)
     new_vendor = cate_db.vendors.find_one({"_id": result.inserted_id})
@@ -77,6 +99,15 @@ def list_vendors(has_parent: Optional[bool] = None):
         vendor_list.append(objectid_str(vendor))
 
     return vendor_list
+@router.get("/by-user", response_model=VendorResponse)
+def get_my_vendor(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user id")
+    vendor = cate_db.vendors.find_one({"user_id": str(user_id)})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return objectid_str(vendor)
 
 
 
@@ -97,10 +128,11 @@ def get_vendor(vendor_id: str):
 # ------------------- Update -------------------
 @router.put("", response_model=VendorResponse)
 def update_vendor(
-    vendor_id: str,
+    vendor_id: str = Form(...),
     user_id: Optional[str] = Form(""),
     shop_name: str = Form(""),
     address: Optional[str] = Form(""),
+    shop_description: Optional[str] = Form(""),
     parent_id: Optional[str] = Form("", description="ID or Leave empty id"),
     file: Union[UploadFile, None, str] = File(None),
     current_user: dict = Depends(get_current_user) 
@@ -125,12 +157,18 @@ def update_vendor(
 
     update_fields = {"updated_at": datetime.now()}
 
+    # Always ensure user_id is set to the authenticated user if missing
     if user_id and user_id.strip():
         update_fields["user_id"] = user_id.strip()
+    else:
+        update_fields["user_id"] = existing.get("user_id") or current_user.get("user_id")
     if shop_name and shop_name.strip():
         update_fields["shop_name"] = shop_name.strip()
-    if address and address.strip():
-        update_fields["address"] = address.strip()
+    # keep legacy address and new shop_description in sync
+    if (address and address.strip()) or (shop_description and shop_description.strip()):
+        desc_value = (shop_description or address or "").strip()
+        update_fields["address"] = desc_value
+        update_fields["shop_description"] = desc_value
     if parent_id and parent_id.strip():
         update_fields["parent_id"] = parent_id.strip()
 

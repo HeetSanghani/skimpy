@@ -2,11 +2,13 @@ import axios from "axios";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
-export const createVendor = async ({ user_id, shop_name = "", address = "", parent_id = "", file = null, token }) => {
+export const createVendor = async ({ user_id, shop_name = "", shop_description = "", address = "", parent_id = "", file = null, token }) => {
   const form = new FormData();
   form.append("user_id", user_id || "");
   form.append("shop_name", shop_name || "");
-  form.append("address", address || "");
+  // keep legacy address and send new shop_description
+  form.append("address", address || shop_description || "");
+  form.append("shop_description", shop_description || address || "");
   form.append("parent_id", parent_id || "");
   if (file) form.append("file", file);
 
@@ -19,12 +21,13 @@ export const createVendor = async ({ user_id, shop_name = "", address = "", pare
   return res.data;
 };
 
-export const updateVendor = async ({ vendor_id, user_id, shop_name = "", address = "", parent_id = "", file = null, token }) => {
+export const updateVendor = async ({ vendor_id, user_id, shop_name = "", shop_description = "", address = "", parent_id = "", file = null, token }) => {
   const form = new FormData();
   form.append("vendor_id", vendor_id);
   form.append("user_id", user_id || "");
   form.append("shop_name", shop_name || "");
-  form.append("address", address || "");
+  form.append("address", address || shop_description || "");
+  form.append("shop_description", shop_description || address || "");
   form.append("parent_id", parent_id || "");
   if (file) form.append("file", file);
 
@@ -42,10 +45,16 @@ export const getVendorByUserId = async (user_id, token) => {
   const headers = resolvedToken
     ? { Authorization: `Bearer ${resolvedToken}` }
     : {};
-  // List all and find the vendor for this user_id
-  const res = await axios.get(`${BASE_URL}/Vendor/`, { headers });
-  const vendors = res.data || [];
-  return vendors.find(v => v.user_id === user_id);
+  // Use dedicated endpoint to fetch current user's vendor
+  try {
+    const res = await axios.get(`${BASE_URL}/Vendor/by-user`, { headers });
+    return res.data;
+  } catch (e) {
+    // Fallback to list+filter if endpoint not available
+    const res = await axios.get(`${BASE_URL}/Vendor/`, { headers });
+    const vendors = res.data || [];
+    return vendors.find(v => v.user_id === user_id);
+  }
 };
 
 

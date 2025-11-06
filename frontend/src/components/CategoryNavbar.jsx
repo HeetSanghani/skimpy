@@ -81,7 +81,7 @@ const CategoryNavbar = () => {
   const level2Categories = getLevel2Categories(categories);
 
   return (
-    <nav className="bg-white text-black border-t border-b border-gray-200 shadow-sm sticky top-[64px] z-50">
+    <nav className="bg-white text-black border-t border-b border-gray-200 shadow-sm top-[64px] z-50">
       <ul className="flex justify-start items-center space-x-8 py-3 px-6 text-sm font-semibold uppercase tracking-wide flex-wrap">
         {/* ✅ "All Categories" Button */}
         <li className="relative">
