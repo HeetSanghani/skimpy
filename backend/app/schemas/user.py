@@ -41,6 +41,7 @@ class CreateUser(CustomBaseModel):
         )
         
 class GetUserDetails(CustomBaseModel):
+    user_id: str
     first_name: str
     last_name: str
     email: EmailStr
@@ -49,8 +50,8 @@ class GetUserDetails(CustomBaseModel):
     DOB: Optional[date] = None
     gender: Optional[Gender] = None
     role: str
-    store_name: Optional[str] = ""
-    store_description: Optional[str] = ""
+    shop_name: Optional[str] = ""
+    shop_description: Optional[str] = ""
     
     
     
@@ -61,8 +62,8 @@ class AddAccountDetails(CustomBaseModel):
     phone: constr(regex=r"^\d{10}$")
     DOB: Optional[date] = ""
     gender: Optional[Gender] = None
-    store_name: Optional[str] = None
-    store_description: Optional[str] = None
+    shop_name: Optional[str] = None
+    shop_description: Optional[str] = None
 
 
     

@@ -74,9 +74,11 @@ export default function Profile() {
         if (fetchAccountDetails.fulfilled.match(res)) {
           setFormData(res.payload);
           setOriginalEmail(res.payload.email);
-          // preload seller store fields if present
-          if (res.payload?.store_name) setStoreName(res.payload.store_name);
-          if (res.payload?.store_description) setStoreDescription(res.payload.store_description);
+          // preload seller store fields (prefer shop_*, fallback to legacy store_*)
+          if (res.payload?.shop_name || res.payload?.store_name)
+            setStoreName(res.payload.shop_name ?? res.payload.store_name);
+          if (res.payload?.shop_description || res.payload?.store_description)
+            setStoreDescription(res.payload.shop_description ?? res.payload.store_description);
         }
       });
     } else if (activeTab === "delivery") {
@@ -101,7 +103,7 @@ export default function Profile() {
     } else {
       const payload =
         account?.role === "seller"
-          ? { ...formData, store_name: storeName, store_description: storeDescription }
+          ? { ...formData, shop_name: storeName, shop_description: storeDescription }
           : formData;
       dispatch(saveAccountDetails(payload)).then(async (res) => {
         if (saveAccountDetails.fulfilled.match(res)) {
@@ -112,6 +114,7 @@ export default function Profile() {
           // If seller, persist store info to vendor API (update or create)
           try {
             if ((account?.role === "seller") && (storeName || storeDescription)) {
+              // user_id is guaranteed from account details now; fallback to auth if ever needed
               const userId = account?.user_id || account?._id || account?.id || "";
               const vendor = await getVendorByUserId(userId);
               if (vendor && vendor._id) {
@@ -120,14 +123,14 @@ export default function Profile() {
                   vendor_id: vendor._id,
                   user_id: userId,
                   shop_name: storeName,
-                  address: storeDescription,
+                  shop_description: storeDescription,
                 });
               } else {
                 // Create new
                 await createVendor({
                   user_id: userId,
                   shop_name: storeName,
-                  address: storeDescription,
+                  shop_description: storeDescription,
                 });
               }
             }
