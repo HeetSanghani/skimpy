@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import "./ProductDetails.css";
+import { addToCart } from "../api/cartApi";
+import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlistApi";
 
 const BASE_URL = "http://localhost:8000";
 
@@ -15,6 +18,7 @@ const normalizeImage = (img) => {
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useSelector((state) => state.auth);
 
   const [product, setProduct] = useState(null);
   const [vendor, setVendor] = useState(null);
@@ -23,6 +27,8 @@ const ProductDetails = () => {
   const [displayedImages, setDisplayedImages] = useState([]);
   const [mainImage, setMainImage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistItemId, setWishlistItemId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -35,9 +41,12 @@ const ProductDetails = () => {
 
         console.debug("🧩 Product API response:", data);
         setProduct(data);
+        if (data?.vendor) {
+          setVendor(data.vendor);
+        }
 
         // ✅ If product has vendor_id, fetch vendor (shop) details
-        if (data?.vendor_id) {
+        if (!data?.vendor && data?.vendor_id) {
           try {
             const vendorRes = await axios.get(`${BASE_URL}/Vendor`, {
               params: { vendor_id: data.vendor_id },
@@ -135,12 +144,96 @@ const ProductDetails = () => {
 
   const handleThumbnailClick = (url) => setMainImage(url);
 
-  const handleAddToCart = () => {
-    alert(
-      `Added ${product?.product_name || product?.name || "Product"} ${
-        selectedVariant ? `(${selectedVariant.sku})` : ""
-      } to cart`
-    );
+  // Check wishlist status
+  useEffect(() => {
+    if (token && product) {
+      const checkWishlistStatus = async () => {
+        try {
+          const productId = product._id || product.id;
+          const variantId = selectedVariant?.id || null;
+          const result = await checkWishlist(productId, variantId);
+          setIsInWishlist(result.in_wishlist || false);
+          setWishlistItemId(result.wishlist_item_id || null);
+        } catch (err) {
+          console.error("Error checking wishlist:", err);
+          // Don't set error state, just log it
+        }
+      };
+      checkWishlistStatus();
+    } else {
+      setIsInWishlist(false);
+      setWishlistItemId(null);
+    }
+  }, [token, product, selectedVariant]);
+
+  const handleAddToCart = async () => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    if (!product) return;
+
+    try {
+      const productId = product._id || product.id;
+      const variantId = selectedVariant?.id || null;
+      
+      console.log("Adding to cart:", { productId, variantId });
+      
+      await addToCart(productId, variantId, 1);
+      alert(
+        `Added ${product?.product_name || product?.name || "Product"} ${
+          selectedVariant ? `(${selectedVariant.sku})` : ""
+        } to cart`
+      );
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      const errorMessage = err.response?.data?.detail || err.message || "Failed to add item to cart";
+      alert(`Error: ${errorMessage}`);
+    }
+  };
+
+  const handleWishlistToggle = async () => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    if (!product) return;
+
+    try {
+      const productId = product._id || product.id;
+      const variantId = selectedVariant?.id || null;
+
+      console.log("Toggling wishlist:", { productId, variantId, isInWishlist, wishlistItemId });
+
+      if (isInWishlist && wishlistItemId) {
+        await removeFromWishlist(wishlistItemId);
+        setIsInWishlist(false);
+        setWishlistItemId(null);
+        alert("Removed from wishlist");
+      } else {
+        await addToWishlist(productId, variantId);
+        setIsInWishlist(true);
+        // Check again to get the wishlist_item_id
+        const checkResult = await checkWishlist(productId, variantId);
+        setWishlistItemId(checkResult.wishlist_item_id || null);
+        alert("Added to wishlist");
+      }
+    } catch (err) {
+      console.error("Error toggling wishlist:", err);
+      if (err.response?.status === 400 && err.response?.data?.detail === "Item already in wishlist") {
+        // Item is already in wishlist, just update state
+        setIsInWishlist(true);
+        const productId = product._id || product.id;
+        const variantId = selectedVariant?.id || null;
+        const checkResult = await checkWishlist(productId, variantId);
+        setWishlistItemId(checkResult.wishlist_item_id || null);
+      } else {
+        const errorMessage = err.response?.data?.detail || err.message || "Failed to update wishlist";
+        alert(`Error: ${errorMessage}`);
+      }
+    }
   };
 
   if (loading) {
@@ -184,7 +277,7 @@ const ProductDetails = () => {
     : [];
 
   return (
-    <div className="max-w-[1800px] mx-auto py-10 px-8">
+    <div className="w-full py-10 px-8">
       <div className="flex flex-col lg:flex-row items-start justify-center gap-8 lg:gap-16">
         {/* LEFT COLUMN - Thumbnails */}
         <div className="flex flex-col gap-3 flex-shrink-0">
@@ -275,13 +368,46 @@ const ProductDetails = () => {
             {displayName}
           </h1>
 
-          <div className="flex flex-col mb-3">
-            <span className="text-3xl font-bold text-gray-900">
-              MRP : ₹ {displayPrice ?? "N/A"}
-            </span>
-            <span className="text-xs text-gray-500">
-              Inclusive of all taxes (also includes all applicable duties)
-            </span>
+        <div>
+          <span className="font-semibold">Description:</span>{" "}
+          <span className="text-gray-700 leading-relaxed">{displayDescription}</span>
+        </div>
+
+
+
+
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col">
+              <span className="text-3xl font-bold text-gray-900">
+                MRP : ₹ {displayPrice ?? "N/A"}
+              </span>
+              <span className="text-xs text-gray-500">
+                Inclusive of all taxes (also includes all applicable duties)
+              </span>
+            </div>
+            {/* Wishlist Button */}
+            {token && (
+              <button
+                onClick={handleWishlistToggle}
+                className="p-3 rounded-full hover:bg-gray-100 transition-colors"
+                title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`h-6 w-6 ${isInWishlist ? "text-red-500 fill-current" : "text-gray-400"}`}
+                  fill={isInWishlist ? "currentColor" : "none"}
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
 
           
@@ -302,25 +428,23 @@ const ProductDetails = () => {
 
           <div className="text-sm text-gray-700 space-y-1">
             <p>
-              <span className="font-semibold">Condition:</span>{" "}
-              {displayCondition ?? "N/A"}
-            </p>
-            <p>
               <span className="font-semibold">Stock:</span>{" "}
               {displayStock ?? "N/A"}
             </p>
           </div>
 
-          <p className="text-gray-700 leading-relaxed">{displayDescription}</p>
+          
 
           {/* ✅ SHOP INFO */}
-          {(vendorName || vendorAddress) && (
-            <div className="mt-6 border-t pt-4">
-              <h4 className="font-semibold text-gray-800 mb-2">Shop Information</h4>
-              <p className="text-gray-900 font-medium">{vendorName}</p>
-              <p className="text-gray-600 text-sm">{vendorAddress}</p>
-            </div>
-          )}
+          <div className="mt-6 border-t pt-4">
+            <h4 className="font-semibold text-gray-800 mb-2">Shop Information</h4>
+            <p className="text-sm text-gray-800">
+              <span className="font-semibold">Shop name:</span> {vendorName || "N/A"}
+            </p>
+            <p className="text-sm text-gray-800">
+              <span className="font-semibold">Shop address:</span> {vendorAddress || "N/A"}
+            </p>
+          </div>
 
           {/* Variants */}
           {variants?.length > 0 && (
@@ -370,13 +494,13 @@ const ProductDetails = () => {
             </button>
 
             {/* Message Seller Button */}
-            {vendor && (
+            {(vendor || product?.vendor_id) && (
               <button
                 onClick={() =>
                   navigate(
                     `/messages?vendor_user_id=${encodeURIComponent(
-                      vendor?.user_id || vendor?.id || ""
-                    )}&product_id=${product?.id || product?._id || id}`
+                      vendor?.user_id || vendor?.id || product?.vendor_id || ""
+                    )}&vendor_id=${encodeURIComponent(vendor?.id || product?.vendor_id || "")}&product_id=${product?.id || product?._id || id}`
                   )
                 }
                 className="border border-gray-300 text-black px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"

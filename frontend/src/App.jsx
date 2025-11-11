@@ -15,7 +15,7 @@ function App() {
         {/* Optional Navbar */}
         {/* <Navbar /> */}
 
-        <main className="flex-grow container mx-auto px-4 py-6">
+        <main className="flex-grow w-full">
           {/* All your route-based pages will load here */}
           <AppRouter />
              

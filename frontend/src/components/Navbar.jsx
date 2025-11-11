@@ -38,6 +38,7 @@ export default function Navbar() {
         <Link to="/about" className="hover:underline">About</Link>
         <Link to="/contact" className="hover:underline">Contact</Link>
         <Link to="/cart" className="hover:underline">Cart</Link>
+        <Link to="/wishlist" className="hover:underline">Wishlist</Link>
 
         {/* Profile / Login */}
         {token ? (

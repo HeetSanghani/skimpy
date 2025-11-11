@@ -729,14 +729,16 @@ function isBookCategory(category) {
 export default function ProductDetail() {
   const { productId } = useParams();
   const navigate = useNavigate();
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Variants + Attributes
   const [variants, setVariants] = useState([]);
-  const [attributes, setAttributes] = useState([]);
-  const [allAttributeValues, setAllAttributeValues] = useState([]);
+  const [attributes, setAttributes] = useState([]); // attributes shaped like { _id, name, values: [] }
+  const [allAttributeValues, setAllAttributeValues] = useState([]); // items shaped { _id, attribute_id, value }
   const [loadingAttributes, setLoadingAttributes] = useState(false);
 
   const [editingVariantId, setEditingVariantId] = useState(null);
@@ -745,133 +747,143 @@ export default function ProductDetail() {
   const [editForm, setEditForm] = useState({});
   const [editMode, setEditMode] = useState(false);
 
-  useEffect(() => {
-    if (!productId) return;
-    setLoading(true);
-    fetchProductById(productId)
-      .then((data) => {
-        setProduct(data);
-        setEditForm({ ...data });
-      })
-      .catch(() => {
-        setError("Not found.");
-        setProduct(null);
-      })
-      .finally(() => setLoading(false));
-
-    fetchVariants();
-    fetchAllAttributeValues();
-    // eslint-disable-next-line
-  }, [productId]);
-
-  // refetch merged attributes when product/variants/values change
-  useEffect(() => {
-    if (product && (variants.length >= 0) && allAttributeValues.length >= 0) {
-      // call but don't require results; this will merge presets as needed
-      fetchAttributes(product, allAttributeValues, variants).catch(() => {});
-    }
-    // eslint-disable-next-line
-  }, [product, variants, allAttributeValues]);
-
+  // --- Helpers ---
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  const fetchVariants = async () => {
+  // Normalize product shape into our editForm keys
+  const normalizeProductToForm = (p) => ({
+    product_name: p?.product_name ?? p?.name ?? "",
+    description: p?.description ?? "",
+    brand: p?.brand ?? p?.manufacturer ?? "",
+    images: p?.images ?? p?.images_list ?? []
+  });
+
+  // --- Fetch product, variants, attribute-values on mount / productId change ---
+  useEffect(() => {
+    if (!productId) return;
+    setLoading(true);
+    setError(null);
+
+    fetchProductById(productId)
+      .then((data) => {
+        setProduct(data);
+        // initialize editForm from product but do not forcibly open editMode
+        setEditForm(normalizeProductToForm(data));
+      })
+      .catch((err) => {
+        console.error("fetchProductById error:", err);
+        setError("Not found.");
+        setProduct(null);
+      })
+      .finally(() => setLoading(false));
+
+    fetchVariants(productId);
+    fetchAllAttributeValues();
+    // eslint-disable-next-line
+  }, [productId]);
+
+  // Keep editForm in sync if product gets refetched while not actively editing
+  useEffect(() => {
+    if (!product) return;
+    if (!editMode) {
+      setEditForm(prev => ({ ...prev, ...normalizeProductToForm(product) }));
+    }
+  }, [product, editMode]);
+
+  // Fetch variants
+  const fetchVariants = async (pid = productId) => {
     try {
-      const res = await axios.get(`${BASE_URL}/Variant/list/${productId}`);
-      setVariants(res.data.variants || []);
+      const res = await axios.get(`${BASE_URL}/Variant/list/${pid}`, { headers: getAuthHeaders() });
+      // Support both { variants: [...] } and direct [...variantItems...] responses
+      const v = res.data?.variants ?? res.data ?? [];
+      setVariants(Array.isArray(v) ? v : []);
     } catch (err) {
-      console.error("Error fetching variants:", err);
+      console.error("fetchVariants error:", err);
       setVariants([]);
     }
   };
 
-  // Strong fetchAttributes: merge backend + preset attributes + AttributeValue table
-  const fetchAttributes = async (productData = null, attributeValues = null, variantsData = null) => {
+  // Fetch all attribute values (flat list)
+  const fetchAllAttributeValues = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/AttributeValue/`, { headers: getAuthHeaders() });
+      // user-provided shape: { attribute_values: [ ... ] }
+      const vals = res.data?.attribute_values ?? res.data ?? [];
+      setAllAttributeValues(Array.isArray(vals) ? vals : []);
+    } catch (err) {
+      console.error("fetchAllAttributeValues error:", err);
+      setAllAttributeValues([]);
+    }
+  };
+
+  // Fetch attributes for the product (uses by_category endpoint when possible)
+  const fetchAttributes = async (productToUse = product, attributeValues = allAttributeValues, variantsToUse = variants) => {
     setLoadingAttributes(true);
     try {
-      const productToUse = productData || product;
-      const valuesToUse = attributeValues || allAttributeValues;
-      const variantsToUse = variantsData || variants;
-      let fetchedAttributes = [];
-      const category = productToUse?.category || productToUse;
-
+      // Resolve category id in a few likely places
       const categoryId =
-        productToUse?.category_id ||
-        productToUse?.category_id?._id ||
-        productToUse?.category?._id ||
-        productToUse?.category?.id;
+        productToUse?.category_id ??
+        productToUse?.category?.id ??
+        productToUse?.category?._id ??
+        (productToUse?.category_id?._id) ??
+        null;
 
-      // 1) Try to fetch attributes for the category
+      let fetchedAttributes = [];
+
       if (categoryId) {
         try {
           const res = await axios.get(`${BASE_URL}/Attribute/by_category/${categoryId}`, {
             headers: getAuthHeaders(),
           });
-          fetchedAttributes = res.data?.attributes || res.data?.data || res.data || [];
-        } catch (apiErr) {
-          console.warn("by_category fetch failed, falling back to all attributes", apiErr?.message || apiErr);
-          try {
-            const resAll = await axios.get(`${BASE_URL}/Attribute/`, {
-              headers: getAuthHeaders(),
-            });
-            fetchedAttributes = resAll.data?.attributes || resAll.data?.data || resAll.data || [];
-          } catch (allErr) {
-            console.warn("Failed fetching all attributes", allErr);
-            fetchedAttributes = [];
+          // Expected shape from you: { attributes: [ { _id, name, values: [] }, ... ] }
+          fetchedAttributes = res.data?.attributes ?? res.data?.data ?? res.data ?? [];
+        } catch (err) {
+          // fallback to all attributes and filter by variants
+          console.warn("by_category failed, will fetch all attributes and filter by variants", err);
+          const resAll = await axios.get(`${BASE_URL}/Attribute/`, { headers: getAuthHeaders() });
+          const allAttrs = resAll.data?.attributes ?? resAll.data ?? [];
+          if (variantsToUse?.length > 0) {
+            const variantAttrNames = new Set();
+            variantsToUse.forEach(v => (v.attributes || []).forEach(a => variantAttrNames.add(a.attribute_name)));
+            fetchedAttributes = (allAttrs || []).filter(a => variantAttrNames.has(a.name));
+          } else {
+            fetchedAttributes = allAttrs;
           }
         }
       } else {
-        // no categoryId: fetch all attributes and filter later
-        try {
-          const resAll = await axios.get(`${BASE_URL}/Attribute/`, {
-            headers: getAuthHeaders(),
-          });
-          fetchedAttributes = resAll.data?.attributes || resAll.data?.data || resAll.data || [];
-        } catch {
-          fetchedAttributes = [];
+        // No category: fetch all and filter by variants (if available)
+        const resAll = await axios.get(`${BASE_URL}/Attribute/`, { headers: getAuthHeaders() });
+        const allAttrs = resAll.data?.attributes ?? resAll.data ?? [];
+        if (variantsToUse?.length > 0) {
+          const variantAttrNames = new Set();
+          variantsToUse.forEach(v => (v.attributes || []).forEach(a => variantAttrNames.add(a.attribute_name)));
+          fetchedAttributes = (allAttrs || []).filter(a => variantAttrNames.has(a.name));
+        } else {
+          fetchedAttributes = allAttrs;
         }
       }
 
-      // 2) Determine preset attributes for the category
-      let presetAttributes = [];
-      if (isClothingCategory(category)) presetAttributes = CLOTHING_ATTRIBUTES;
-      else if (isBookCategory(category)) presetAttributes = BOOK_ATTRIBUTES;
+      // Merge in attribute values from attributeValues list (avoid duplicates)
+      if (attributeValues && attributeValues.length > 0) {
+        fetchedAttributes = (fetchedAttributes || []).map(attr => {
+          const valuesFromList = attributeValues
+            .filter(av => av.attribute_id === attr._id || av.attribute_id === attr.id)
+            .map(av => av.value);
+          const existing = attr.values ?? [];
+          const merged = Array.from(new Set([...existing, ...valuesFromList]));
+          return { ...attr, values: merged };
+        });
+      } else {
+        fetchedAttributes = (fetchedAttributes || []).map(attr => ({ ...attr, values: attr.values ?? [] }));
+      }
 
-      // 3) Merge fetched backend attributes with preset attributes (add missing attributes)
-      const existingNames = new Set((fetchedAttributes || []).map(a => (a.name || "").toLowerCase()));
-      const mergedList = [...(fetchedAttributes || [])];
-      presetAttributes.forEach(pre => {
-        if (!existingNames.has(pre.name.toLowerCase())) {
-          // ensure structure similar to backend (no _id)
-          mergedList.push({ name: pre.name, values: pre.values });
-        }
-      });
-
-      // 4) Combine available AttributeValue entries (db) with backend/preset values
-      const finalAttributes = mergedList.map(attr => {
-        const backendValues = Array.isArray(attr.values) ? attr.values : [];
-        const presetValues = (presetAttributes.find(p => p.name === attr.name)?.values) || [];
-        const dbValues = (valuesToUse || [])
-          .filter(v => v.attribute_id === attr._id || v.attribute_id === attr.id)
-          .map(v => v.value);
-
-        // Deduplicate and keep meaningful order: preset -> backend -> db
-        const mergedValues = Array.from(new Set([...(presetValues || []), ...backendValues, ...dbValues]));
-
-        return { ...attr, values: mergedValues };
-      });
-
-      // 5) If still empty, fallback to presetAttributes directly (ensures UI shows those fields)
-      const finalToUse = (finalAttributes && finalAttributes.length > 0) ? finalAttributes : presetAttributes;
-
-      setAttributes(finalToUse);
-      console.log("Final merged attributes:", finalToUse);
-      return finalToUse;
+      setAttributes(Array.isArray(fetchedAttributes) ? fetchedAttributes : []);
+      return fetchedAttributes;
     } catch (err) {
-      console.error("Error in fetchAttributes:", err);
+      console.error("fetchAttributes error:", err);
       setAttributes([]);
       return [];
     } finally {
@@ -879,15 +891,26 @@ export default function ProductDetail() {
     }
   };
 
-  const fetchAllAttributeValues = async () => {
+  // --- Handlers for product edit / update / delete ---
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdate = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/AttributeValue/`, {
-        headers: getAuthHeaders(),
-      });
-      setAllAttributeValues(res.data?.attribute_values || res.data || []);
+      await updateProduct(productId, editForm);
+      // refresh product & variants after update
+      const refreshed = await fetchProductById(productId);
+      setProduct(refreshed);
+      setEditForm(normalizeProductToForm(refreshed));
+      setEditMode(false);
+      // refresh variants in case product fields affect them
+      fetchVariants();
+      alert("Product updated");
     } catch (err) {
-      console.error("Error fetching attribute values:", err);
-      setAllAttributeValues([]);
+      console.error("handleUpdate error:", err);
+      alert("Update failed");
     }
   };
 
@@ -896,16 +919,27 @@ export default function ProductDetail() {
     setDeleting(true);
     try {
       await deleteProduct(productId);
-      alert("Product deleted.");
+      alert("Product deleted");
       navigate("/seller/dashboard?tab=listings");
-    } catch (e) {
-      console.error("Delete product error:", e);
-      alert("Failed to delete.");
+    } catch (err) {
+      console.error("handleDelete error:", err);
+      alert("Failed to delete");
     } finally {
       setDeleting(false);
     }
   };
 
+  const handleDeleteImage = (img) => {
+    setEditForm(prev => ({ ...prev, images: (prev.images || []).filter(i => i !== img) }));
+  };
+
+  // Enter edit mode (seed form reliably)
+  const enterEditMode = () => {
+    setEditForm(normalizeProductToForm(product ?? {}));
+    setEditMode(true);
+  };
+
+  // --- Variant edit: start / cancel / save / delete ---
   const handleInputChange = (e) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
   };
@@ -936,30 +970,31 @@ export default function ProductDetail() {
       return;
     }
 
-    // ensure attributes are loaded (merged)
+    // ensure attributes are loaded first (we'll try to fetch with current data)
     const fetchedAttrs = await fetchAttributes(product, allAttributeValues, variants);
-    // small delay to allow state to settle (optional)
-    await new Promise(resolve => setTimeout(resolve, 100));
+    if (!fetchedAttrs || fetchedAttrs.length === 0) {
+      alert("Failed to load attributes for variant editing.");
+      return;
+    }
 
-    // Prepare selectedAttributes map using attribute_name -> value_name
+    // map variant attributes to { attributeName: valueName }
     const attrMap = {};
     (v.attributes || []).forEach(a => {
-      if (a.attribute_name) attrMap[a.attribute_name] = a.value_name;
+      attrMap[a.attribute_name] = a.value_name;
     });
 
-    // If fetchedAttrs contains attributes whose name matches a variant attr, but variant attr exists with different naming,
-    // we attempt to map by name. Otherwise preselection will use attrMap keys that match the dropdown labels (attr.name).
-    setEditingVariantId(v.id || v._id);
     setVariantForm({
+      sku: v.sku ?? "",
       price: v.price ?? "",
       stock: v.stock ?? "",
-      selectedAttributes: attrMap,
+      selectedAttributes: attrMap
     });
+    setEditingVariantId(v.id ?? v._id);
   };
 
   const cancelVariantEdit = () => {
     setEditingVariantId(null);
-    setVariantForm({ price: "", stock: "", selectedAttributes: {} });
+    setVariantForm({ sku: "", price: "", stock: "", selectedAttributes: {} });
   };
 
   const handleAttributeChange = (attributeName, value) => {
@@ -971,19 +1006,24 @@ export default function ProductDetail() {
 
   const saveVariantEdit = async () => {
     if (!editingVariantId) return;
-    const attributePairs = [];
 
-    const findAttributeByName = name => attributes.find(a => (a.name || "").toString() === name);
-    const findValueId = (attributeId, valueName) =>
-      allAttributeValues.find(v => (v.attribute_id === attributeId || v.attribute_id === attributeId) && v.value === valueName)?._id;
+    // Convert selectedAttributes to attribute_id/value_id pairs expected by backend
+    const attributePairs = [];
+    const findAttributeByName = (name) => attributes.find(a => a.name === name || a._id === name);
+    const findValueId = (attributeId, valueName) => {
+      const v = allAttributeValues.find(av => (av.attribute_id === attributeId || av.attribute_id === attributeId) && av.value === valueName);
+      return v?._id;
+    };
 
     for (const [attrName, valueName] of Object.entries(variantForm.selectedAttributes || {})) {
       if (!valueName) continue;
       const attr = findAttributeByName(attrName);
       if (!attr) continue;
       const valueId = findValueId(attr._id, valueName);
-      if (valueId) attributePairs.push({ attribute_id: attr._id, value_id: valueId });
+      if (!valueId) continue;
+      attributePairs.push({ attribute_id: attr._id, value_id: valueId });
     }
+
 
     const fd = new FormData();
     if (variantForm.price !== undefined) fd.append("price", variantForm.price);
@@ -991,16 +1031,24 @@ export default function ProductDetail() {
     if (attributePairs.length > 0) fd.append("attribute_values", JSON.stringify(attributePairs));
 
     try {
+      const fd = new FormData();
+      if (variantForm.sku !== undefined && variantForm.sku !== null) fd.append("sku", variantForm.sku);
+      if (variantForm.price !== undefined && variantForm.price !== null) fd.append("price", variantForm.price);
+      if (variantForm.stock !== undefined && variantForm.stock !== null) fd.append("stock", variantForm.stock);
+      if (attributePairs.length > 0) fd.append("attribute_values", JSON.stringify(attributePairs));
+
       await axios.put(`${BASE_URL}/Variant/update/${editingVariantId}`, fd, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
       });
+
       await fetchVariants();
       cancelVariantEdit();
+      alert("Variant updated");
     } catch (err) {
-      console.error("Variant update error:", err);
+      console.error("saveVariantEdit error:", err);
       alert("Failed to update variant");
     }
   };
@@ -1009,19 +1057,29 @@ export default function ProductDetail() {
     if (!window.confirm("Delete this variant?")) return;
     try {
       await axios.delete(`${BASE_URL}/Variant/delete/${variantId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
       fetchVariants();
+      alert("Variant deleted");
     } catch (err) {
-      console.error("Variant delete error:", err);
+      console.error("handleVariantDelete error:", err);
       alert("Failed to delete variant");
     }
   };
 
+  // --- Render helpers ---
+  const renderFieldIfPresent = (label, value) => (
+    <div className="flex items-start mb-2">
+      <label className="w-32 font-semibold">{label}:</label>
+      <div>{(value !== undefined && value !== null) ? (value || "—") : null}</div>
+    </div>
+  );
+
+  // --- UI ---
   return (
     <>
       <Navbar />
-      <div className="max-w-4xl mx-auto py-10 px-4">
+      <div className="w-full py-10 px-4">
         {loading ? (
           <div className="text-center">Loading...</div>
         ) : error ? (
@@ -1030,13 +1088,13 @@ export default function ProductDetail() {
           <div className="text-center">Product not found.</div>
         ) : (
           <div className="bg-white shadow rounded-lg p-8">
-            {/* Product Images */}
+            {/* Images */}
             <div className="mb-6">
               <div className="flex gap-2 mb-2">
                 {(editForm.images || []).map((img, idx) => (
                   <div key={idx} className="relative group">
                     <img
-                      src={(typeof img === "string" && img.startsWith("http")) ? img : `http://127.0.0.1:8000/${img}`}
+                      src={typeof img === "string" && img.startsWith("http") ? img : `${BASE_URL}/${img}`}
                       alt={`product-img-${idx}`}
                       className="w-24 h-24 object-cover rounded border"
                     />
@@ -1054,57 +1112,58 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Product Info */}
+            {/* Product fields */}
             {editMode ? (
               <>
-                <input
-                  name="product_name"
-                  value={editForm.product_name}
-                  onChange={handleInputChange}
-                  className="mb-2 w-full border rounded p-2"
-                />
-                <textarea
-                  name="description"
-                  value={editForm.description ?? ""}
-                  onChange={handleInputChange}
-                  className="mb-2 w-full border rounded p-2"
-                />
-                <input
-                  name="price"
-                  type="number"
-                  value={editForm.price}
-                  onChange={handleInputChange}
-                  className="mb-2 w-1/2 border rounded p-2"
-                />
-                <input
-                  name="stock"
-                  type="number"
-                  value={editForm.stock}
-                  onChange={handleInputChange}
-                  className="mb-2 w-1/2 border rounded p-2"
-                />
-                <input
-                  name="brand"
-                  value={editForm.brand || ""}
-                  onChange={handleInputChange}
-                  placeholder="Brand (optional)"
-                  className="mb-2 w-1/2 border rounded p-2"
-                />
+                <div className="flex items-center mb-2">
+                  <label className="w-32">Name:</label>
+                  <input
+                    name="product_name"
+                    autoComplete="off"
+                    value={editForm.product_name}
+                    onChange={handleInputChange}
+                    className="flex-1 border rounded p-2"
+                  />
+                </div>
+
+                <div className="flex items-start mb-2">
+                  <label className="w-32 pt-2">Description:</label>
+                  <textarea
+                    name="description"
+                    autoComplete="off"
+                    value={editForm.description ?? ""}
+                    onChange={handleInputChange}
+                    className="flex-1 border rounded p-2"
+                  />
+                </div>
+
+                <div className="flex items-center mb-2">
+                  <label className="w-32">Brand:</label>
+                  <input
+                    name="brand"
+                    autoComplete="off"
+                    value={editForm.brand || ""}
+                    onChange={handleInputChange}
+                    placeholder="Brand (optional)"
+                    className="flex-1 border rounded p-2"
+                  />
+                </div>
               </>
             ) : (
               <>
-                <h1 className="text-3xl font-bold mb-4">{product.product_name}</h1>
-                <p className="mb-2 text-lg">{product.description}</p>
-                <div className="mb-2">Brand: {product.brand}</div>
-                <div className="mb-2">Condition: {product.product_condition}</div>
+                {/* Show fields even if their value is an empty string (so user sees optional field exists) */}
+                {renderFieldIfPresent("Name", product.product_name ?? product.name)}
+                {renderFieldIfPresent("Description", product.description)}
+                {renderFieldIfPresent("Brand", product.brand ?? product.manufacturer)}
               </>
             )}
 
-            {/* Variants Table */}
+            {/* Variants */}
             <div className="mt-8">
               <h2 className="font-bold text-2xl mb-4">Variants</h2>
-              {variants.length === 0 && <div>No variants.</div>}
-              {variants.length > 0 && (
+              {variants.length === 0 ? (
+                <div>No variants.</div>
+              ) : (
                 <table className="min-w-full border text-left mb-6">
                   <thead className="bg-gray-100">
                     <tr>
@@ -1118,41 +1177,54 @@ export default function ProductDetail() {
                   </thead>
                   <tbody>
                     {variants.map((variant) => {
-                      const variantKey = variant.id || variant._id || variant.sku || Math.random();
+                      const variantId = variant.id ?? variant._id;
                       return (
-                        <tr key={variantKey} className="border-t">
-                          <td className="py-2 px-4">{variant.sku}</td>
+                        <tr key={variantId} className="border-t">
                           <td className="py-2 px-4">
-                            {editingVariantId === (variant.id || variant._id) ? (
+                            {editingVariantId === variantId ? (
+                              <input
+                                type="text"
+                                className="border rounded px-2 py-1 w-36"
+                                value={variantForm.sku}
+                                onChange={e => setVariantForm(f => ({ ...f, sku: e.target.value }))}
+                                placeholder="SKU"
+                              />
+                            ) : (
+                              <>{variant.sku}</>
+                            )}
+                          </td>
+                          <td className="py-2 px-4">
+                            {editingVariantId === variantId ? (
                               <input
                                 type="number"
                                 className="border rounded px-2 py-1 w-24"
                                 value={variantForm.price}
-                                onChange={(e) => setVariantForm(f => ({ ...f, price: e.target.value }))}
+                                onChange={e => setVariantForm(f => ({ ...f, price: e.target.value }))}
                               />
                             ) : (
                               <>${variant.price}</>
                             )}
                           </td>
                           <td className="py-2 px-4">
-                            {editingVariantId === (variant.id || variant._id) ? (
+                            {editingVariantId === variantId ? (
                               <input
                                 type="number"
                                 className="border rounded px-2 py-1 w-20"
                                 value={variantForm.stock}
-                                onChange={(e) => setVariantForm(f => ({ ...f, stock: e.target.value }))}
+                                onChange={e => setVariantForm(f => ({ ...f, stock: e.target.value }))}
                               />
                             ) : (
                               <>{variant.stock}</>
                             )}
                           </td>
+
                           <td className="py-2 px-4">
-                            {editingVariantId === (variant.id || variant._id) ? (
+                            {editingVariantId === variantId ? (
                               <div className="space-y-2">
-                                {attributes.length > 0 ? (
-                                  attributes.map((attr) => {
-                                    const currentValue = variantForm.selectedAttributes?.[attr.name] ?? "";
-                                    const vals = Array.isArray(attr.values) ? attr.values : [];
+                                {attributes && attributes.length > 0 ? (
+                                  attributes.map(attr => {
+                                    const attrValues = attr.values || [];
+                                    const currentValue = variantForm.selectedAttributes[attr.name] || "";
                                     return (
                                       <div key={attr._id || attr.name} className="flex items-center gap-2">
                                         <label className="text-sm font-medium w-36">{attr.name}:</label>
@@ -1161,13 +1233,9 @@ export default function ProductDetail() {
                                           value={currentValue}
                                           onChange={(e) => handleAttributeChange(attr.name, e.target.value)}
                                         >
-                                          <option value="">{`Select ${attr.name}`}</option>
-                                          {vals.length > 0 ? (
-                                            vals.map((val) => (
-                                              <option key={val} value={val}>
-                                                {val}
-                                              </option>
-                                            ))
+                                          <option value="">Select {attr.name}</option>
+                                          {attrValues.length > 0 ? (
+                                            attrValues.map(val => <option key={val} value={val}>{val}</option>)
                                           ) : (
                                             <option disabled>No values</option>
                                           )}
@@ -1177,35 +1245,45 @@ export default function ProductDetail() {
                                   })
                                 ) : (
                                   <div className="text-gray-500 text-sm">
-                                    {loadingAttributes ? "Loading attributes..." : "No attributes loaded"}
+                                    {loadingAttributes ? "Loading attributes..." : "No attributes loaded."}
+                                    {!loadingAttributes && (
+                                      <button
+                                        onClick={() => fetchAttributes(product, allAttributeValues, variants)}
+                                        className="ml-2 text-blue-600 underline text-xs hover:text-blue-800"
+                                      >
+                                        Retry
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
                             ) : (
                               <div>
-                                {(variant.attributes || []).map((attr, idx) => (
+                                {(variant.attributes || []).map((a, idx) => (
                                   <div key={idx} className="mb-1">
-                                    <span className="font-semibold">{attr.attribute_name}:</span>{" "}
-                                    <span>{attr.value_name}</span>
+                                    <span className="font-semibold">{a.attribute_name}:</span>{" "}
+                                    <span>{a.value_name}</span>
                                   </div>
                                 ))}
                               </div>
                             )}
                           </td>
+
                           <td className="py-2 px-4">
                             <div className="flex gap-1 flex-wrap">
                               {(variant.images || []).map((img, idx) => (
                                 <img
                                   key={idx}
-                                  src={(typeof img === "string" && img.startsWith("http")) ? img : `http://127.0.0.1:8000/${img}`}
+                                  src={typeof img === "string" && img.startsWith("http") ? img : `${BASE_URL}/${img}`}
                                   alt=""
                                   className="w-10 h-10 rounded border"
                                 />
                               ))}
                             </div>
                           </td>
+
                           <td className="py-2 px-4">
-                            {editingVariantId === (variant.id || variant._id) ? (
+                            {editingVariantId === variantId ? (
                               <>
                                 <button onClick={saveVariantEdit} className="text-green-700 mr-2 hover:underline">Save</button>
                                 <button onClick={cancelVariantEdit} className="text-gray-700 hover:underline">Cancel</button>
@@ -1213,7 +1291,7 @@ export default function ProductDetail() {
                             ) : (
                               <>
                                 <button className="text-blue-700 mr-2 hover:underline" onClick={() => startVariantEdit(variant)}>Edit</button>
-                                <button className="text-red-700 hover:underline" onClick={() => handleVariantDelete(variant.id)}>Delete</button>
+                                <button className="text-red-700 hover:underline" onClick={() => handleVariantDelete(variantId)}>Delete</button>
                               </>
                             )}
                           </td>
@@ -1226,18 +1304,20 @@ export default function ProductDetail() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 mt-8">
+            <div className="flex gap-4 mt-8 items-center">
               {editMode ? (
                 <>
                   <button onClick={handleUpdate} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save Changes</button>
-                  <button onClick={() => setEditMode(false)} className="px-6 py-2 border rounded">Cancel</button>
+                  <button onClick={() => { setEditMode(false); setEditForm(normalizeProductToForm(product)); }} className="px-6 py-2 border rounded">Cancel</button>
                 </>
               ) : (
-                <button onClick={() => setEditMode(true)} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Edit</button>
+                <button onClick={enterEditMode} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Edit</button>
               )}
+
               <button onClick={handleDelete} className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700" disabled={deleting}>
                 {deleting ? "Deleting..." : "Delete"}
               </button>
+
               <button onClick={() => navigate(-1)} className="px-6 py-2 ml-auto border rounded">Back</button>
             </div>
           </div>

@@ -13,7 +13,7 @@ export default function Home() {
            
            
             {/* Main content */}
-            <main className="flex-grow container mx-auto px-4 py-8">
+            <main className="flex-grow w-full px-4 py-8">
                 <section className="text-center mb-10">
                     <h1 className="text-4xl font-bold mb-4 text-gray-800">
                         Welcome to Marketplace

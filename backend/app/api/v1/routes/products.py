@@ -8,6 +8,7 @@ from ....schemas.product import ProductResponse, ProductCondition
 from app.core.security import get_current_user
 from app.services.image_upload import upload_image_to_imgbb
 
+
 router = APIRouter(prefix="/Product", tags=["Products"])
 
 # Collections
@@ -67,12 +68,23 @@ async def create_product(
     Create a new product and upload its images.
     """
     category_oid = validate_objectid(category_id)
-    # If vendor_id is not provided, use the current logged-in user's id as vendor
+    # Resolve the actual vendor ObjectId to associate with the product
+    # Priority:
+    # 1) Use provided vendor_id if it corresponds to an existing vendor
+    # 2) Otherwise, use the vendor whose user_id equals the current user.user_id
+    vendor_oid = None
     if vendor_id:
-        vendor_oid = validate_objectid(vendor_id)
+        vid = validate_objectid(vendor_id)
+        vdoc = cate_db.vendors.find_one({"_id": vid})
+        if not vdoc:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_oid = vdoc["_id"]
     else:
-        user_id = current_user.get("id") or current_user.get("_id")
-        vendor_oid = validate_objectid(str(user_id)) if user_id else None
+        # current_user comes from the users DB and contains a stable string user_id
+        user_vendor = cate_db.vendors.find_one({"user_id": str(current_user.get("user_id", ""))})
+        if not user_vendor:
+            raise HTTPException(status_code=400, detail="No vendor profile associated with current user")
+        vendor_oid = user_vendor["_id"]
 
     if not cate_db.categories.find_one({"_id": category_oid}):
         raise HTTPException(status_code=404, detail="Category not found")
@@ -116,6 +128,53 @@ def list_product(vendor: Optional[bool] = None):
     products = [objectid_str(p) for p in product_collection.find(query)]
     return products
 
+# ---------- GET PRODUCTS BY VENDOR ----------
+@router.get("/by-vendor/{vendor_id}", response_model=List[ProductResponse])
+def list_products_by_vendor(vendor_id: str):
+    """
+    List products that belong to a specific vendor.
+    """
+    vid = validate_objectid(vendor_id)
+    products_cursor = product_collection.find({"vendor_id": vid})
+    return [objectid_str(p) for p in products_cursor]
+
+# ---------- GET PRODUCTS BY CATEGORY SLUG (including descendants) ----------
+@router.get("/Category", response_model=List[ProductResponse])
+def list_products_by_category(slug: str):
+    """
+    List products for a given category slug. Includes all descendant categories.
+    Example: slug="thrift/clothes/shirt" → returns products in that category and its children.
+    """
+    # Find the category by exact slug
+    category = cate_db.categories.find_one({"slug": slug})
+    if not category:
+        return []
+
+    # Collect all descendant categories recursively
+    def get_all_children(parent_ids):
+        children = list(cate_db.categories.find({
+            "$or": [
+                {"parent_id": {"$in": parent_ids}},
+                {"parent_id": {"$in": [str(pid) for pid in parent_ids]}}
+            ]
+        }))
+        if not children:
+            return []
+        child_ids = [c["_id"] for c in children]
+        return children + get_all_children(child_ids)
+
+    all_children = get_all_children([category["_id"]])
+
+    # Prepare list of ObjectIds to query products.category_id
+    category_ids = [category["_id"]] + [c["_id"] for c in all_children]
+
+    # Fetch products whose category_id is in this set
+    products_cursor = product_collection.find({
+        "category_id": {"$in": category_ids}
+    })
+
+    products = [objectid_str(p) for p in products_cursor]
+    return products
 
 # ---------- GET SINGLE PRODUCT ----------
 @router.get("/{product_id}")
@@ -123,6 +182,33 @@ def get_product(product_id: str):
     product = product_collection.find_one({"_id": validate_objectid(product_id)})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # ✅ Safe conversion: handle ObjectId type for vendor_id and category_id
+    vendor_id = None
+    if "vendor_id" in product:
+        vendor_value = product["vendor_id"]
+        vendor_id = str(vendor_value) if isinstance(vendor_value, ObjectId) else vendor_value
+
+    category_id = None
+    if "category_id" in product:
+        category_value = product["category_id"]
+        category_id = str(category_value) if isinstance(category_value, ObjectId) else category_value
+
+    # Optionally expand vendor details
+    vendor_data = None
+    if vendor_id:
+        try:
+            vdoc = cate_db.vendors.find_one({"_id": ObjectId(vendor_id)})
+            if vdoc:
+                vendor_data = {
+                    "id": str(vdoc.get("_id")),
+                    "user_id": vdoc.get("user_id"),
+                    "shop_name": vdoc.get("shop_name"),
+                    "address": vdoc.get("address"),
+                    "image": vdoc.get("image"),
+                }
+        except Exception:
+            pass
 
     return {
         "id": str(product["_id"]),
@@ -132,8 +218,9 @@ def get_product(product_id: str):
         "stock": product.get("stock"),
         "condition": product.get("product_condition") or product.get("condition") or "N/A",
         "images": product.get("images", []),  # ✅ return list of all image paths
-        "category_id": str(product.get("category_id")) if product.get("category_id") else None,
-        "vendor_id": str(product.get("vendor_id")) if product.get("vendor_id") else None
+        "category_id": category_id,
+        "vendor_id": vendor_id,  # ✅ stringified vendor_id always returned
+        "vendor": vendor_data,
     }
 
 
@@ -233,167 +320,6 @@ def delete_product(product_id: str, current_user: dict = Depends(get_current_use
 
 
 
-
-
-
-
-
-
-
-# # backend/app/api/v1/routes/products.py
-# from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Depends
-# from bson import ObjectId
-# from typing import List, Optional, Union
-# from datetime import datetime
-# import os, shutil, uuid
-# from ....db.mongodb import cate_db
-# from ....schemas.product import ProductResponse, ProductCondition
-# from app.core.security import get_current_user
-
-# router = APIRouter(prefix="/Product", tags=["Products"])
-
-# # Collections
-# product_collection = cate_db.products
-
-
-# # ---------- Helpers ----------
-# def objectid_str(doc):
-#     """Convert ObjectId fields to strings for JSON response."""
-#     doc["_id"] = str(doc["_id"])
-#     if "category_id" in doc:
-#         doc["category_id"] = str(doc["category_id"])
-#     if "vendor_id" in doc and doc["vendor_id"] is not None:
-#         doc["vendor_id"] = str(doc["vendor_id"])
-#     return doc
-
-
-# def validate_objectid(id_str: str) -> ObjectId:
-#     if not ObjectId.is_valid(id_str):
-#         raise HTTPException(status_code=400, detail="Invalid ObjectId")
-#     return ObjectId(id_str)
-
-
-# def save_images(files: Union[List[UploadFile], UploadFile, None], folder="uploads/products") -> List[str]:
-#     """Save images to folder and return their paths."""
-#     os.makedirs(folder, exist_ok=True)
-#     saved_files = []
-#     if not files:
-#         return saved_files
-#     if isinstance(files, UploadFile):
-#         files = [files]
-#     for file in files:
-#         ext = file.filename.split(".")[-1]
-#         filename = f"{uuid.uuid4()}.{ext}"
-#         file_path = os.path.join(folder, filename)
-#         with open(file_path, "wb") as f:
-#             shutil.copyfileobj(file.file, f)
-#         saved_files.append(file_path.replace("\\", "/"))
-#     return saved_files
-
-
-# # ---------- CREATE PRODUCT ----------
-# @router.post("", response_model=ProductResponse)
-# async def create_product(
-#     category_id: str = Form(...),
-#     product_name: str = Form(...),
-#     description: Optional[str] = Form(""),
-#     price: float = Form(...),
-#     stock: int = Form(...),
-#     product_condition: ProductCondition = Form(ProductCondition.NEW),
-#     vendor_id: Optional[str] = Form(None),
-#     files: Optional[List[UploadFile]] = File(None),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     category_oid = validate_objectid(category_id)
-#     vendor_oid = validate_objectid(vendor_id) if vendor_id else None
-
-#     if not cate_db.categories.find_one({"_id": category_oid}):
-#         raise HTTPException(status_code=404, detail="Category not found")
-#     if vendor_oid and not cate_db.vendors.find_one({"_id": vendor_oid}):
-#         raise HTTPException(status_code=404, detail="Vendor not found")
-
-#     product_dict = {
-#         "product_name": product_name,
-#         "description": description,
-#         "price": price,
-#         "stock": stock,
-#         "product_condition": product_condition.value,
-#         "category_id": category_oid,
-#         "vendor_id": vendor_oid,
-#         "images": save_images(files),
-#         "created_at": datetime.utcnow(),
-#         "updated_at": None
-#     }
-
-#     result = product_collection.insert_one(product_dict)
-#     new_product = product_collection.find_one({"_id": result.inserted_id})
-#     return objectid_str(new_product)
-
-
-# # ---------- GET ALL PRODUCTS ----------
-# @router.get("/", response_model=List[ProductResponse])
-# def list_product(vendor: Optional[bool] = None):
-#     query = {}
-#     if vendor is True:
-#         query = {"vendor_id": {"$nin": [None, ""]}}
-#     elif vendor is False:
-#         query = {"$or": [{"vendor_id": None}, {"vendor_id": ""}]}
-#     products = [objectid_str(p) for p in product_collection.find(query)]
-#     return products
-
-
-# # ---------- GET SINGLE PRODUCT ----------
-# @router.get("/{product_id}", response_model=ProductResponse)
-# def get_product(product_id: str):
-#     product = product_collection.find_one({"_id": validate_objectid(product_id)})
-#     if not product:
-#         raise HTTPException(status_code=404, detail="Product not found")
-#     return objectid_str(product)
-
-
-# # ---------- UPDATE PRODUCT ----------
-# @router.put("/{product_id}", response_model=ProductResponse)
-# def update_product(
-#     product_id: str,
-#     category_id: Optional[str] = Form(None),
-#     product_name: Optional[str] = Form(None),
-#     description: Optional[str] = Form(None),
-#     price: Optional[float] = Form(None),
-#     stock: Optional[int] = Form(None),
-#     product_condition: Optional[ProductCondition] = Form(None),
-#     vendor_id: Optional[str] = Form(None),
-#     files: Optional[List[UploadFile]] = File(None),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     product_oid = validate_objectid(product_id)
-#     product = product_collection.find_one({"_id": product_oid})
-#     if not product:
-#         raise HTTPException(status_code=404, detail="Product not found")
-
-#     update_fields = {"updated_at": datetime.utcnow()}
-#     if category_id: update_fields["category_id"] = validate_objectid(category_id)
-#     if product_name: update_fields["product_name"] = product_name
-#     if description: update_fields["description"] = description
-#     if price is not None: update_fields["price"] = price
-#     if stock is not None: update_fields["stock"] = stock
-#     if product_condition: update_fields["product_condition"] = product_condition.value
-#     if vendor_id: update_fields["vendor_id"] = validate_objectid(vendor_id)
-#     if files:
-#         update_fields["images"] = product.get("images", []) + save_images(files)
-
-#     product_collection.update_one({"_id": product_oid}, {"$set": update_fields})
-#     updated_product = product_collection.find_one({"_id": product_oid})
-#     return objectid_str(updated_product)
-
-
-# # ---------- DELETE PRODUCT ----------
-# @router.delete("/{product_id}")
-# def delete_product(product_id: str, current_user: dict = Depends(get_current_user)):
-#     product_oid = validate_objectid(product_id)
-#     result = product_collection.delete_one({"_id": product_oid})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Product not found")
-#     return {"message": "Product deleted successfully"}
 
 
 

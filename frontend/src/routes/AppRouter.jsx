@@ -21,6 +21,7 @@ import ProductPage from '../pages/ProductPage';
 import Products from '../pages/Products';
 import ProductDetails from '../pages/ProductDetails';
 import Messages from '../pages/Messages';
+import Wishlist from '../pages/Wishlist';
 
 
 
@@ -39,6 +40,7 @@ function AppRouter() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/cart" element={<Cart />} />
+      <Route path="/wishlist" element={<Wishlist />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
