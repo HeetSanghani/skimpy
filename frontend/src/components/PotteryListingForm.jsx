@@ -20,6 +20,7 @@ const PotteryListingForm = ({ onBack }) => {
 
   const [formData, setFormData] = useState({
     product_name: '',
+    sku: '',
     description: '',
     price: '',
     stock: '',
@@ -137,6 +138,7 @@ const PotteryListingForm = ({ onBack }) => {
         variantData.append('price', formData.price);
         variantData.append('stock', formData.stock);
         variantData.append('attribute_values', JSON.stringify(attributePairs));
+        if (formData.sku) variantData.append('sku', formData.sku);
         await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
           headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
         });
@@ -154,7 +156,7 @@ const PotteryListingForm = ({ onBack }) => {
   // ----------------
   
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="w-full p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">List Your Pottery Item</h1>
         <button onClick={onBack} className="text-sm underline hover:text-blue-600">Back to Categories</button>
@@ -223,6 +225,18 @@ const PotteryListingForm = ({ onBack }) => {
             className="w-full border rounded-lg px-3 py-2"
             required
           />
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-2">SKU</label>
+            <input
+              type="text"
+              name="sku"
+              value={formData.sku}
+              onChange={handleInputChange}
+              placeholder="Optional SKU"
+              className="w-full border rounded-lg px-3 py-2"
+            />
+          </div>
         </div>
 
         {/* 3. ITEM SPECIFICS Section */}

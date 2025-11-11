@@ -1,134 +1,236 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import Navbar from '../components/Navbar';
 import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
+import { getCartItems, updateCartItemQuantity, removeFromCart } from '../api/cartApi';
 
+const BASE_URL = "http://localhost:8000";
 
-
-
-
-
+// Normalize image URL
+const normalizeImage = (img) => {
+  if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
+  if (img.startsWith("http://") || img.startsWith("https://")) return img;
+  return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
+};
 
 export default function Cart() {
-  // Sample cart items (replace with data from backend or state management)
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Nike Air Zoom Pegasus 40",
-      price: 120,
-      quantity: 1,
-      image:
-        "https://static.nike.com/a/images/t_prod/w_960,c_limit,f_auto,q_auto/6d60e6d0-0e7a-4cc7-b601-c61f31f27e3b/air-zoom-pegasus-40-road-running-shoes.png",
-    },
-    {
-      id: 2,
-      name: "Nike Sportswear Club Hoodie",
-      price: 65,
-      quantity: 2,
-      image:
-        "https://static.nike.com/a/images/t_prod/w_960,c_limit,f_auto,q_auto/93bfbf2c-d432-4189-9d91-d9c6e246b9b4/sportswear-club-fleece-pullover-hoodie.png",
-    },
-  ]);
+  const navigate = useNavigate();
+  const { token } = useSelector((state) => state.auth);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch cart items
+  useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchCartItems = async () => {
+      try {
+        setLoading(true);
+        const items = await getCartItems();
+        setCartItems(items);
+      } catch (err) {
+        console.error("Error fetching cart:", err);
+        setError("Failed to load cart items");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCartItems();
+  }, [token]);
 
   // Update quantity
-  const updateQuantity = (id, change) => {
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + change) }
-          : item
-      )
-    );
+  const updateQuantity = async (cartItemId, currentQuantity, change) => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const newQuantity = Math.max(1, currentQuantity + change);
+    try {
+      await updateCartItemQuantity(cartItemId, newQuantity);
+      setCartItems((items) =>
+        items.map((item) =>
+          item._id === cartItemId ? { ...item, quantity: newQuantity } : item
+        )
+      );
+    } catch (err) {
+      console.error("Error updating quantity:", err);
+      alert("Failed to update quantity");
+    }
   };
 
   // Remove item
-  const removeItem = (id) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
+  const removeItem = async (cartItemId) => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      await removeFromCart(cartItemId);
+      setCartItems((items) => items.filter((item) => item._id !== cartItemId));
+    } catch (err) {
+      console.error("Error removing item:", err);
+      alert("Failed to remove item");
+    }
   };
 
   // Calculate total
-  const totalPrice = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const totalPrice = cartItems.reduce((total, item) => {
+    const price = item.variant?.price || item.product?.price || 0;
+    return total + price * item.quantity;
+  }, 0);
 
-  return (
-     <>
-      <Navbar />
-      <CateNavbar/>
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
-      <div className="bg-white w-full max-w-4xl p-8 rounded-2xl shadow-md">
-        {/* Nike-style Heading */}
-        <h2 className="text-3xl font-extrabold text-center mb-8 tracking-tight">
-          Shopping Cart
-        </h2>
+  // Get product display info
+  const getProductInfo = (item) => {
+    const product = item.product || {};
+    const variant = item.variant || {};
+    
+    const name = product.product_name || product.name || "Unknown Product";
+    const price = variant.price || product.price || 0;
+    
+    // Get image from variant or product
+    let image = null;
+    if (variant.images && Array.isArray(variant.images) && variant.images.length > 0) {
+      image = variant.images[0];
+    } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      image = product.images[0];
+    } else if (product.image) {
+      image = product.image;
+    }
+    
+    return { name, price, image: normalizeImage(image) };
+  };
 
-        {cartItems.length === 0 ? (
-          <p className="text-center text-gray-600 text-lg">
-            Your cart is empty.
-          </p>
-        ) : (
-          <div className="space-y-6">
-            {/* Cart Items */}
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-col md:flex-row items-center justify-between border-b pb-6"
-              >
-                <div className="flex items-center space-x-4">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-28 h-28 object-contain"
-                  />
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name}</h3>
-                    <p className="text-gray-600">${item.price.toFixed(2)}</p>
-                  </div>
-                </div>
-
-                {/* Quantity & Remove */}
-                <div className="flex items-center mt-4 md:mt-0 space-x-6">
-                  <div className="flex items-center border rounded-md">
-                    <button
-                      onClick={() => updateQuantity(item.id, -1)}
-                      className="px-3 py-1 text-lg hover:bg-gray-200"
-                    >
-                      -
-                    </button>
-                    <span className="px-4">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className="px-3 py-1 text-lg hover:bg-gray-200"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="text-red-500 hover:text-red-700 font-medium"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Total Price */}
-            <div className="flex justify-between items-center pt-6 border-t">
-              <h3 className="text-xl font-semibold">Total</h3>
-              <p className="text-xl font-bold">${totalPrice.toFixed(2)}</p>
-            </div>
-
-            {/* Checkout Button */}
-            <button className="w-full mt-6 bg-black hover:bg-gray-900 text-white font-semibold py-4 rounded-md transition-colors duration-300">
-              Checkout
+  if (!token) {
+    return (
+      <>
+        <Navbar />
+        <CateNavbar />
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+          <div className="bg-white w-full p-8 rounded-2xl shadow-md text-center">
+            <p className="text-gray-600 text-lg mb-4">Please login to view your cart</p>
+            <button
+              onClick={() => navigate("/login")}
+              className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-900"
+            >
+              Login
             </button>
           </div>
-        )}
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <CateNavbar />
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+          <div className="bg-white w-full p-8 rounded-2xl shadow-md text-center">
+            <p className="text-gray-600 text-lg">Loading cart...</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Navbar />
+      <CateNavbar />
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+          <div className="bg-white w-full p-8 rounded-2xl shadow-md">
+          {/* Heading */}
+          <h2 className="text-3xl font-extrabold text-center mb-8 tracking-tight">
+            Shopping Cart
+          </h2>
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+
+          {cartItems.length === 0 ? (
+            <p className="text-center text-gray-600 text-lg">
+              Your cart is empty.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {/* Cart Items */}
+              {cartItems.map((item) => {
+                const { name, price, image } = getProductInfo(item);
+                return (
+                  <div
+                    key={item._id}
+                    className="flex flex-col md:flex-row items-center justify-between border-b pb-6"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <img
+                        src={image}
+                        alt={name}
+                        className="w-28 h-28 object-contain"
+                      />
+                      <div>
+                        <h3 className="text-lg font-semibold">{name}</h3>
+                        <p className="text-gray-600">₹{price.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    {/* Quantity & Remove */}
+                    <div className="flex items-center mt-4 md:mt-0 space-x-6">
+                      <div className="flex items-center border rounded-md">
+                        <button
+                          onClick={() => updateQuantity(item._id, item.quantity, -1)}
+                          className="px-3 py-1 text-lg hover:bg-gray-200"
+                        >
+                          -
+                        </button>
+                        <span className="px-4">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item._id, item.quantity, 1)}
+                          className="px-3 py-1 text-lg hover:bg-gray-200"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => removeItem(item._id)}
+                        className="text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Total Price */}
+              <div className="flex justify-between items-center pt-6 border-t">
+                <h3 className="text-xl font-semibold">Total</h3>
+                <p className="text-xl font-bold">₹{totalPrice.toFixed(2)}</p>
+              </div>
+
+              {/* Checkout Button */}
+              <button className="w-full mt-6 bg-black hover:bg-gray-900 text-white font-semibold py-4 rounded-md transition-colors duration-300">
+                Checkout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
       <Footer />
-   </>
+    </>
   );
 }

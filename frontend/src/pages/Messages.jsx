@@ -14,12 +14,14 @@ function getUserId() {
 export default function Messages() {
   const [searchParams] = useSearchParams();
   const vendorUserId = searchParams.get("vendor_user_id") || searchParams.get("vendor_id");
+  const vendorId = searchParams.get("vendor_id");
   const productId = searchParams.get("product_id");
   const userId = useMemo(getUserId, []);
 
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [vendor, setVendor] = useState(null);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +38,21 @@ export default function Messages() {
     }
     ensureConversation();
   }, [vendorUserId, productId, userId]);
+
+  // Load vendor info for header
+  useEffect(() => {
+    async function loadVendor() {
+      if (!vendorId) return;
+      try {
+        const res = await fetch(`${BASE_URL}/Vendor?vendor_id=${encodeURIComponent(vendorId)}`);
+        const data = await res.json();
+        setVendor(data);
+      } catch (e) {
+        // ignore
+      }
+    }
+    loadVendor();
+  }, [vendorId]);
 
   useEffect(() => {
     if (!conversation?.id) return;
@@ -63,8 +80,20 @@ export default function Messages() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h2 className="text-2xl font-semibold mb-4">Messages</h2>
+    <div className="w-full p-6">
+      <div className="mb-4">
+        <h2 className="text-2xl font-semibold">Messages</h2>
+        {vendor && (
+          <div className="mt-2">
+            <p className="text-lg font-semibold text-gray-900">{vendor.shop_name}</p>
+            {(vendor.description || vendor.shop_description) && (
+              <p className="text-gray-600 text-sm">
+                {vendor.description || vendor.shop_description}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
       <div className="border rounded-xl overflow-hidden shadow-sm">
         <div className="h-[60vh] overflow-y-auto p-4 bg-gray-50">
           {messages.map((m) => (

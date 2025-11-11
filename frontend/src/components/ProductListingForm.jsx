@@ -48,6 +48,7 @@ const ProductListingForm = ({ category, onBack }) => {
 
   const blankSpec = {
     brand: '',
+    sku: '',
     attributes: {},
     description: '',
     price: '',
@@ -265,6 +266,9 @@ const ProductListingForm = ({ category, onBack }) => {
         variantData.append('product_condition', spec.product_condition);
         variantData.append('description', spec.description); // Variant-specific description
         variantData.append('attribute_values', JSON.stringify(attributePairs));
+        if (spec.sku) {
+          variantData.append('sku', spec.sku);
+        }
         
         // Use brand from spec
         if (spec.brand) {
@@ -300,7 +304,7 @@ const ProductListingForm = ({ category, onBack }) => {
 
   // --- JSX START ---
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="w-full p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Complete your listing</h1>
         <button 
@@ -453,6 +457,19 @@ const ProductListingForm = ({ category, onBack }) => {
                     />
                   </div>
                 )}
+
+                {/* SKU Field */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium mb-2">SKU</label>
+                  <input
+                    type="text"
+                    name={`sku-${idx}`}
+                    value={spec.sku}
+                    onChange={e => handleSpecChange(idx, 'sku', e.target.value)}
+                    placeholder="Optional SKU"
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
 
                 {/* Dynamic/Preset Attributes (Size, Color, etc.) */}
                 {attributesToShow.length > 0 ? (

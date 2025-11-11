@@ -104,7 +104,7 @@ export default function CategorySubcategories() {
   return (
     <>
       <Navbar />
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="w-full p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">What do you want to sell ?</h1>
           <Link to="/Profile" className="text-sm underline">Back to Profile</Link>
