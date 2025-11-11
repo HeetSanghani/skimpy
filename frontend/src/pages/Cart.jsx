@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 import Navbar from '../components/Navbar';
 import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
+import axios from "axios";
+
 import { getCartItems, updateCartItemQuantity, removeFromCart } from '../api/cartApi';
 
 const BASE_URL = "http://localhost:8000";
@@ -81,6 +83,42 @@ export default function Cart() {
       alert("Failed to remove item");
     }
   };
+
+
+// ✅ Stripe Checkout Handler
+const payNow = async () => {
+  try {
+    if (cartItems.length === 0) {
+      alert("Your cart is empty!");
+      return;
+    }
+
+    console.log("🛒 Sending cart checkout request...");
+
+    const response = await axios.post(
+      `${BASE_URL}/payment/create-checkout-session`,
+      {
+        product_name: "Cart Purchase",     // can be generic since multiple items
+        amount: totalPrice * 100,          // ₹ to paise
+        product_id: null,                  // optional for cart
+        variant_id: null,
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    console.log("✅ Redirecting to Stripe:", response.data.checkout_url);
+    window.location.href = response.data.checkout_url;
+
+  } catch (err) {
+    console.error("❌ Stripe Checkout Error:", err.response?.data || err);
+    alert("Payment failed.");
+  }
+};
+
+
+
+
+
 
   // Calculate total
   const totalPrice = cartItems.reduce((total, item) => {
@@ -223,9 +261,13 @@ export default function Cart() {
               </div>
 
               {/* Checkout Button */}
-              <button className="w-full mt-6 bg-black hover:bg-gray-900 text-white font-semibold py-4 rounded-md transition-colors duration-300">
-                Checkout
-              </button>
+            <button
+              onClick={payNow}
+              className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-md transition-colors duration-300"
+            >
+              Pay with Stripe
+            </button>
+
             </div>
           )}
         </div>

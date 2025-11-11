@@ -22,6 +22,7 @@ import Products from '../pages/Products';
 import ProductDetails from '../pages/ProductDetails';
 import Messages from '../pages/Messages';
 import Wishlist from '../pages/Wishlist';
+import PaymentSuccess from "../pages/PaymentSuccess";
 
 
 
@@ -53,6 +54,7 @@ function AppRouter() {
     <Route path="/Products" element={<Products />} />
     <Route path="/product/:id" element={<ProductDetails />} />
     <Route path="/messages" element={<Messages />} />
+    <Route path="/payment-success" element={<PaymentSuccess />} />
 
 
 
