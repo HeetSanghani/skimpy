@@ -280,7 +280,7 @@ const PotteryListingForm = ({ onBack }) => {
           <div className="space-y-4">
             <div><label className="block text-sm font-medium mb-2">Description</label><textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full border rounded-lg px-3 py-2" placeholder="Describe your item in detail..."/></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium mb-2">Price ($)</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} step="0.01" min="0" className="w-full border rounded-lg px-3 py-2" required/></div>
+              <div><label className="block text-sm font-medium mb-2">Price (₹)</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} step="0.01" min="0" className="w-full border rounded-lg px-3 py-2" required/></div>
               <div><label className="block text-sm font-medium mb-2">Stock Quantity</label><input type="number" name="stock" value={formData.stock} onChange={handleInputChange} min="1" className="w-full border rounded-lg px-3 py-2" required/></div>
             </div>
             <div><label className="block text-sm font-medium mb-2">Condition</label><select name="product_condition" value={formData.product_condition} onChange={handleInputChange} className="w-full border rounded-lg px-3 py-2"><option value="NEW">New</option><option value="USED">Used</option><option value="REFURBISHED">Refurbished</option></select></div>

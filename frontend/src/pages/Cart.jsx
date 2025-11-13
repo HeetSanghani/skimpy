@@ -5,32 +5,26 @@ import Navbar from '../components/Navbar';
 import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
 import axios from "axios";
-
 import { getCartItems, updateCartItemQuantity, removeFromCart } from '../api/cartApi';
-
 const BASE_URL = "http://localhost:8000";
-
 // Normalize image URL
 const normalizeImage = (img) => {
   if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
   if (img.startsWith("http://") || img.startsWith("https://")) return img;
   return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
 };
-
 export default function Cart() {
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   // Fetch cart items
   useEffect(() => {
     if (!token) {
       setLoading(false);
       return;
     }
-
     const fetchCartItems = async () => {
       try {
         setLoading(true);
@@ -43,17 +37,14 @@ export default function Cart() {
         setLoading(false);
       }
     };
-
     fetchCartItems();
   }, [token]);
-
   // Update quantity
   const updateQuantity = async (cartItemId, currentQuantity, change) => {
     if (!token) {
       navigate("/login");
       return;
     }
-
     const newQuantity = Math.max(1, currentQuantity + change);
     try {
       await updateCartItemQuantity(cartItemId, newQuantity);
@@ -67,14 +58,12 @@ export default function Cart() {
       alert("Failed to update quantity");
     }
   };
-
   // Remove item
   const removeItem = async (cartItemId) => {
     if (!token) {
       navigate("/login");
       return;
     }
-
     try {
       await removeFromCart(cartItemId);
       setCartItems((items) => items.filter((item) => item._id !== cartItemId));
@@ -83,57 +72,53 @@ export default function Cart() {
       alert("Failed to remove item");
     }
   };
-
-
-// ✅ Stripe Checkout Handler
+// :white_check_mark: Stripe Checkout Handler
 const payNow = async () => {
   try {
     if (cartItems.length === 0) {
       alert("Your cart is empty!");
       return;
     }
-
-    console.log("🛒 Sending cart checkout request...");
-
+    const payload = cartItems.map((item) => {
+      const product = item.product || {};
+      const variant = item.variant || {};
+      return {
+        name: product.product_name || product.name,
+        price: variant.price || product.price,
+        quantity: item.quantity,
+        image: normalizeImage(
+          (variant.images && variant.images[0]) ||
+          (product.images && product.images[0]) ||
+          product.image
+        ),
+        // size: variant.size || "-",
+        product_id: product._id || product.id,
+        variant_id: variant._id || variant.id,
+      };
+    });
+    console.log(":shopping_trolley: Sending cart items to Stripe:", payload);
     const response = await axios.post(
       `${BASE_URL}/payment/create-checkout-session`,
-      {
-        product_name: "Cart Purchase",     // can be generic since multiple items
-        amount: totalPrice * 100,          // ₹ to paise
-        product_id: null,                  // optional for cart
-        variant_id: null,
-      },
+      payload,
       { headers: { "Content-Type": "application/json" } }
     );
-
-    console.log("✅ Redirecting to Stripe:", response.data.checkout_url);
     window.location.href = response.data.checkout_url;
-
   } catch (err) {
-    console.error("❌ Stripe Checkout Error:", err.response?.data || err);
+    console.error(":x: Stripe Checkout Error:", err.response?.data || err);
     alert("Payment failed.");
   }
 };
-
-
-
-
-
-
   // Calculate total
   const totalPrice = cartItems.reduce((total, item) => {
     const price = item.variant?.price || item.product?.price || 0;
     return total + price * item.quantity;
   }, 0);
-
   // Get product display info
   const getProductInfo = (item) => {
     const product = item.product || {};
     const variant = item.variant || {};
-    
     const name = product.product_name || product.name || "Unknown Product";
     const price = variant.price || product.price || 0;
-    
     // Get image from variant or product
     let image = null;
     if (variant.images && Array.isArray(variant.images) && variant.images.length > 0) {
@@ -143,10 +128,8 @@ const payNow = async () => {
     } else if (product.image) {
       image = product.image;
     }
-    
     return { name, price, image: normalizeImage(image) };
   };
-
   if (!token) {
     return (
       <>
@@ -167,7 +150,6 @@ const payNow = async () => {
       </>
     );
   }
-
   if (loading) {
     return (
       <>
@@ -182,7 +164,6 @@ const payNow = async () => {
       </>
     );
   }
-
   return (
     <>
       <Navbar />
@@ -193,13 +174,11 @@ const payNow = async () => {
           <h2 className="text-3xl font-extrabold text-center mb-8 tracking-tight">
             Shopping Cart
           </h2>
-
           {error && (
             <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
               {error}
             </div>
           )}
-
           {cartItems.length === 0 ? (
             <p className="text-center text-gray-600 text-lg">
               Your cart is empty.
@@ -225,7 +204,6 @@ const payNow = async () => {
                         <p className="text-gray-600">₹{price.toFixed(2)}</p>
                       </div>
                     </div>
-
                     {/* Quantity & Remove */}
                     <div className="flex items-center mt-4 md:mt-0 space-x-6">
                       <div className="flex items-center border rounded-md">
@@ -253,13 +231,11 @@ const payNow = async () => {
                   </div>
                 );
               })}
-
               {/* Total Price */}
               <div className="flex justify-between items-center pt-6 border-t">
                 <h3 className="text-xl font-semibold">Total</h3>
                 <p className="text-xl font-bold">₹{totalPrice.toFixed(2)}</p>
               </div>
-
               {/* Checkout Button */}
             <button
               onClick={payNow}
@@ -267,7 +243,6 @@ const payNow = async () => {
             >
               Pay with Stripe
             </button>
-
             </div>
           )}
         </div>
