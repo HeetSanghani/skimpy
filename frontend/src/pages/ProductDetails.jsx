@@ -9,12 +9,12 @@ import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlis
 const BASE_URL = "http://localhost:8000";
 
 
-// ✅ Normalize backend image paths
 const normalizeImage = (img) => {
-  if (!img) return null;
+  if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
   if (img.startsWith("http://") || img.startsWith("https://")) return img;
   return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
 };
+
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -30,6 +30,8 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+
 
   useEffect(() => {
     let mounted = true;
@@ -194,29 +196,35 @@ const ProductDetails = () => {
     }
   };
 
-  // ✅ Stripe Payment Function (PLACE THIS BELOW handleAddToCart)
+
+// ✅ Stripe Checkout Handler (Single Product Checkout)
 const payNow = async () => {
-  if (!product) {
-    console.error("❌ Product not loaded yet");
+  if (!selectedVariant && !product) {
+    alert("Product not loaded yet.");
     return;
   }
 
   try {
-    console.log("📤 Sending data to Stripe:", {
-      product_name: product.product_name || product.name,
-      amount: (selectedVariant?.price || product.price) * 100,
-      product_id: product._id || product.id,
-      variant_id: selectedVariant?._id || selectedVariant?.id || null,
-    });
-
-    const response = await axios.post(
-      `${BASE_URL}/payment/create-checkout-session`,
+    const payload = [
       {
-        product_name: product.product_name || product.name,
-        amount: (selectedVariant?.price || product.price) * 100, // Stripe expects paise
+        name: product.product_name || product.name,
+        price: selectedVariant?.price || product.price,
+        quantity: quantity || 1, // ✅ User-selected qty
+        image: normalizeImage(
+          (selectedVariant?.images && selectedVariant.images[0]) ||
+          (product.images && product.images[0]) ||
+          product.image
+        ),
         product_id: product._id || product.id,
         variant_id: selectedVariant?._id || selectedVariant?.id || null,
       },
+    ];
+
+    console.log("📤 Sending product to Stripe:", payload);
+
+    const response = await axios.post(
+      `${BASE_URL}/payment/create-checkout-session`,
+      payload,                              // ✅ SAME as cart.jsx (array)
       { headers: { "Content-Type": "application/json" } }
     );
 
@@ -228,6 +236,7 @@ const payNow = async () => {
     alert("Payment failed. Check console.");
   }
 };
+
 
 
   const handleWishlistToggle = async () => {

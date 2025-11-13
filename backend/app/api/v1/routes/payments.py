@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from fastapi import Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import List
 import stripe
 import os
 
@@ -9,36 +9,45 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-class CheckoutRequest(BaseModel):
-    product_name: str
-    amount: int
+# ✅ Updated for multiple products + images + size
+class CartItem(BaseModel):
+    name: str
+    price: float
+    quantity: int
+    image: str | None = None
+    size: str | None = None
     product_id: str | None = None
     variant_id: str | None = None
 
 
-
 @router.post("/create-checkout-session")
-async def create_checkout_session(data: CheckoutRequest):
+async def create_checkout_session(cart_items: List[CartItem]):
     try:
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            mode='payment',
-            line_items=[
+        line_items = []
+
+        for item in cart_items:
+            line_items.append(
                 {
                     "price_data": {
                         "currency": "inr",
-                        "unit_amount": data.amount,
+                        "unit_amount": int(item.price * 100),  # Rupees → Paise
                         "product_data": {
-                            "name": data.product_name,
+                            "name": f"{item.name}",
+                            "images": [item.image] if item.image else [],
+                            "metadata": {
+                                "product_id": item.product_id,
+                                "variant_id": item.variant_id,
+                            },
                         },
                     },
-                    "quantity": 1,
-                },
-            ],
-            metadata={
-                "product_id": data.product_id,
-                "variant_id": data.variant_id or "none",
-            },
+                    "quantity": item.quantity,
+                }
+            )
+
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=line_items,
             success_url="http://localhost:5173/payment-success",
             cancel_url="http://localhost:5173/payment-cancel",
         )
@@ -48,8 +57,7 @@ async def create_checkout_session(data: CheckoutRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    
-    
+
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     payload = await request.body()
@@ -57,18 +65,13 @@ async def stripe_webhook(request: Request):
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
-        )
-
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
 
-    # Handle successful payment event
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         print("✅ Payment successful session:", session["id"])
-
-        # TODO: update order status in database here
+        # TODO: Insert database update for Order here
 
     return {"status": "success"}
