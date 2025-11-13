@@ -1,3 +1,4 @@
+// Navbar.jsx
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -11,11 +12,14 @@ export default function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+
   const { token } = useSelector((state) => state.auth);
   const { avatarUrl } = useSelector((state) => state.settings);
-  const [query, setQuery] = useState("");
 
-  // Fetch avatar when navbar loads (only if logged in)
+  const [query, setQuery] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch avatar when logged in
   useEffect(() => {
     if (token) {
       dispatch(fetchAvatar());
@@ -29,15 +33,50 @@ export default function Navbar() {
     setQuery(searchParam);
   }, [location.search]);
 
+  // Handle search form submission
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     const trimmed = query.trim();
     if (trimmed.length === 0) {
-      navigate("/products", { replace: location.pathname.startsWith("/products") });
+      navigate("/products", {
+        replace: location.pathname.startsWith("/products"),
+      });
       return;
     }
     navigate(`/products?search=${encodeURIComponent(trimmed)}`);
   };
+
+  // Fetch unread messages count periodically
+  useEffect(() => {
+    if (!token) {
+      setUnreadCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadUnread = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/Chat/unread`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) {
+          const total = res.data?.total_unread ?? 0;
+          setUnreadCount(total);
+        }
+      } catch (err) {
+        if (!cancelled) setUnreadCount(0);
+      }
+    };
+
+    loadUnread();
+    const interval = setInterval(loadUnread, 10000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [token]);
 
   return (
     <nav className="bg-white shadow p-4 flex items-center justify-between sticky top-0 z-50">
@@ -72,8 +111,14 @@ export default function Navbar() {
 
       {/* Navigation Links */}
       <div className="flex items-center gap-4">
-        <Link to="/about" className="hover:underline">About</Link>
-        <Link to="/contact" className="hover:underline">Contact</Link>
+        <Link to="/about" className="hover:underline">
+          About
+        </Link>
+        <Link to="/contact" className="hover:underline">
+          Contact
+        </Link>
+
+        {/* 🛒 Cart Icon */}
         <Link to="/cart" className="hover:text-blue-600 flex items-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -84,8 +129,8 @@ export default function Navbar() {
           </svg>
         </Link>
 
-        {/* ❤️ Wishlist SVG */}
-        <Link to="/wishlist" className=" flex items-center">
+        {/* ❤️ Wishlist */}
+        <Link to="/wishlist" className="flex items-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 512 512"
@@ -94,7 +139,37 @@ export default function Navbar() {
             <path d="M462.3 62.7C407 7.6 324.8-10.6 256 39.3 187.2-10.6 105 7.6 49.7 62.7c-61.5 61.6-61.5 161.5 0 223.2l193.5 194.3c12.5 12.6 32.8 12.6 45.3 0L462.3 285.9c61.5-61.7 61.5-161.6 0-223.2z" />
           </svg>
         </Link>
-        {/* Profile / Login */}
+
+        {/* 💬 Messages (only if logged in) */}
+        {token && (
+          <Link
+            to="/messages"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100"
+            aria-label="Messages"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              className="h-5 w-5 text-gray-700"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M7 8h10m-10 4h6m4 7.5-3.5-2.1H8a4 4 0 0 1-4-4v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4z"
+              />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        )}
+
+        {/* 👤 Profile / Login */}
         {token ? (
           <Link to="/profile">
             <img
