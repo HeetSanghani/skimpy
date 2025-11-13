@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values
 from app.api.v1.routes import chat
-from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard, cart, wishlist
+from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard, cart, wishlist, payments
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -52,14 +52,6 @@ def home():
     """
     return HTMLResponse(content=html_content)
 
-
-
-
-
-
-
-
-
 app.include_router(auth.router) 
 app.include_router(users.router) 
 app.include_router(vendors.router)
@@ -71,6 +63,7 @@ app.include_router(attribute_values.router)
 app.include_router(chat.router)
 app.include_router(cart.router)
 app.include_router(wishlist.router)
+app.include_router(payments.router)
 
 
 

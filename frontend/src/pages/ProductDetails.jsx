@@ -545,10 +545,10 @@ import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlis
 
 const BASE_URL = "http://localhost:8000";
 
-// Normalize backend image paths
+
+// ✅ Normalize backend image paths
 const normalizeImage = (img) => {
-  if (!img) return null;
-  if (typeof img !== "string") return null;
+  if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
   if (img.startsWith("http://") || img.startsWith("https://")) return img;
   return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
 };
@@ -567,6 +567,7 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState(null);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     let mounted = true;
@@ -737,6 +738,42 @@ const ProductDetails = () => {
     }
   };
 
+  // ✅ Stripe Payment Function (PLACE THIS BELOW handleAddToCart)
+const payNow = async () => {
+  if (!selectedVariant && !product) {
+    alert("Product not loaded yet.");
+    return;
+  }
+  try {
+    const payload = [
+      {
+        name: product.product_name || product.name,
+        price: selectedVariant?.price || product.price,
+        quantity: quantity || 1, // :white_check_mark: User-selected qty
+        image: normalizeImage(
+          (selectedVariant?.images && selectedVariant.images[0]) ||
+          (product.images && product.images[0]) ||
+          product.image
+        ),
+        product_id: product._id || product.id,
+        variant_id: selectedVariant?._id || selectedVariant?.id || null,
+      },
+    ];
+    console.log(":outbox_tray: Sending product to Stripe:", payload);
+    const response = await axios.post(
+      `${BASE_URL}/payment/create-checkout-session`,
+      payload,                              // :white_check_mark: SAME as cart.jsx (array)
+      { headers: { "Content-Type": "application/json" } }
+    );
+    console.log(":white_check_mark: Redirecting to Stripe ->", response.data.checkout_url);
+    window.location.href = response.data.checkout_url;
+  } catch (err) {
+    console.error(":x: Stripe Checkout Error:", err.response?.data || err);
+    alert("Payment failed. Check console.");
+  }
+};
+
+
   const handleWishlistToggle = async () => {
     if (!token) {
       navigate("/login");
@@ -892,64 +929,26 @@ const ProductDetails = () => {
 
           {/* Buttons */}
           <div className="flex flex-col gap-4 mt-8">
-            <button onClick={() => navigate("/checkout")} className="bg-black text-white px-6 py-3 rounded-full font-medium hover:bg-gray-800 transition">Buy Now</button>
-            <button onClick={handleAddToCart} className="border border-gray-300 text-black px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition">Add to Cart</button>
-          </div>
-        </div>
-      </div>
+            {/* Buy Now Button */}
+            <button
+            onClick={payNow}
+            className="bg-green-600 hover:bg-green-700 text-white w-full py-2 rounded-full mt-4"
+          >
+            Pay with Stripe
+          </button>
 
-      {/* SELLER DETAILS SECTION (below product) */}
-      {vendor && (
-        <div className="mt-12 w-full bg-white rounded-2xl shadow-lg border border-gray-200 py-8 px-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Seller Information</h2>
 
-          <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6">
-            {/* Left: profile */}
-            <div className="flex items-center gap-5">
-              <img
-                src={vendor.profile_image || "https://via.placeholder.com/120"}
-                alt={vendor.shop_name || "Seller"}
-                className="w-24 h-24 rounded-full border-2 border-gray-300 object-cover shadow-md cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => {
-                  const sellerId = vendor._id || vendor.id || vendor.user_id;
-                  if (sellerId) navigate(`/seller/${sellerId}`);
-                }}
-              />
 
-              <div className="flex flex-col">
-                <h3
-                  onClick={() => {
-                    const sellerId = vendor._id || vendor.id || vendor.user_id;
-                    if (sellerId) navigate(`/seller/${sellerId}`);
-                  }}
-                  className="text-xl font-bold text-gray-900 cursor-pointer hover:text-blue-700 transition"
-                >
-                  {vendor.shop_name || "Seller Shop"}
-                </h3>
 
-                <p className="text-sm text-gray-600 mt-1 max-w-md">
-                  {vendor.description || vendor.shop_description || "No shop description available."}
-                </p>
 
-                <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
-                  {vendor.address && <p className="flex items-center gap-1"><span>📍</span>{vendor.address}</p>}
-                  {vendor.phone && <p className="flex items-center gap-1"><span>📞</span>{vendor.phone}</p>}
-                  {vendor.email && <p className="flex items-center gap-1"><span>✉️</span>{vendor.email}</p>}
-                </div>
-              </div>
-            </div>
 
-            {/* Right: actions */}
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              <button
-                onClick={() => {
-                  const sellerId = vendor._id || vendor.id || vendor.user_id || product?.vendor_id;
-                  if (sellerId) navigate(`/seller/${sellerId}`);
-                }}
-                className="px-6 py-2 border border-gray-400 rounded-full text-gray-800 hover:bg-gray-100 transition"
-              >
-                Visit Shop
-              </button>
+            {/* Add to Cart Button */}
+            <button
+              onClick={handleAddToCart}
+              className="border border-gray-300 text-black px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"
+            >
+              Add to Cart
+            </button>
 
               <button
                 onClick={() => {
