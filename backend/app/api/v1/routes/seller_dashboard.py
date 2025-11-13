@@ -204,10 +204,3 @@ def get_dashboard(
         stats=stats,
         orders=orders
     )
-
-
-
-
-
-
-

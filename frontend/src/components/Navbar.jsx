@@ -1,13 +1,16 @@
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import defaultAvatar from "../assets/default-avatar.png";
 import { fetchAvatar } from "../features/settings/settingsSlice";
 
 export default function Navbar() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { token } = useSelector((state) => state.auth);
   const { avatarUrl } = useSelector((state) => state.settings);
+  const [query, setQuery] = useState("");
 
   // Fetch avatar when navbar loads (only if logged in)
   useEffect(() => {
@@ -15,6 +18,23 @@ export default function Navbar() {
       dispatch(fetchAvatar());
     }
   }, [token, dispatch]);
+
+  // Sync search input with URL query param
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchParam = params.get("search") || "";
+    setQuery(searchParam);
+  }, [location.search]);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      navigate("/products", { replace: location.pathname.startsWith("/products") });
+      return;
+    }
+    navigate(`/products?search=${encodeURIComponent(trimmed)}`);
+  };
 
   return (
     <nav className="bg-white shadow p-4 flex items-center justify-between sticky top-0 z-50">
@@ -24,22 +44,53 @@ export default function Navbar() {
       </Link>
 
       {/* Search Bar */}
-      <div className="flex-1 mx-4">
-        <input
-          type="text"
-          placeholder="Search products"
-          className="w-full border rounded-lg p-2"
-        />
-      </div>
+      <form onSubmit={handleSearchSubmit} className="flex-1 mx-4">
+        <label htmlFor="nav-search" className="sr-only">
+          Search products
+        </label>
+        <div className="relative">
+          <input
+            id="nav-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search products"
+            className="w-full border rounded-lg p-2 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+          />
+          <button
+            type="submit"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md bg-black px-3 py-1 text-sm font-semibold text-white transition hover:bg-gray-900"
+            aria-label="Search"
+          >
+            Search
+          </button>
+        </div>
+      </form>
 
       {/* Navigation Links */}
       <div className="flex items-center gap-4">
-        <Link to="/" className="hover:underline">Home</Link>
         <Link to="/about" className="hover:underline">About</Link>
         <Link to="/contact" className="hover:underline">Contact</Link>
-        <Link to="/cart" className="hover:underline">Cart</Link>
-        <Link to="/wishlist" className="hover:underline">Wishlist</Link>
+        <Link to="/cart" className="hover:text-blue-600 flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            className="w-7 h-7 fill-current"
+          >
+            <path d="M351.9 329.506H206.81l-3.072-12.56H368.16l26.63-116.019-217.23-26.04-9.952-58.09h-50.4v21.946h31.894l35.233 191.246a32.927 32.927 0 1 0 36.363 21.462h100.244a32.825 32.825 0 1 0 30.957-21.945zM181.427 197.45l186.51 22.358-17.258 75.195H198.917z" />
+          </svg>
+        </Link>
 
+        {/* ❤️ Wishlist SVG */}
+        <Link to="/wishlist" className=" flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            className="w-4 h-4 fill-current text-red-500"
+          >
+            <path d="M462.3 62.7C407 7.6 324.8-10.6 256 39.3 187.2-10.6 105 7.6 49.7 62.7c-61.5 61.6-61.5 161.5 0 223.2l193.5 194.3c12.5 12.6 32.8 12.6 45.3 0L462.3 285.9c61.5-61.7 61.5-161.6 0-223.2z" />
+          </svg>
+        </Link>
         {/* Profile / Login */}
         {token ? (
           <Link to="/profile">
