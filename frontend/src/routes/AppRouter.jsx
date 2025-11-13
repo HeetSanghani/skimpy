@@ -23,6 +23,8 @@ import ProductDetails from '../pages/ProductDetails';
 import Messages from '../pages/Messages';
 import Wishlist from '../pages/Wishlist';
 
+import ChatPage from '../pages/ChatPage.jsx';
+import SellerShopPage from '../pages/SellerShopPage.jsx'
 
 
 // :white_tick: Components (Forms)
@@ -52,8 +54,10 @@ function AppRouter() {
 
     <Route path="/Products" element={<Products />} />
     <Route path="/product/:id" element={<ProductDetails />} />
-    <Route path="/messages" element={<Messages />} />
+    {/* <Route path="/chat" element={<ChatPage/>} /> */}
 
+    <Route path="/seller/:sellerId" element={<SellerShopPage />} />
+    <Route path="/chat/:sellerId" element={<ChatPage />} />
 
 
       {/* :small_blue_diamond: Category & Products */}
