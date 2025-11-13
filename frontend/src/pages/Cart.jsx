@@ -5,11 +5,8 @@ import Navbar from '../components/Navbar';
 import CateNavbar from '../components/CategoryNavbar';
 import Footer from '../components/Footer';
 import axios from "axios";
-
 import { getCartItems, updateCartItemQuantity, removeFromCart } from '../api/cartApi';
-
 const BASE_URL = "http://localhost:8000";
-
 // Normalize image URL
 const normalizeImage = (img) => {
   if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
@@ -56,20 +53,17 @@ export default function Cart() {
         if (mounted) setLoading(false);
       }
     };
-
     fetchCartItems();
     return () => {
       mounted = false;
     };
   }, [token]);
-
   // Update quantity
   const updateQuantity = async (cartItemId, currentQuantity, change) => {
     if (!token) {
       navigate("/login");
       return;
     }
-
     const newQuantity = Math.max(1, currentQuantity + change);
 
     // Optimistic UI update
@@ -163,7 +157,6 @@ export default function Cart() {
     const price = item.variant?.price || item.product?.price || 0;
     return total + price * item.quantity;
   }, 0);
-
   // Get product display info
   const getProductInfo = (item) => {
     const product = item.product || {};
@@ -280,7 +273,6 @@ const EmptyCart = () => (
       </>
     );
   }
-
   return (
     <>
       <Navbar />
@@ -294,7 +286,6 @@ const EmptyCart = () => (
               {error}
             </div>
           )}
-
           {cartItems.length === 0 ? (
             <EmptyCart />
           ) : (
@@ -329,7 +320,6 @@ const EmptyCart = () => (
                         </div>
                       </div>
                     </div>
-
                     {/* Quantity & Remove */}
                     <div className="flex items-center mt-4 md:mt-0 space-x-4">
                       <div className="flex items-center border rounded-full overflow-hidden">

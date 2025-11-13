@@ -53,9 +53,8 @@ const CategoryNavbar = () => {
     <div key={node._id} className="ml-3 mb-1">
       <button
         onClick={() => handleNavigate(node.slug)}
-        className={`block text-sm w-full text-left ${
-          level === 2 ? "font-semibold" : "font-normal"
-        } text-gray-600 hover:text-black transition-colors`}
+        className={`block text-sm w-full text-left ${level === 2 ? "font-semibold" : "font-normal"
+          } text-gray-600 hover:text-black transition-colors`}
       >
         {node.category_name}
       </button>
@@ -81,17 +80,16 @@ const CategoryNavbar = () => {
   const level2Categories = getLevel2Categories(categories);
 
   return (
-    <nav className="bg-white text-black border-t border-b border-gray-200 shadow-sm top-[64px] z-50">
+    <nav className="bg-white text-black border-t border-b border-gray-200 shadow-sm  top-[64px] z-50">
       <ul className="flex justify-start items-center space-x-8 py-3 px-6 text-sm font-semibold uppercase tracking-wide flex-wrap">
         {/* ✅ "All Categories" Button */}
         <li className="relative">
           <button
             onClick={() => setShowAll((prev) => !prev)}
-            className={`px-3 py-1 rounded transition-colors duration-200 ${
-              showAll
+            className={`px-3 py-1 rounded transition-colors duration-200 ${showAll
                 ? "text-black border-b-2 border-black"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             All Categories
           </button>
@@ -101,13 +99,12 @@ const CategoryNavbar = () => {
             <div className="absolute left-0 top-full mt-2 bg-white shadow-xl border border-gray-200 rounded-lg w-[1000px] z-50">
               {/* 👇 Dynamic grid: 2, 3, or 4 columns depending on number of categories */}
               <div
-                className={`px-8 py-6 grid gap-12 max-h-[500px] overflow-y-auto ${
-                  categories.length === 1
+                className={`px-8 py-6 grid gap-12 max-h-[500px] overflow-y-auto ${categories.length === 1
                     ? "grid-cols-1"
                     : categories.length === 2
-                    ? "grid-cols-2"
-                    : "grid-cols-3"
-                }`}
+                      ? "grid-cols-2"
+                      : "grid-cols-3"
+                  }`}
               >
                 {categories.length > 0 ? (
                   categories.map((cat) => (

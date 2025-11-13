@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { resetPasswordThunk, resetAuthState } from "../features/auth/authSlice";
+import { EyeIcon, EyeOffIcon } from "lucide-react"; // 👁️ npm install lucide-react
 
 const ResetPassword = () => {
   const dispatch = useDispatch();
@@ -11,6 +12,11 @@ const ResetPassword = () => {
     password: "",
     confirm_password: "",
   });
+
+  // 👁️ Password visibility states
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,7 +33,7 @@ const ResetPassword = () => {
     dispatch(resetPasswordThunk(formData));
   };
 
-  // ✅ clear auth state after success/error message
+  // ✅ Clear auth state after showing success/error message
   useEffect(() => {
     if (resetSuccess || error) {
       const timer = setTimeout(() => {
@@ -53,46 +59,89 @@ const ResetPassword = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Old Password Field */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Old Password
             </label>
-            <input
-              type="password"
-              name="old_password"
-              value={formData.old_password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showOldPassword ? "text" : "password"}
+                name="old_password"
+                value={formData.old_password}
+                onChange={handleChange}
+                className="w-full px-4 py-2 pr-10 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowOldPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                {showOldPassword ? (
+                  <EyeOffIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
 
+          {/* New Password Field */}
           <div>
             <label className="block text-sm font-medium mb-1">New Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-4 py-2 pr-10 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                {showNewPassword ? (
+                  <EyeOffIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
 
+          {/* Confirm Password Field */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Confirm Password
             </label>
-            <input
-              type="password"
-              name="confirm_password"
-              value={formData.confirm_password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirm_password"
+                value={formData.confirm_password}
+                onChange={handleChange}
+                className="w-full px-4 py-2 pr-10 border rounded-xl focus:outline-none focus:ring-2 focus:ring-black"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? (
+                  <EyeOffIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}

@@ -83,23 +83,31 @@ export default function Wishlist() {
     <>
       <Navbar />
 
-      <div className="products-container">
-        
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        {/* MAIN AREA */}
+        <div className="flex-grow products-container">
 
-        {loading ? (
-          <WishlistSkeleton />
-        ) : wishlistItems.length === 0 ? (
-          <EmptyWishlist navigate={navigate} />
-        ) : (
-          <div className="grid-container">
-            {wishlistItems.map((item) => (
-              <WishlistCard key={item._id} item={item} onRemoveLocal={removeLocal} />
-            ))}
-          </div>
-        )}
-      </div>
+          {loading ? (
+            <WishlistSkeleton />
+          ) : wishlistItems.length === 0 ? (
+            <EmptyWishlist navigate={navigate} />
+          ) : (
+            <div className="grid-container">
+              {wishlistItems.map((item) => (
+                <WishlistCard
+                  key={item._id}
+                  item={item}
+                  onRemoveLocal={removeLocal}
+                />
+              ))}
+            </div>
+          )}
 
-      <Footer />
+        </div>
+
+  {/* STATIC FOOTER */}
+  <Footer />
+</div>
     </>
   );
 }
@@ -154,7 +162,6 @@ function EmptyWishlist({ navigate }) {
 function WishlistCard({ item, onRemoveLocal }) {
   const { token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
-
   const product = item.product || {};
   const variant = item.variant || {};
 

@@ -8,9 +8,10 @@ import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlis
 
 const BASE_URL = "http://localhost:8000";
 
-
+// ✅ Normalize backend image paths
 const normalizeImage = (img) => {
   if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
+  if (typeof img !== "string") return "https://via.placeholder.com/200x200?text=No+Image";
   if (img.startsWith("http://") || img.startsWith("https://")) return img;
   return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
 };
@@ -19,7 +20,7 @@ const normalizeImage = (img) => {
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth || {});
 
   const [product, setProduct] = useState(null);
   const [vendor, setVendor] = useState(null);
@@ -32,271 +33,182 @@ const ProductDetails = () => {
   const [wishlistItemId, setWishlistItemId] = useState(null);
   const [quantity, setQuantity] = useState(1);
 
-
+  // ✅ Fetch product, vendor, and variants
   useEffect(() => {
     let mounted = true;
     const fetchProductData = async () => {
       try {
         setLoading(true);
-        const productRes = await axios.get(`${BASE_URL}/Product/${id}`);
-        const data = productRes.data;
+        const res = await axios.get(`${BASE_URL}/Product/${id}`);
+        const data = res.data;
         if (!mounted) return;
-
-        console.debug("🧩 Product API response:", data);
         setProduct(data);
-        if (data?.vendor) {
-          setVendor(data.vendor);
-        }
 
-        // ✅ If product has vendor_id, fetch vendor (shop) details
-        if (!data?.vendor && data?.vendor_id) {
+        // Vendor info
+        if (data?.vendor) setVendor(data.vendor);
+        else if (data?.vendor_id) {
           try {
-            const vendorRes = await axios.get(`${BASE_URL}/Vendor`, {
-              params: { vendor_id: data.vendor_id },
-            });
+            const vendorRes = await axios.get(`${BASE_URL}/Vendor`, { params: { vendor_id: data.vendor_id } });
             if (mounted) setVendor(vendorRes.data);
-          } catch (e) {
-            console.warn("⚠️ Could not fetch vendor info", e);
+          } catch {
+            if (mounted) setVendor(null);
           }
-        } else {
-          setVendor(null);
         }
 
-        // ✅ Fetch variants
-        const variantRes = await axios.get(`${BASE_URL}/Variant/list/${id}`);
-        const fetchedVariants = variantRes.data?.variants || [];
-        if (!mounted) return;
-
-        console.debug("🎨 Variant API response:", fetchedVariants);
-        setVariants(fetchedVariants);
-        
-        // 🎯 NEW: Select the first variant on load
-        const initialVariant = fetchedVariants.length > 0 ? fetchedVariants[0] : null;
-        if (initialVariant) {
-            setSelectedVariant(initialVariant);
+        // Variants
+        try {
+          const variantRes = await axios.get(`${BASE_URL}/Variant/list/${id}`);
+          const fetchedVariants = variantRes.data?.variants || [];
+          if (!mounted) return;
+          setVariants(fetchedVariants);
+          if (fetchedVariants.length > 0) setSelectedVariant(fetchedVariants[0]);
+        } catch {
+          setVariants([]);
+          setSelectedVariant(null);
         }
 
-        // ✅ Handle images based on product or initial variant
-        const initialImages = 
-            initialVariant && Array.isArray(initialVariant.images) && initialVariant.images.length > 0
-            ? initialVariant.images.map(normalizeImage)
-            : Array.isArray(data.images) && data.images.length > 0
-            ? data.images.map(normalizeImage)
-            : data.image
-            ? [normalizeImage(data.image)]
-            : [];
-
-        const safeImages =
-          initialImages.length > 0
-            ? initialImages
-            : ["https://via.placeholder.com/600x600?text=No+Image"];
-
-        setDisplayedImages(safeImages);
-        setMainImage(safeImages[0]);
-        
+        // Initial images
+        const initialImages =
+          (data.images?.map(normalizeImage)) ||
+          (data.image ? [normalizeImage(data.image)] : []);
+        const safeImages = initialImages.length ? initialImages : ["https://via.placeholder.com/600x600?text=No+Image"];
+        if (mounted) {
+          setDisplayedImages(safeImages);
+          setMainImage(safeImages[0]);
+        }
       } catch (err) {
-        console.error("❌ Error fetching product/variants:", err);
+        console.error("Error loading product:", err);
       } finally {
         if (mounted) setLoading(false);
       }
     };
-
     fetchProductData();
-    return () => {
-      mounted = false;
-    };
+    return () => (mounted = false);
   }, [id]);
 
-  // 🔄 AUTO-ROTATION EFFECT
+  // ✅ Auto-rotate images
   useEffect(() => {
-    if (displayedImages.length > 1) {
-      const interval = setInterval(() => {
-        setMainImage(currentMainImage => {
-          const currentIndex = displayedImages.indexOf(currentMainImage);
-          const nextIndex = (currentIndex + 1) % displayedImages.length;
-          return displayedImages[nextIndex];
-        });
-      }, 4000); // 4000ms = 4 seconds (slow rotation)
-
-      return () => clearInterval(interval);
-    }
+    if (displayedImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setMainImage((current) => {
+        const idx = displayedImages.indexOf(current);
+        return displayedImages[(idx + 1) % displayedImages.length];
+      });
+    }, 4000);
+    return () => clearInterval(interval);
   }, [displayedImages]);
 
-
-  // ✅ Handle variant switching
-  const handleVariantClick = (variant) => {
-    setSelectedVariant(variant);
-    const variantImages =
-      Array.isArray(variant.images) && variant.images.length > 0
-        ? variant.images.map(normalizeImage)
-        : Array.isArray(product?.images) && product.images.length > 0
+  // ✅ Update images when variant changes
+  useEffect(() => {
+    if (!selectedVariant && product) return;
+    const imgs =
+      selectedVariant?.images?.length
+        ? selectedVariant.images.map(normalizeImage)
+        : product?.images?.length
         ? product.images.map(normalizeImage)
         : product?.image
         ? [normalizeImage(product.image)]
-        : [];
-
-    const finalImages =
-      variantImages.length > 0
-        ? variantImages
         : ["https://via.placeholder.com/600x600?text=No+Image"];
+    setDisplayedImages(imgs);
+    setMainImage(imgs[0]);
+  }, [selectedVariant, product]);
 
-    console.debug("🖼 Switching to variant images:", finalImages);
-    setDisplayedImages(finalImages);
-    setMainImage(finalImages[0]);
-  };
-
-  const handleThumbnailClick = (url) => setMainImage(url);
-
-  // Check wishlist status
+  // ✅ Wishlist check
   useEffect(() => {
-    if (token && product) {
-      const checkWishlistStatus = async () => {
-        try {
-          const productId = product._id || product.id;
-          const variantId = selectedVariant?.id || null;
-          const result = await checkWishlist(productId, variantId);
-          setIsInWishlist(result.in_wishlist || false);
-          setWishlistItemId(result.wishlist_item_id || null);
-        } catch (err) {
-          console.error("Error checking wishlist:", err);
-          // Don't set error state, just log it
-        }
-      };
-      checkWishlistStatus();
-    } else {
+    if (!(token && product)) {
       setIsInWishlist(false);
       setWishlistItemId(null);
-    }
-  }, [token, product, selectedVariant]);
-
-  const handleAddToCart = async () => {
-    if (!token) {
-      navigate("/login");
       return;
     }
+    let mounted = true;
+    (async () => {
+      try {
+        const pid = product._id || product.id;
+        const vid = selectedVariant?.id || null;
+        const result = await checkWishlist(pid, vid);
+        if (mounted) {
+          setIsInWishlist(result.in_wishlist || false);
+          setWishlistItemId(result.wishlist_item_id || null);
+        }
+      } catch (e) {
+        console.error("Wishlist check error:", e);
+      }
+    })();
+    return () => (mounted = false);
+  }, [token, product, selectedVariant]);
 
-    if (!product) return;
-
+  // ✅ Add to Cart
+  const handleAddToCart = async () => {
+    if (!token) return navigate("/login");
     try {
-      const productId = product._id || product.id;
-      const variantId = selectedVariant?.id || null;
-      
-      console.log("Adding to cart:", { productId, variantId });
-      
-      await addToCart(productId, variantId, 1);
-      alert(
-        `Added ${product?.product_name || product?.name || "Product"} ${
-          selectedVariant ? `(${selectedVariant.sku})` : ""
-        } to cart`
-      );
+      const pid = product._id || product.id;
+      const vid = selectedVariant?.id || null;
+      await addToCart(pid, vid, quantity);
+      alert("Added to cart!");
     } catch (err) {
-      console.error("Error adding to cart:", err);
-      const errorMessage = err.response?.data?.detail || err.message || "Failed to add item to cart";
-      alert(`Error: ${errorMessage}`);
+      alert(`Error: ${err.response?.data?.detail || err.message}`);
     }
   };
 
-
-// ✅ Stripe Checkout Handler (Single Product Checkout)
-const payNow = async () => {
-  if (!selectedVariant && !product) {
-    alert("Product not loaded yet.");
-    return;
-  }
-
-  try {
-    const payload = [
-      {
-        name: product.product_name || product.name,
-        price: selectedVariant?.price || product.price,
-        quantity: quantity || 1, // ✅ User-selected qty
-        image: normalizeImage(
-          (selectedVariant?.images && selectedVariant.images[0]) ||
-          (product.images && product.images[0]) ||
-          product.image
-        ),
-        product_id: product._id || product.id,
-        variant_id: selectedVariant?._id || selectedVariant?.id || null,
-      },
-    ];
-
-    console.log("📤 Sending product to Stripe:", payload);
-
-    const response = await axios.post(
-      `${BASE_URL}/payment/create-checkout-session`,
-      payload,                              // ✅ SAME as cart.jsx (array)
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    console.log("✅ Redirecting to Stripe ->", response.data.checkout_url);
-    window.location.href = response.data.checkout_url;
-
-  } catch (err) {
-    console.error("❌ Stripe Checkout Error:", err.response?.data || err);
-    alert("Payment failed. Check console.");
-  }
-};
-
-
-
-  const handleWishlistToggle = async () => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    if (!product) return;
-
+  // ✅ Stripe Checkout
+  const payNow = async () => {
+    if (!product) return alert("Product not loaded yet.");
     try {
-      const productId = product._id || product.id;
-      const variantId = selectedVariant?.id || null;
+      const payload = [
+        {
+          name: product.product_name || product.name,
+          price: selectedVariant?.price || product.price,
+          quantity,
+          image: normalizeImage(
+            selectedVariant?.images?.[0] ||
+              product.images?.[0] ||
+              product.image
+          ),
+          product_id: product._id || product.id,
+          variant_id: selectedVariant?._id || selectedVariant?.id || null,
+        },
+      ];
+      const res = await axios.post(`${BASE_URL}/payment/create-checkout-session`, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+      window.location.href = res.data.checkout_url;
+    } catch (err) {
+      console.error("Stripe checkout error:", err);
+      alert("Payment failed.");
+    }
+  };
 
-      console.log("Toggling wishlist:", { productId, variantId, isInWishlist, wishlistItemId });
-
+  // ✅ Wishlist toggle
+  const handleWishlistToggle = async () => {
+    if (!token) return navigate("/login");
+    try {
+      const pid = product._id || product.id;
+      const vid = selectedVariant?.id || null;
       if (isInWishlist && wishlistItemId) {
         await removeFromWishlist(wishlistItemId);
         setIsInWishlist(false);
-        setWishlistItemId(null);
-        alert("Removed from wishlist");
       } else {
-        await addToWishlist(productId, variantId);
+        await addToWishlist(pid, vid);
+        const res = await checkWishlist(pid, vid);
         setIsInWishlist(true);
-        // Check again to get the wishlist_item_id
-        const checkResult = await checkWishlist(productId, variantId);
-        setWishlistItemId(checkResult.wishlist_item_id || null);
-        alert("Added to wishlist");
+        setWishlistItemId(res.wishlist_item_id || null);
       }
     } catch (err) {
-      console.error("Error toggling wishlist:", err);
-      if (err.response?.status === 400 && err.response?.data?.detail === "Item already in wishlist") {
-        // Item is already in wishlist, just update state
-        setIsInWishlist(true);
-        const productId = product._id || product.id;
-        const variantId = selectedVariant?.id || null;
-        const checkResult = await checkWishlist(productId, variantId);
-        setWishlistItemId(checkResult.wishlist_item_id || null);
-      } else {
-        const errorMessage = err.response?.data?.detail || err.message || "Failed to update wishlist";
-        alert(`Error: ${errorMessage}`);
-      }
+      alert(`Error: ${err.response?.data?.detail || err.message}`);
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center items-center h-screen text-gray-500">
         Loading product details...
       </div>
     );
-  }
 
-  // 🎯 If no product or no variant, show 'not found'
-  if (!product || variants.length === 0) {
+  if (!product)
     return (
       <div className="text-center mt-10">
-        <h2 className="text-xl font-semibold text-gray-700">
-          Product or variants not found
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-700">Product not found</h2>
         <button
           onClick={() => navigate("/products")}
           className="mt-4 px-5 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
@@ -305,139 +217,50 @@ const payNow = async () => {
         </button>
       </div>
     );
-  }
 
-  // 🎯 NEW: ALWAYS base display data on the selected variant
-  const currentDisplay = selectedVariant || variants[0];
-  
-  const displayPrice = currentDisplay.price;
-  const displayStock = currentDisplay.stock;
-  const displayName = product.product_name || product.name || "Untitled"; // Keep base product name
-  const displayCondition = currentDisplay.condition || product.product_condition || product.condition;
-  const displayDescription = currentDisplay.description || product.description || product.desc || "";
-
-  const vendorName = vendor?.shop_name || "";
-  const vendorAddress = vendor?.address || "";
-  const selectedAttributes = Array.isArray(currentDisplay.attributes)
-    ? currentDisplay.attributes
-    : [];
+  const current = selectedVariant || {};
+  const displayName = product.product_name || product.name;
+  const displayPrice = current.price ?? product.price ?? "N/A";
+  const displayStock = current.stock ?? product.stock ?? "N/A";
+  const displayDesc = current.description || product.description || "";
+  const vendorName = vendor?.shop_name || vendor?.name || "";
+  const vendorAddr = vendor?.address || "";
+  const selectedAttrs = Array.isArray(current.attributes) ? current.attributes : [];
 
   return (
     <div className="w-full py-10 px-8">
       <div className="flex flex-col lg:flex-row items-start justify-center gap-8 lg:gap-16">
-        {/* LEFT COLUMN - Thumbnails */}
-        <div className="flex flex-col gap-3 flex-shrink-0">
-          {displayedImages.map((img, idx) => (
+        {/* LEFT THUMBNAILS */}
+        <div className="flex flex-col gap-3">
+          {displayedImages.map((img, i) => (
             <button
-              key={idx}
-              onClick={() => handleThumbnailClick(img)}
-              className={`rounded-lg overflow-hidden transition-all ${
-                mainImage === img
-                  ? "scale-105 ring-2 ring-black shadow-lg"
-                  : "hover:ring-1 hover:ring-gray-300"
-              }`}
+              key={i}
+              onClick={() => setMainImage(img)}
+              className={`rounded-lg overflow-hidden ${mainImage === img ? "ring-2 ring-black" : "hover:ring"}`}
             >
-              <img
-                src={img}
-                alt={`thumb-${idx}`}
-                className="w-20 h-20 lg:w-24 lg:h-24 object-cover rounded-md"
-              />
+              <img src={img} alt={`thumb-${i}`} className="w-20 h-20 object-cover rounded-md" />
             </button>
           ))}
         </div>
 
-        {/* CENTER COLUMN - Main Image (Minimized Width) */}
-        <div className="flex-1 max-w-xl relative group"> 
-          <div className="main-product-image-container border rounded-2xl overflow-hidden shadow-lg bg-white relative">
-            <img
-              src={mainImage}
-              alt={displayName}
-              className="w-full h-full object-cover transition-all duration-300 bg-white"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "https://via.placeholder.com/600x600?text=No+Image";
-              }}
-            />
-
-            {/* Arrows (Manual navigation is still useful) */}
-            {displayedImages.length > 1 && (
-              <>
-                <button
-                  onClick={() => {
-                    const currentIndex = displayedImages.indexOf(mainImage);
-                    const newIndex =
-                      (currentIndex - 1 + displayedImages.length) %
-                      displayedImages.length;
-                    setMainImage(displayedImages[newIndex]);
-                  }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2.5"
-                    stroke="black"
-                    className="w-6 h-6"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => {
-                    const currentIndex = displayedImages.indexOf(mainImage);
-                    const newIndex = (currentIndex + 1) % displayedImages.length;
-                    setMainImage(displayedImages[newIndex]);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2.5"
-                    stroke="black"
-                    className="w-6 h-6"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-          </div>
+        {/* CENTER IMAGE */}
+        <div className="flex-1 max-w-xl relative group">
+          <img
+            src={mainImage}
+            alt={displayName}
+            className="w-full rounded-2xl shadow-lg object-cover"
+            onError={(e) => (e.target.src = "https://via.placeholder.com/600x600?text=No+Image")}
+          />
         </div>
 
-        {/* RIGHT COLUMN - Product Info */}
-        <div className="flex-shrink-0 w-full lg:w-auto lg:max-w-md space-y-5">
-          <h1 className="text-3xl font-semibold text-gray-900 leading-snug">
-            {displayName}
-          </h1>
-
-        <div>
-          <span className="font-semibold">Description:</span>{" "}
-          <span className="text-gray-700 leading-relaxed">{displayDescription}</span>
-        </div>
-
-
-
-
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-gray-900">
-                MRP : ₹ {displayPrice ?? "N/A"}
-              </span>
-              <span className="text-xs text-gray-500">
-                Inclusive of all taxes (also includes all applicable duties)
-              </span>
-            </div>
-            {/* Wishlist Button */}
+        {/* RIGHT INFO */}
+        <div className="flex-shrink-0 lg:max-w-md space-y-5">
+          <h1 className="text-3xl font-semibold">{displayName}</h1>
+          <p className="text-gray-700">{displayDesc}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-3xl font-bold">₹ {displayPrice}</span>
             {token && (
-              <button
-                onClick={handleWishlistToggle}
-                className="p-3 rounded-full hover:bg-gray-100 transition-colors"
-                title={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-              >
+              <button onClick={handleWishlistToggle} title={isInWishlist ? "Remove" : "Add"}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className={`h-6 w-6 ${isInWishlist ? "text-red-500 fill-current" : "text-gray-400"}`}
@@ -449,71 +272,53 @@ const payNow = async () => {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 
+                    4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 
+                    4.5 0 00-6.364 0z"
                   />
                 </svg>
               </button>
             )}
           </div>
 
-          
-
-          {selectedAttributes.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-2">Product Details</h3>
-              <div className="space-y-1">
-                {selectedAttributes.map((attr, i) => (
-                  <p key={i} className="text-sm text-gray-800">
-                    <span className="font-medium">{attr.attribute_name}:</span>{" "}
-                    {attr.value_name}
-                  </p>
-                ))}
-              </div>
+          {selectedAttrs.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-1">Product Details</h3>
+              {selectedAttrs.map((attr, i) => (
+                <p key={i} className="text-sm">
+                  <strong>{attr.attribute_name}:</strong> {attr.value_name}
+                </p>
+              ))}
             </div>
           )}
 
-          <div className="text-sm text-gray-700 space-y-1">
-            <p>
-              <span className="font-semibold">Stock:</span>{" "}
-              {displayStock ?? "N/A"}
-            </p>
-          </div>
+          <p className="text-sm text-gray-700">Stock: {displayStock}</p>
 
-          
-
-          {/* ✅ SHOP INFO */}
+          {/* SHOP INFO */}
           <div className="mt-6 border-t pt-4">
-            <h4 className="font-semibold text-gray-800 mb-2">Shop Information</h4>
-            <p className="text-sm text-gray-800">
-              <span className="font-semibold">Shop name:</span> {vendorName || "N/A"}
-            </p>
-            <p className="text-sm text-gray-800">
-              <span className="font-semibold">Shop address:</span> {vendorAddress || "N/A"}
-            </p>
+            <h4 className="font-semibold mb-2">Shop Information</h4>
+            <p>Shop: {vendorName || "N/A"}</p>
+            <p>Address: {vendorAddr || "N/A"}</p>
           </div>
 
-          {/* Variants */}
+          {/* VARIANTS */}
           {variants?.length > 0 && (
-            <div className="mt-8">
-                <h4 className="font-semibold text-gray-800 mb-2">Select Option:</h4>
+            <div>
+              <h4 className="font-semibold mb-2">Select Option:</h4>
               <div className="sku-grid">
-                {variants.map((variant) => {
-                  // 🎯 Use selectedVariant?.id for comparison
-                  const isSelected = selectedVariant?.id === variant.id; 
-                  const isOut = typeof variant.stock === "number" && variant.stock <= 0;
-
+                {variants.map((v) => {
+                  const isSelected = selectedVariant?.id === v.id;
+                  const out = v.stock <= 0;
                   return (
                     <button
-                      type="button"
-                      key={variant.id}
-                      disabled={isOut}
-                      onClick={() => !isOut && handleVariantClick(variant)}
+                      key={v.id}
+                      onClick={() => !out && setSelectedVariant(v)}
+                      disabled={out}
                       className={`sku-option ${isSelected ? "sku-option--selected" : ""} ${
-                        isOut ? "sku-option--disabled" : ""
+                        out ? "sku-option--disabled" : ""
                       }`}
-                      title={isOut ? "Out of stock" : variant.sku}
                     >
-                      {variant.sku}
+                      {v.sku}
                     </button>
                   );
                 })}
@@ -521,48 +326,86 @@ const payNow = async () => {
             </div>
           )}
 
-          {/* Buttons */}
+          {/* BUTTONS */}
           <div className="flex flex-col gap-4 mt-8">
-            {/* Buy Now Button */}
-            <button
-            onClick={payNow}
-            className="bg-green-600 hover:bg-green-700 text-white w-full py-2 rounded-full mt-4"
-          >
-            Pay with Stripe
-          </button>
-
-
-
-
-
-
-            {/* Add to Cart Button */}
-            <button
-              onClick={handleAddToCart}
-              className="border border-gray-300 text-black px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"
-            >
+            <button onClick={payNow} className="bg-green-600 text-white py-2 rounded-full hover:bg-green-700">
+              Pay with Stripe
+            </button>
+            <button onClick={handleAddToCart} className="border py-2 rounded-full hover:bg-gray-100">
               Add to Cart
             </button>
+            <button
+              onClick={() => {
+                const sid = vendor?._id || vendor?.id || product?.vendor_id;
+                if (sid) navigate(`/chat/${sid}`);
+              }}
+              className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800"
+            >
+              Message Seller
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* Message Seller Button */}
-            {(vendor || product?.vendor_id) && (
+      {/* SELLER DETAILS */}
+      {vendor && (
+        <div className="mt-12 bg-white border rounded-2xl shadow-lg py-8 px-6">
+          <h2 className="text-2xl font-semibold mb-6">Seller Information</h2>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <img
+                src={vendor.profile_image || "https://via.placeholder.com/120"}
+                alt={vendor.shop_name || "Seller"}
+                className="w-24 h-24 rounded-full object-cover border-2 cursor-pointer"
+                onClick={() => {
+                  const sid = vendor._id || vendor.id || vendor.user_id;
+                  if (sid) navigate(`/seller/${sid}`);
+                }}
+              />
+              <div>
+                <h3
+                  onClick={() => {
+                    const sid = vendor._id || vendor.id || vendor.user_id;
+                    if (sid) navigate(`/seller/${sid}`);
+                  }}
+                  className="text-xl font-bold cursor-pointer hover:text-blue-600"
+                >
+                  {vendor.shop_name || "Seller Shop"}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {vendor.description || vendor.shop_description || "No description available."}
+                </p>
+                <div className="flex flex-wrap gap-4 text-sm text-gray-500 mt-2">
+                  {vendor.address && <p>📍 {vendor.address}</p>}
+                  {vendor.phone && <p>📞 {vendor.phone}</p>}
+                  {vendor.email && <p>✉️ {vendor.email}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
               <button
-                onClick={() =>
-                  navigate(
-                    `/messages?vendor_user_id=${encodeURIComponent(
-                      vendor?.user_id || vendor?.id || product?.vendor_id || ""
-                    )}&vendor_id=${encodeURIComponent(vendor?.id || product?.vendor_id || "")}&product_id=${product?.id || product?._id || id}`
-                  )
-                }
-                className="border border-gray-300 text-black px-6 py-3 rounded-full font-medium hover:bg-gray-100 transition"
+                onClick={() => {
+                  const sid = vendor._id || vendor.id || vendor.user_id;
+                  if (sid) navigate(`/seller/${sid}`);
+                }}
+                className="px-6 py-2 border rounded-full hover:bg-gray-100"
+              >
+                Visit Shop
+              </button>
+              <button
+                onClick={() => {
+                  const sid = vendor._id || vendor.id || product?.vendor_id;
+                  if (sid) navigate(`/chat/${sid}`);
+                }}
+                className="px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800"
               >
                 Message Seller
               </button>
-            )}
+            </div>
           </div>
-
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 // ✅ Products.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -26,6 +26,7 @@ function normalizeImageUrl(img) {
 
 export default function Products() {
   const [products, setProducts] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -35,16 +36,58 @@ export default function Products() {
     loadProducts();
   }, []);
 
+  const searchTerm = useMemo(() => {
+    return (searchParams.get("search") || "").trim().toLowerCase();
+  }, [searchParams]);
+
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return products;
+    // Split search string into all non-empty words
+    const words = searchTerm
+      .split(/\s+/)
+      .filter((w) => !!w);
+    if (words.length === 0) return products;
+    return products.filter((product) => {
+      const fields = [
+        product?.product_name,
+        product?.description,
+        product?.brand,
+        product?.category_name,
+      ];
+      // All words must be present in at least one field
+      return words.every((word) =>
+        fields.some(
+          (field) =>
+            typeof field === "string" &&
+            field.toLowerCase().includes(word)
+        )
+      );
+    });
+  }, [products, searchTerm]);
+
+  const handleInlineSearch = (event) => {
+    const value = event.target.value;
+    if (value) {
+      setSearchParams({ search: value });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   return (
     <>
       <Navbar />
 
       <div className="products-container">
-        {products.length === 0 ? (
-          <p className="no-product-text">No products available</p>
+        {filteredProducts.length === 0 ? (
+          <p className="no-product-text">
+            {products.length === 0
+              ? "No products available"
+              : "No products match your search. Try a different keyword."}
+          </p>
         ) : (
           <div className="grid-container">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>

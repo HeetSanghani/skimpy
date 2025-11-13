@@ -15,7 +15,7 @@ function App() {
         {/* Optional Navbar */}
         {/* <Navbar /> */}
 
-        <main className="flex-grow w-full">
+        <main className="flex-grow w-full min-h-screen">
           {/* All your route-based pages will load here */}
           <AppRouter />
              
@@ -29,6 +29,3 @@ function App() {
 }
 
 export default App;
-
-
-

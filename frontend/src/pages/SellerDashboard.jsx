@@ -10,7 +10,7 @@ import {
   getEarningsStats,
   getOrders,
 } from "../api/sellerDashboardApi";
-import { Package, DollarSign, ShoppingCart, Plus, TrendingUp } from "lucide-react";
+import { Package, ShoppingCart, Plus, TrendingUp, IndianRupee } from "lucide-react";
 
 export default function SellerDashboard() {
   const dispatch = useDispatch();
@@ -125,12 +125,12 @@ export default function SellerDashboard() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(amount);
+};
 
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -148,7 +148,7 @@ export default function SellerDashboard() {
   const tabs = [
     { id: "overview", label: "Overview", icon: TrendingUp },
     { id: "listings", label: "My Listings", icon: Package },
-    { id: "earnings", label: "Earnings / Sales", icon: DollarSign },
+    { id: "earnings", label: "Earnings / Sales", icon: IndianRupee },
     { id: "orders", label: "Orders", icon: ShoppingCart },
   ];
 
@@ -238,7 +238,7 @@ export default function SellerDashboard() {
                             {formatCurrency(stats?.total_revenue || 0)}
                           </p>
                         </div>
-                        <DollarSign className="w-12 h-12 text-yellow-500" />
+                        <IndianRupee className="w-12 h-12 text-yellow-500" />
                       </div>
                     </div>
 
@@ -523,7 +523,7 @@ export default function SellerDashboard() {
                                 {formatCurrency(stats?.total_revenue || 0)}
                               </p>
                             </div>
-                            <DollarSign className="w-12 h-12 text-yellow-500" />
+                            <IndianRupee className="w-12 h-12 text-yellow-500" />
                           </div>
                         </div>
 
