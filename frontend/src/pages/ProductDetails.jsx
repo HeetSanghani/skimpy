@@ -8,9 +8,10 @@ import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlis
 
 const BASE_URL = "http://localhost:8000";
 
+
 // ✅ Normalize backend image paths
 const normalizeImage = (img) => {
-  if (!img) return null;
+  if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
   if (img.startsWith("http://") || img.startsWith("https://")) return img;
   return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
 };
@@ -29,6 +30,7 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState(null);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     let mounted = true;
@@ -192,6 +194,42 @@ const ProductDetails = () => {
       alert(`Error: ${errorMessage}`);
     }
   };
+
+  // ✅ Stripe Payment Function (PLACE THIS BELOW handleAddToCart)
+const payNow = async () => {
+  if (!selectedVariant && !product) {
+    alert("Product not loaded yet.");
+    return;
+  }
+  try {
+    const payload = [
+      {
+        name: product.product_name || product.name,
+        price: selectedVariant?.price || product.price,
+        quantity: quantity || 1, // :white_check_mark: User-selected qty
+        image: normalizeImage(
+          (selectedVariant?.images && selectedVariant.images[0]) ||
+          (product.images && product.images[0]) ||
+          product.image
+        ),
+        product_id: product._id || product.id,
+        variant_id: selectedVariant?._id || selectedVariant?.id || null,
+      },
+    ];
+    console.log(":outbox_tray: Sending product to Stripe:", payload);
+    const response = await axios.post(
+      `${BASE_URL}/payment/create-checkout-session`,
+      payload,                              // :white_check_mark: SAME as cart.jsx (array)
+      { headers: { "Content-Type": "application/json" } }
+    );
+    console.log(":white_check_mark: Redirecting to Stripe ->", response.data.checkout_url);
+    window.location.href = response.data.checkout_url;
+  } catch (err) {
+    console.error(":x: Stripe Checkout Error:", err.response?.data || err);
+    alert("Payment failed. Check console.");
+  }
+};
+
 
   const handleWishlistToggle = async () => {
     if (!token) {
@@ -479,11 +517,16 @@ const ProductDetails = () => {
           <div className="flex flex-col gap-4 mt-8">
             {/* Buy Now Button */}
             <button
-              onClick={() => navigate("/checkout")}
-              className="bg-black text-white px-6 py-3 rounded-full font-medium hover:bg-gray-800 transition"
-            >
-              Buy Now
-            </button>
+            onClick={payNow}
+            className="bg-green-600 hover:bg-green-700 text-white w-full py-2 rounded-full mt-4"
+          >
+            Pay with Stripe
+          </button>
+
+
+
+
+
 
             {/* Add to Cart Button */}
             <button
