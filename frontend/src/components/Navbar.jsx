@@ -37,7 +37,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow p-4 flex items-center justify-between">
+    <nav className="bg-white shadow p-4 flex items-center justify-between sticky top-0 z-50">
       {/* Logo */}
       <Link to="/" className="font-bold text-xl">
         SKIMPY
