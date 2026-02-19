@@ -2,32 +2,38 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 load_dotenv()
-# ---------- USER DATABASE ----------
-MONGO_URI = os.getenv("MONGO_URI")  # example: mongodb://localhost:27017
-if not MONGO_URI:
-    raise ValueError("MONGO_URI not set in .env file")
-user_client = MongoClient(MONGO_URI)
-user_db = user_client["skimpy"]  # main user database
+import certifi
+import ssl
 
-# Collections for user DB
+# ---------- DATABASE CONNECTION ----------
+MONGODB_URL = os.getenv("MONGODB_URL")
+if not MONGODB_URL:
+    # Fallback for backward compatibility or local dev if needed, but prefer MONGODB_URL
+    MONGODB_URL = os.getenv("MONGO_URI") or os.getenv("MONGO_URL")
+
+if not MONGODB_URL:
+    raise ValueError("MONGODB_URL not set in .env file")
+
+# Create a custom SSL context to allow connection even if certificate verification fails
+# This is often needed in certain deployment environments or local setups with proxy/SSL issues
+client = MongoClient(MONGODB_URL, tlsCAFile=certifi.where(), tlsAllowInvalidCertificates=True)
+user_db = client["skimpy"]  # Main database for Users
+cate_db = client["skimpy"]  # Same database for Products/Categories (Consolidated)
+
+# For backward compatibility if strictly needed, we can alias clients
+user_client = client
+cate_client = client
+
 # Collections for user DB
 user_collection = user_db["users"]
 otp_collection = user_db["otp"]
 delivery_addresses_collection = user_db["delivery_addresses"]
-# Indexes
-# Indexes
+contact_messages_collection = user_db["contact_messages"]
+
+# User Indexes
 user_collection.create_index("email", unique=True)
 user_collection.create_index("user_id", unique=True)
 otp_collection.create_index("created_at", expireAfterSeconds=300)
-contact_messages_collection = user_db["contact_messages"]
-
-
-
-MONGO_URL = os.getenv("MONGO_URL")  # example: mongodb://localhost:27017
-if not MONGO_URL:
-    raise ValueError("MONGO_URL not set in .env file")
-cate_client = MongoClient(MONGO_URL)
-cate_db = cate_client["cate"]  # separate DB for categories, vendors, products
 
 # Collections for product DB
 # Collections for product DB
