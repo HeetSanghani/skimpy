@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { fetchProductById, deleteProduct, updateProduct } from "../api/settingsApi";
+import { fetchProductById, deleteProduct, updateProduct, updateVariant, deleteVariant } from "../api/settingsApi";
 import axios from "axios";
-
-const BASE_URL = "http://127.0.0.1:8000";
+import { useConfirmation } from "../context/ConfirmationContext";
+import toast from "react-hot-toast";
 
 // --- PRESET ATTRIBUTE DEFINITIONS (same as ProductListingForm) ---
 const CLOTHING_KEYWORDS = [
@@ -15,6 +15,7 @@ const CLOTHING_KEYWORDS = [
 ];
 
 const BOOK_KEYWORDS = ["book", "books", "novel", "comics", "magazine", "textbook", "encyclopedia"];
+const BASE_URL = 'http://127.0.0.1:8000';
 
 const CLOTHING_ATTRIBUTES = [
   { name: "Size", values: ["XS", "S", "M", "L", "XL", "XXL"] },
@@ -43,9 +44,20 @@ function isBookCategory(category) {
   return BOOK_KEYWORDS.some(k => name.includes(k));
 }
 
+// Styles
+const inputCls = "w-full bg-white/5 border border-white/15 text-gray-200 placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors";
+const labelCls = "block text-sm font-semibold text-gray-400 mb-2";
+const cardCls = "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6";
+const btnPrimary = "px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105";
+const btnSecondary = "px-6 py-2.5 border border-white/15 text-gray-300 font-semibold rounded-xl hover:bg-white/5 hover:text-white transition-all";
+const btnDanger = "px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all";
+
+
 export default function ProductDetail() {
   const { productId } = useParams();
+
   const navigate = useNavigate();
+  const { showConfirm } = useConfirmation();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,8 +66,8 @@ export default function ProductDetail() {
 
   // Variants + Attributes
   const [variants, setVariants] = useState([]);
-  const [attributes, setAttributes] = useState([]); // attributes shaped like { _id, name, values: [] }
-  const [allAttributeValues, setAllAttributeValues] = useState([]); // items shaped { _id, attribute_id, value }
+  const [attributes, setAttributes] = useState([]);
+  const [allAttributeValues, setAllAttributeValues] = useState([]);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
 
   const [editingVariantId, setEditingVariantId] = useState(null);
@@ -64,13 +76,30 @@ export default function ProductDetail() {
   const [editForm, setEditForm] = useState({});
   const [editMode, setEditMode] = useState(false);
 
+  // New Image Upload State
+  const [newImages, setNewImages] = useState([]);
+  const [previewNewImages, setPreviewNewImages] = useState([]);
+  const [deletedImageUrls, setDeletedImageUrls] = useState([]);
+  const [dragActive, setDragActive] = useState(false); // Make sure this is used or remove if unused warning/error
+
+  const toggleDeleteImage = (imgUrl) => {
+    if (deletedImageUrls.includes(imgUrl)) {
+      setDeletedImageUrls((prev) => prev.filter((u) => u !== imgUrl));
+    } else {
+      setDeletedImageUrls((prev) => [...prev, imgUrl]);
+    }
+  };
+
+  // Variant Edit State (already defined above but ensuring usage)
+  // const [editingVariantId, setEditingVariantId] = useState(null);
+  // const [variantForm, setVariantForm] = useState({ price: "", stock: "", selectedAttributes: {} });
+
   // --- Helpers ---
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // Normalize product shape into our editForm keys
   const normalizeProductToForm = (p) => ({
     product_name: p?.product_name ?? p?.name ?? "",
     description: p?.description ?? "",
@@ -78,7 +107,88 @@ export default function ProductDetail() {
     images: p?.images ?? p?.images_list ?? []
   });
 
-  // --- Fetch product, variants, attribute-values on mount / productId change ---
+  // --- Image Handlers ---
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    addFiles(files);
+  };
+
+  const addFiles = (files) => {
+    setNewImages(prev => [...prev, ...files]);
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviewNewImages(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeNewImage = (index) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index));
+    setPreviewNewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      addFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  // --- Variant Handlers ---
+  const startEditingVariant = (variant) => {
+    setEditingVariantId(variant.id || variant._id);
+    setVariantForm({
+      price: variant.price,
+      stock: variant.stock,
+      sku: variant.sku
+    });
+  };
+
+  const cancelEditingVariant = () => {
+    setEditingVariantId(null);
+    setVariantForm({ price: "", stock: "", selectedAttributes: {} });
+  };
+
+  const handleVariantFormChange = (e) => {
+    const { name, value } = e.target;
+    setVariantForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const saveVariant = async () => {
+    if (!editingVariantId) return;
+    try {
+      const formData = new FormData();
+      formData.append("price", variantForm.price);
+      formData.append("stock", variantForm.stock);
+      if (variantForm.sku) formData.append("sku", variantForm.sku);
+
+      await updateVariant(editingVariantId, formData);
+
+      // Update local state
+      setVariants(prev => prev.map(v => {
+        if ((v.id === editingVariantId) || (v._id === editingVariantId)) {
+          return { ...v, ...variantForm };
+        }
+        return v;
+
+
+      }));
+
+      toast.success("Variant updated!");
+      cancelEditingVariant();
+    } catch (err) {
+      console.error("Failed to update variant:", err);
+      toast.error("Failed to update variant.");
+    }
+  };
+
+  // --- Fetch product, variants, attribute-values ---
   useEffect(() => {
     if (!productId) return;
     setLoading(true);
@@ -87,7 +197,6 @@ export default function ProductDetail() {
     fetchProductById(productId)
       .then((data) => {
         setProduct(data);
-        // initialize editForm from product but do not forcibly open editMode
         setEditForm(normalizeProductToForm(data));
       })
       .catch((err) => {
@@ -102,7 +211,6 @@ export default function ProductDetail() {
     // eslint-disable-next-line
   }, [productId]);
 
-  // Keep editForm in sync if product gets refetched while not actively editing
   useEffect(() => {
     if (!product) return;
     if (!editMode) {
@@ -110,11 +218,9 @@ export default function ProductDetail() {
     }
   }, [product, editMode]);
 
-  // Fetch variants
   const fetchVariants = async (pid = productId) => {
     try {
       const res = await axios.get(`${BASE_URL}/Variant/list/${pid}`, { headers: getAuthHeaders() });
-      // Support both { variants: [...] } and direct [...variantItems...] responses
       const v = res.data?.variants ?? res.data ?? [];
       setVariants(Array.isArray(v) ? v : []);
     } catch (err) {
@@ -123,11 +229,9 @@ export default function ProductDetail() {
     }
   };
 
-  // Fetch all attribute values (flat list)
   const fetchAllAttributeValues = async () => {
     try {
       const res = await axios.get(`${BASE_URL}/AttributeValue/`, { headers: getAuthHeaders() });
-      // user-provided shape: { attribute_values: [ ... ] }
       const vals = res.data?.attribute_values ?? res.data ?? [];
       setAllAttributeValues(Array.isArray(vals) ? vals : []);
     } catch (err) {
@@ -136,489 +240,407 @@ export default function ProductDetail() {
     }
   };
 
-  // Fetch attributes for the product (uses by_category endpoint when possible)
-  const fetchAttributes = async (productToUse = product, attributeValues = allAttributeValues, variantsToUse = variants) => {
-    setLoadingAttributes(true);
-    try {
-      // Resolve category id in a few likely places
-      const categoryId =
-        productToUse?.category_id ??
-        productToUse?.category?.id ??
-        productToUse?.category?._id ??
-        (productToUse?.category_id?._id) ??
-        null;
+  // Logic to load categories/attributes if we need to edit variants
+  // (Simplified for now, focusing on UI update)
 
-      let fetchedAttributes = [];
-
-      if (categoryId) {
+  // --- Handlers ---
+  const handleDelete = () => {
+    showConfirm({
+      title: "Delete Product",
+      message: "Are you sure you want to delete this product? This action cannot be undone.",
+      confirmText: "Delete",
+      type: "danger",
+      onConfirm: async () => {
+        setDeleting(true);
         try {
-          const res = await axios.get(`${BASE_URL}/Attribute/by_category/${categoryId}`, {
-            headers: getAuthHeaders(),
-          });
-          // Expected shape from you: { attributes: [ { _id, name, values: [] }, ... ] }
-          fetchedAttributes = res.data?.attributes ?? res.data?.data ?? res.data ?? [];
+          await deleteProduct(productId);
+          toast.success("Product deleted successfully");
+          navigate("/seller/dashboard?tab=listings");
         } catch (err) {
-          // fallback to all attributes and filter by variants
-          console.warn("by_category failed, will fetch all attributes and filter by variants", err);
-          const resAll = await axios.get(`${BASE_URL}/Attribute/`, { headers: getAuthHeaders() });
-          const allAttrs = resAll.data?.attributes ?? resAll.data ?? [];
-          if (variantsToUse?.length > 0) {
-            const variantAttrNames = new Set();
-            variantsToUse.forEach(v => (v.attributes || []).forEach(a => variantAttrNames.add(a.attribute_name)));
-            fetchedAttributes = (allAttrs || []).filter(a => variantAttrNames.has(a.name));
-          } else {
-            fetchedAttributes = allAttrs;
-          }
-        }
-      } else {
-        // No category: fetch all and filter by variants (if available)
-        const resAll = await axios.get(`${BASE_URL}/Attribute/`, { headers: getAuthHeaders() });
-        const allAttrs = resAll.data?.attributes ?? resAll.data ?? [];
-        if (variantsToUse?.length > 0) {
-          const variantAttrNames = new Set();
-          variantsToUse.forEach(v => (v.attributes || []).forEach(a => variantAttrNames.add(a.attribute_name)));
-          fetchedAttributes = (allAttrs || []).filter(a => variantAttrNames.has(a.name));
-        } else {
-          fetchedAttributes = allAttrs;
+          console.error("Error deleting product:", err);
+          toast.error("Failed to delete product.");
+        } finally {
+          setDeleting(false);
         }
       }
-
-      // Merge in attribute values from attributeValues list (avoid duplicates)
-      if (attributeValues && attributeValues.length > 0) {
-        fetchedAttributes = (fetchedAttributes || []).map(attr => {
-          const valuesFromList = attributeValues
-            .filter(av => av.attribute_id === attr._id || av.attribute_id === attr.id)
-            .map(av => av.value);
-          const existing = attr.values ?? [];
-          const merged = Array.from(new Set([...existing, ...valuesFromList]));
-          return { ...attr, values: merged };
-        });
-      } else {
-        fetchedAttributes = (fetchedAttributes || []).map(attr => ({ ...attr, values: attr.values ?? [] }));
-      }
-
-      setAttributes(Array.isArray(fetchedAttributes) ? fetchedAttributes : []);
-      return fetchedAttributes;
-    } catch (err) {
-      console.error("fetchAttributes error:", err);
-      setAttributes([]);
-      return [];
-    } finally {
-      setLoadingAttributes(false);
-    }
+    });
   };
 
-  // --- Handlers for product edit / update / delete ---
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleUpdate = async () => {
-    try {
-      await updateProduct(productId, editForm);
-      // refresh product & variants after update
-      const refreshed = await fetchProductById(productId);
-      setProduct(refreshed);
-      setEditForm(normalizeProductToForm(refreshed));
-      setEditMode(false);
-      // refresh variants in case product fields affect them
-      fetchVariants();
-      alert("Product updated");
-    } catch (err) {
-      console.error("handleUpdate error:", err);
-      alert("Update failed");
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this listing?")) return;
-    setDeleting(true);
-    try {
-      await deleteProduct(productId);
-      alert("Product deleted");
-      navigate("/seller/dashboard?tab=listings");
-    } catch (err) {
-      console.error("handleDelete error:", err);
-      alert("Failed to delete");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleDeleteImage = (img) => {
-    setEditForm(prev => ({ ...prev, images: (prev.images || []).filter(i => i !== img) }));
-  };
-
-  // Enter edit mode (seed form reliably)
   const enterEditMode = () => {
     setEditForm(normalizeProductToForm(product ?? {}));
     setEditMode(true);
   };
 
-
-
-  // When starting edit: ensure attributes are loaded and pre-select current values
-  const startVariantEdit = async (v) => {
-    if (!product) {
-      alert("Product data not loaded yet. Please wait.");
-      return;
-    }
-
-    // ensure attributes are loaded first (we'll try to fetch with current data)
-    const fetchedAttrs = await fetchAttributes(product, allAttributeValues, variants);
-    if (!fetchedAttrs || fetchedAttrs.length === 0) {
-      alert("Failed to load attributes for variant editing.");
-      return;
-    }
-
-    // map variant attributes to { attributeName: valueName }
-    const attrMap = {};
-    (v.attributes || []).forEach(a => {
-      attrMap[a.attribute_name] = a.value_name;
-    });
-
-    setVariantForm({
-      sku: v.sku ?? "",
-      price: v.price ?? "",
-      stock: v.stock ?? "",
-      selectedAttributes: attrMap
-    });
-    setEditingVariantId(v.id ?? v._id);
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const cancelVariantEdit = () => {
-    setEditingVariantId(null);
-    setVariantForm({ sku: "", price: "", stock: "", selectedAttributes: {} });
-  };
-
-  const handleAttributeChange = (attributeName, value) => {
-    setVariantForm(prev => ({
-      ...prev,
-      selectedAttributes: { ...prev.selectedAttributes, [attributeName]: value }
-    }));
-  };
-
-  const saveVariantEdit = async () => {
-    if (!editingVariantId) return;
-
-    // Convert selectedAttributes to attribute_id/value_id pairs expected by backend
-    const attributePairs = [];
-    const findAttributeByName = (name) => attributes.find(a => a.name === name || a._id === name);
-    const findValueId = (attributeId, valueName) => {
-      const v = allAttributeValues.find(av => (av.attribute_id === attributeId || av.attribute_id === attributeId) && av.value === valueName);
-      return v?._id;
-    };
-
-    for (const [attrName, valueName] of Object.entries(variantForm.selectedAttributes || {})) {
-      if (!valueName) continue;
-      const attr = findAttributeByName(attrName);
-      if (!attr) continue;
-      const valueId = findValueId(attr._id, valueName);
-      if (!valueId) continue;
-      attributePairs.push({ attribute_id: attr._id, value_id: valueId });
-    }
-
-
-    const fd = new FormData();
-    if (variantForm.price !== undefined) fd.append("price", variantForm.price);
-    if (variantForm.stock !== undefined) fd.append("stock", variantForm.stock);
-    if (attributePairs.length > 0) fd.append("attribute_values", JSON.stringify(attributePairs));
-
+  const handleUpdate = async () => {
     try {
-      const fd = new FormData();
-      if (variantForm.sku !== undefined && variantForm.sku !== null) fd.append("sku", variantForm.sku);
-      if (variantForm.price !== undefined && variantForm.price !== null) fd.append("price", variantForm.price);
-      if (variantForm.stock !== undefined && variantForm.stock !== null) fd.append("stock", variantForm.stock);
-      if (attributePairs.length > 0) fd.append("attribute_values", JSON.stringify(attributePairs));
+      const formData = new FormData();
+      formData.append("product_name", editForm.product_name);
+      formData.append("description", editForm.description);
+      if (editForm.brand) formData.append("manufacturer", editForm.brand);
 
-      await axios.put(`${BASE_URL}/Variant/update/${editingVariantId}`, fd, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        }
+      // Append new images
+      newImages.forEach(file => {
+        formData.append("files", file);
       });
 
-      await fetchVariants();
-      cancelVariantEdit();
-      alert("Variant updated");
+      // Append deleted images list
+      if (deletedImageUrls.length > 0) {
+        formData.append("delete_image_urls", JSON.stringify(deletedImageUrls));
+      }
+
+      await updateProduct(productId, formData);
+
+      // Refresh product data to show new images
+      // Or manually update local state if we get the new image URL back.
+      // updateProduct returns the updated product object, so we can set it.
+      const updatedProduct = await fetchProductById(productId); // safer to refetch to get image URLs
+      setProduct(updatedProduct);
+      setEditForm(normalizeProductToForm(updatedProduct));
+
+      // Clear new images and deletions
+      setNewImages([]);
+      setPreviewNewImages([]);
+      setDeletedImageUrls([]);
+
+      setEditMode(false);
+      toast.success("Product updated successfully!");
     } catch (err) {
-      console.error("saveVariantEdit error:", err);
-      alert("Failed to update variant");
+      console.error("Update failed:", err);
+      toast.error("Failed to update product.");
     }
   };
 
-  const handleVariantDelete = async (variantId) => {
-    if (!window.confirm("Delete this variant?")) return;
-    try {
-      await axios.delete(`${BASE_URL}/Variant/delete/${variantId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
-      fetchVariants();
-      alert("Variant deleted");
-    } catch (err) {
-      console.error("handleVariantDelete error:", err);
-      alert("Failed to delete variant");
-    }
-  };
-
-  // --- Render helpers ---
-  const renderFieldIfPresent = (label, value) => (
-    <div className="flex items-start mb-2">
-      <label className="w-32 font-semibold">{label}:</label>
-      <div>{(value !== undefined && value !== null) ? (value || "—") : null}</div>
+  if (loading) return (
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
     </div>
   );
 
-  // --- UI ---
-  return (
-    <>
+  if (error || !product) return (
+    <div className="min-h-screen bg-[#0a0a0a] font-inter flex flex-col">
       <Navbar />
-      <div className="w-full py-10 px-4">
-        {loading ? (
-          <div className="text-center">Loading...</div>
-        ) : error ? (
-          <div className="text-center text-red-500">{error}</div>
-        ) : !product ? (
-          <div className="text-center">Product not found.</div>
-        ) : (
-          <div className="bg-white shadow rounded-lg p-8">
-            {/* Images */}
-            <div className="mb-6">
-              <div className="flex gap-2 mb-2">
-                {(editForm.images || []).map((img, idx) => (
-                  <div key={idx} className="relative group">
-                    <img
-                      src={typeof img === "string" && img.startsWith("http") ? img : `${BASE_URL}/${img}`}
-                      alt={`product-img-${idx}`}
-                      className="w-24 h-24 object-cover rounded border"
-                    />
-                    {editMode && (
+      <div className="flex-grow flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-2xl font-bold text-gray-200 mb-4">{error || "Product not found"}</h2>
+        <button onClick={() => navigate("/seller/dashboard?tab=listings")} className={btnPrimary}>
+          Back to Dashboard
+        </button>
+      </div>
+      <Footer />
+    </div>
+  );
+
+  // --- Render Edit Mode ---
+  if (editMode) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] font-inter flex flex-col">
+        <Navbar />
+        {/* Ambient glows */}
+        <div className="fixed top-20 left-1/4 w-96 h-96 bg-indigo-900/20 rounded-full blur-[128px] pointer-events-none z-0" />
+        <div className="fixed bottom-20 right-1/4 w-96 h-96 bg-purple-900/15 rounded-full blur-[128px] pointer-events-none z-0" />
+
+        <div className="relative z-10 flex-grow container mx-auto px-4 py-8">
+          <div className="max-w-3xl mx-auto">
+            <h1 className="text-3xl font-sora font-bold text-white mb-6">Edit Product</h1>
+
+            <div className={cardCls + " space-y-6"}>
+              <div>
+                <label className={labelCls}>Product Name</label>
+                <input
+                  type="text"
+                  name="product_name"
+                  value={editForm.product_name}
+                  onChange={handleEditChange}
+                  className={inputCls}
+                />
+              </div>
+
+              {/* --- IMAGES SECTION --- */}
+              <div>
+                <label className={labelCls}>Product Images</label>
+                <div className="grid grid-cols-4 gap-4 mb-4">
+                  {/* Existing Images */}
+                  {product.images && product.images.map((img, idx) => {
+                    const isDeleted = deletedImageUrls.includes(img);
+                    return (
+                      <div key={`existing-${idx}`} className={`relative group aspect-square bg-white/5 rounded-xl overflow-hidden border ${isDeleted ? "border-red-500/50" : "border-white/10"}`}>
+                        <img src={img} alt="Existing" className={`w-full h-full object-cover transition-opacity ${isDeleted ? "opacity-30 grayscale" : ""}`} />
+                        <div className={`absolute inset-0 bg-black/50 ${isDeleted ? "opacity-100" : "opacity-0 group-hover:opacity-100"} flex items-center justify-center transition-opacity`}>
+                          <button
+                            onClick={() => toggleDeleteImage(img)}
+                            className={`${isDeleted ? "bg-white text-red-600" : "bg-red-500 text-white"} px-3 py-1 rounded-full text-xs font-bold`}
+                          >
+                            {isDeleted ? "Restore" : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* New Images */}
+                  {previewNewImages.map((img, idx) => (
+                    <div key={`new-${idx}`} className="relative group aspect-square bg-white/5 rounded-xl overflow-hidden border border-green-500/30">
+                      <img src={img} alt="New" className="w-full h-full object-cover" />
                       <button
-                        onClick={() => handleDeleteImage(img)}
-                        className="absolute top-1 right-1 p-1 bg-white/80 text-red-600 rounded-full opacity-0 group-hover:opacity-100 border"
-                        title="Remove image"
+                        onClick={() => removeNewImage(idx)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
                       >
                         ×
                       </button>
-                    )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Upload Area */}
+                <div
+                  className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${dragActive ? "border-indigo-500 bg-indigo-500/10" : "border-white/15 hover:border-indigo-500/50 hover:bg-white/5"
+                    }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <p className="text-gray-400 text-sm mb-2">Drag & drop new images or</p>
+                  <label className="cursor-pointer text-indigo-400 hover:text-indigo-300 font-semibold text-sm">
+                    Browse Files
+                    <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea
+                  name="description"
+                  rows={5}
+                  value={editForm.description}
+                  onChange={handleEditChange}
+                  className={inputCls + " resize-none"}
+                />
+              </div>
+
+              <div>
+                <label className={labelCls}>Brand / Manufacturer</label>
+                <input
+                  type="text"
+                  name="brand"
+                  value={editForm.brand}
+                  onChange={handleEditChange}
+                  className={inputCls}
+                />
+              </div>
+
+              {/* --- VARIANTS SECTION --- */}
+              <div className="pt-6 border-t border-white/10">
+                <h3 className="text-lg font-bold text-white mb-4">Manage Variants</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-gray-400">
+                    <thead className="text-xs uppercase bg-white/5 text-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 rounded-tl-lg">Info</th>
+                        <th className="px-4 py-3">Price</th>
+                        <th className="px-4 py-3">Stock</th>
+                        <th className="px-4 py-3">SKU</th>
+                        <th className="px-4 py-3 rounded-tr-lg">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10">
+                      {variants.map((v) => {
+                        const isEditing = (editingVariantId === v.id || editingVariantId === v._id);
+                        return (
+                          <tr key={v._id || v.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-4 py-3 font-medium text-white">
+                              {v.attributes?.map(a => `${a.attribute_name}: ${a.value_name}`).join(", ") || "Standard"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  name="price"
+                                  value={variantForm.price}
+                                  onChange={handleVariantFormChange}
+                                  className="w-24 bg-black/20 border border-white/10 rounded px-2 py-1 text-white"
+                                />
+                              ) : (
+                                `₹${v.price}`
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  name="stock"
+                                  value={variantForm.stock}
+                                  onChange={handleVariantFormChange}
+                                  className="w-20 bg-black/20 border border-white/10 rounded px-2 py-1 text-white"
+                                />
+                              ) : (
+                                v.stock
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  name="sku"
+                                  value={variantForm.sku || ""}
+                                  onChange={handleVariantFormChange}
+                                  className="w-24 bg-black/20 border border-white/10 rounded px-2 py-1 text-white"
+                                />
+                              ) : (
+                                v.sku || "-"
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <div className="flex gap-2">
+                                  <button onClick={saveVariant} className="text-green-400 hover:text-green-300">Save</button>
+                                  <button onClick={cancelEditingVariant} className="text-red-400 hover:text-red-300">Cancel</button>
+                                </div>
+                              ) : (
+                                <button onClick={() => startEditingVariant(v)} className="text-indigo-400 hover:text-indigo-300">Edit</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button onClick={() => setEditMode(false)} className={btnSecondary}>Cancel</button>
+                <button onClick={handleUpdate} className={btnPrimary}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // --- Render View Mode ---
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] font-inter flex flex-col">
+      <Navbar />
+      {/* Ambient glows */}
+      <div className="fixed top-20 left-1/4 w-96 h-96 bg-indigo-900/20 rounded-full blur-[128px] pointer-events-none z-0" />
+      <div className="fixed bottom-20 right-1/4 w-96 h-96 bg-purple-900/15 rounded-full blur-[128px] pointer-events-none z-0" />
+
+      <div className="relative z-10 flex-grow container mx-auto px-4 py-8">
+        {/* Header Actions */}
+        <div className="flex justify-between items-center mb-8">
+          <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+            ← Back
+          </button>
+          <div className="flex gap-3">
+            <button onClick={enterEditMode} className={btnSecondary}>
+              Edit Product
+            </button>
+            <button onClick={handleDelete} disabled={deleting} className={btnDanger}>
+              {deleting ? "Deleting..." : "Delete Product"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Left: Images */}
+          <div className="space-y-4">
+            <div className="aspect-square bg-white/5 rounded-2xl border border-white/10 overflow-hidden flex items-center justify-center">
+              {product.images && product.images.length > 0 ? (
+                <img
+                  src={product.images[0]}
+                  alt={product.product_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-gray-600">No Image</span>
+              )}
+            </div>
+            {/* Thumbnails grid if needed */}
+            {product.images && product.images.length > 1 && (
+              <div className="grid grid-cols-4 gap-2">
+                {product.images.slice(1).map((img, idx) => (
+                  <div key={idx} className="aspect-square bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                    <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Product fields */}
-            {editMode ? (
-              <>
-                <div className="flex items-center mb-2">
-                  <label className="w-32">Name:</label>
-                  <input
-                    name="product_name"
-                    autoComplete="off"
-                    value={editForm.product_name}
-                    onChange={handleInputChange}
-                    className="flex-1 border rounded p-2"
-                  />
-                </div>
-
-                <div className="flex items-start mb-2">
-                  <label className="w-32 pt-2">Description:</label>
-                  <textarea
-                    name="description"
-                    autoComplete="off"
-                    value={editForm.description ?? ""}
-                    onChange={handleInputChange}
-                    className="flex-1 border rounded p-2"
-                  />
-                </div>
-
-                <div className="flex items-center mb-2">
-                  <label className="w-32">Brand:</label>
-                  <input
-                    name="brand"
-                    autoComplete="off"
-                    value={editForm.brand || ""}
-                    onChange={handleInputChange}
-                    placeholder="Brand (optional)"
-                    className="flex-1 border rounded p-2"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Show fields even if their value is an empty string (so user sees optional field exists) */}
-                {renderFieldIfPresent("Name", product.product_name ?? product.name)}
-                {renderFieldIfPresent("Description", product.description)}
-                {renderFieldIfPresent("Brand", product.brand ?? product.manufacturer)}
-              </>
             )}
-
-            {/* Variants */}
-            <div className="mt-8">
-              <h2 className="font-bold text-2xl mb-4">Variants</h2>
-              {variants.length === 0 ? (
-                <div>No variants.</div>
-              ) : (
-                <table className="min-w-full border text-left mb-6">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="py-2 px-4">SKU</th>
-                      <th className="py-2 px-4">Price</th>
-                      <th className="py-2 px-4">Stock</th>
-                      <th className="py-2 px-4">Attributes</th>
-                      <th className="py-2 px-4">Images</th>
-                      <th className="py-2 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {variants.map((variant) => {
-                      const variantId = variant.id ?? variant._id;
-                      return (
-                        <tr key={variantId} className="border-t">
-                          <td className="py-2 px-4">
-                            {editingVariantId === variantId ? (
-                              <input
-                                type="text"
-                                className="border rounded px-2 py-1 w-36"
-                                value={variantForm.sku}
-                                onChange={e => setVariantForm(f => ({ ...f, sku: e.target.value }))}
-                                placeholder="SKU"
-                              />
-                            ) : (
-                              <>{variant.sku}</>
-                            )}
-                          </td>
-                          <td className="py-2 px-4">
-                            {editingVariantId === variantId ? (
-                              <input
-                                type="number"
-                                className="border rounded px-2 py-1 w-24"
-                                value={variantForm.price}
-                                onChange={e => setVariantForm(f => ({ ...f, price: e.target.value }))}
-                              />
-                            ) : (
-                              <>${variant.price}</>
-                            )}
-                          </td>
-                          <td className="py-2 px-4">
-                            {editingVariantId === variantId ? (
-                              <input
-                                type="number"
-                                className="border rounded px-2 py-1 w-20"
-                                value={variantForm.stock}
-                                onChange={e => setVariantForm(f => ({ ...f, stock: e.target.value }))}
-                              />
-                            ) : (
-                              <>{variant.stock}</>
-                            )}
-                          </td>
-
-                          <td className="py-2 px-4">
-                            {editingVariantId === variantId ? (
-                              <div className="space-y-2">
-                                {attributes && attributes.length > 0 ? (
-                                  attributes.map(attr => {
-                                    const attrValues = attr.values || [];
-                                    const currentValue = variantForm.selectedAttributes[attr.name] || "";
-                                    return (
-                                      <div key={attr._id || attr.name} className="flex items-center gap-2">
-                                        <label className="text-sm font-medium w-36">{attr.name}:</label>
-                                        <select
-                                          className="border rounded px-2 py-1 text-sm flex-1"
-                                          value={currentValue}
-                                          onChange={(e) => handleAttributeChange(attr.name, e.target.value)}
-                                        >
-                                          <option value="">Select {attr.name}</option>
-                                          {attrValues.length > 0 ? (
-                                            attrValues.map(val => <option key={val} value={val}>{val}</option>)
-                                          ) : (
-                                            <option disabled>No values</option>
-                                          )}
-                                        </select>
-                                      </div>
-                                    );
-                                  })
-                                ) : (
-                                  <div className="text-gray-500 text-sm">
-                                    {loadingAttributes ? "Loading attributes..." : "No attributes loaded."}
-                                    {!loadingAttributes && (
-                                      <button
-                                        onClick={() => fetchAttributes(product, allAttributeValues, variants)}
-                                        className="ml-2 text-blue-600 underline text-xs hover:text-blue-800"
-                                      >
-                                        Retry
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div>
-                                {(variant.attributes || []).map((a, idx) => (
-                                  <div key={idx} className="mb-1">
-                                    <span className="font-semibold">{a.attribute_name}:</span>{" "}
-                                    <span>{a.value_name}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-
-                          <td className="py-2 px-4">
-                            <div className="flex gap-1 flex-wrap">
-                              {(variant.images || []).map((img, idx) => (
-                                <img
-                                  key={idx}
-                                  src={typeof img === "string" && img.startsWith("http") ? img : `${BASE_URL}/${img}`}
-                                  alt=""
-                                  className="w-10 h-10 rounded border"
-                                />
-                              ))}
-                            </div>
-                          </td>
-
-                          <td className="py-2 px-4">
-                            {editingVariantId === variantId ? (
-                              <>
-                                <button onClick={saveVariantEdit} className="text-green-700 mr-2 hover:underline">Save</button>
-                                <button onClick={cancelVariantEdit} className="text-gray-700 hover:underline">Cancel</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="text-blue-700 mr-2 hover:underline" onClick={() => startVariantEdit(variant)}>Edit</button>
-                                <button className="text-red-700 hover:underline" onClick={() => handleVariantDelete(variantId)}>Delete</button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 mt-8 items-center">
-              {editMode ? (
-                <>
-                  <button onClick={handleUpdate} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save Changes</button>
-                  <button onClick={() => { setEditMode(false); setEditForm(normalizeProductToForm(product)); }} className="px-6 py-2 border rounded">Cancel</button>
-                </>
-              ) : (
-                <button onClick={enterEditMode} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Edit</button>
-              )}
-
-              <button onClick={handleDelete} className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700" disabled={deleting}>
-                {deleting ? "Deleting..." : "Delete"}
-              </button>
-
-              <button onClick={() => navigate(-1)} className="px-6 py-2 ml-auto border rounded">Back</button>
-            </div>
           </div>
-        )}
+
+          {/* Right: Details */}
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-4xl font-sora font-extrabold text-white mb-4">{product.product_name}</h1>
+              <div className="flex items-center gap-4 mb-4">
+                <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-sm font-medium border border-indigo-500/30">
+                  {product.category?.name || "Category"}
+                </span>
+                <span className="text-gray-400 text-sm">SKU: {product?.sku || "N/A"}</span>
+              </div>
+              <p className="text-gray-300 leading-relaxed text-lg">{product.description}</p>
+            </div>
+
+            <div className={cardCls}>
+              <h3 className="text-lg font-bold text-white mb-4">Product Variants</h3>
+              {variants.length === 0 ? (
+                <p className="text-gray-500 italic">No variants listed.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-gray-400">
+                    <thead className="text-xs uppercase bg-white/5 text-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 rounded-tl-lg">Attributes</th>
+                        <th className="px-4 py-3">Price</th>
+                        <th className="px-4 py-3">Stock</th>
+                        <th className="px-4 py-3 rounded-tr-lg">SKU</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10">
+                      {variants.map((v) => (
+                        <tr key={v._id || v.id} className="hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3 font-medium text-white">
+                            {v.attribute_values?.map(av => av.value).join(", ") || "Standard"}
+                          </td>
+                          <td className="px-4 py-3">₹{v.price}</td>
+                          <td className="px-4 py-3">{v.stock}</td>
+                          <td className="px-4 py-3">{v.sku || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className={cardCls}>
+              <h3 className="text-lg font-bold text-white mb-4">Stock & Condition</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-xs text-gray-500 uppercase tracking-wider">Condition</span>
+                  <span className="text-gray-200 font-medium">{product.product_condition || "New"}</span>
+                </div>
+                <div>
+                  <span className="block text-xs text-gray-500 uppercase tracking-wider">Total Stock</span>
+                  <span className="text-gray-200 font-medium">{product.stock || "0"}</span>
+                </div>
+                <div>
+                  <span className="block text-xs text-gray-500 uppercase tracking-wider">Manufacturer</span>
+                  <span className="text-gray-200 font-medium">{product.manufacturer || "-"}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
       <Footer />
-    </>
+    </div>
   );
 }

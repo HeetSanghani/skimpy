@@ -18,7 +18,7 @@ class UserRegisterSchema(BaseModel):
     email: EmailStr
     password: constr(
         min_length=8,
-        regex=r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>]).*$"
+        regex=r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?\":{}|<>\-_+=\[\]\/;\'`~]).*$"
     )
     confirm_password: str
     role: UserRole = UserRole.user 
@@ -56,7 +56,7 @@ class ResetPasswordRequest(BaseModel):
 
     @validator("confirm_password")
     def passwords_match(cls, v, values):
-        if "new_password" in values and v != values["new_password"]:
+        if "password" in values and v != values["password"]:
             raise ValueError("Passwords do not match")
         return v
 

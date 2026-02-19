@@ -52,6 +52,8 @@ class GetUserDetails(CustomBaseModel):
     role: str
     shop_name: Optional[str] = ""
     shop_description: Optional[str] = ""
+    avatar: Optional[str] = None
+    has_delivery_address: bool = False
     
     
     

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import ProtectedRoute from "../components/ProtectedRoute";
 // :white_tick: Pages
 import Home from '../pages/Home';
 import About from '../pages/About';
@@ -22,6 +23,8 @@ import Products from '../pages/Products';
 import ProductDetails from '../pages/ProductDetails';
 import Messages from '../pages/Messages';
 import Wishlist from '../pages/Wishlist';
+import Orders from '../pages/Orders';
+import OrderDetails from '../pages/OrderDetails';
 import PaymentSuccess from "../pages/PaymentSuccess";
 
 import ChatPage from '../pages/ChatPage.jsx';
@@ -41,27 +44,91 @@ function AppRouter() {
       <Route path="/" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/cart" element={<Cart />} />
-      <Route path="/wishlist" element={<Wishlist />} />
-      <Route path="/messages" element={<Messages />} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/my-cart" element={<Cart />} />
+      <Route
+        path="/wishlist"
+        element={
+          <ProtectedRoute>
+            <Wishlist />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       {/* :small_blue_diamond: Seller and Product Management */}
-      <Route path="/seller/dashboard" element={<SellerDashboard />} />
-      <Route path="/sell" element={<Sell />} />
+      <Route
+        path="/seller/dashboard"
+        element={
+          <ProtectedRoute>
+            <SellerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sell"
+        element={
+          <ProtectedRoute>
+            <Sell />
+          </ProtectedRoute>
+        }
+      />
 
 
-    <Route path="/Products" element={<Products />} />
-    <Route path="/product/:id" element={<ProductDetails />} />
-    {/* <Route path="/chat" element={<ChatPage/>} /> */}
-    <Route path="/messages" element={<Messages />} />
-    <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/Products" element={<Products />} />
+      <Route path="/product/:id" element={<ProductDetails />} />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-orders"
+        element={
+          <ProtectedRoute>
+            <Orders />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-orders/:orderId"
+        element={
+          <ProtectedRoute>
+            <OrderDetails />
+          </ProtectedRoute>
+        }
+      />
 
-    <Route path="/seller/:sellerId" element={<SellerShopPage />} />
-    <Route path="/chat/:sellerId" element={<ChatPage />} />
+      <Route path="/order-confirmation" element={<PaymentSuccess />} />
+      <Route path="/seller/:sellerId" element={<SellerShopPage />} />
+      <Route
+        path="/chat/:sellerId"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }
+      />
 
 
       {/* :small_blue_diamond: Category & Products */}
@@ -79,7 +146,7 @@ function AppRouter() {
 
 
 
-    
+
 
 
 

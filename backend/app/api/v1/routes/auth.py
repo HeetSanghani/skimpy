@@ -1,6 +1,6 @@
 # app/api/v1/routes/user.py
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest, EmailModel, VerifyOtpModel, VerifyForgotOtpRequest
 from app.core.security import get_current_user
@@ -10,13 +10,21 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login")
-def login(request: OAuth2PasswordRequestForm = Depends()):
-    return login_logic(request.username, request.password)
+def login(request: OAuth2PasswordRequestForm = Depends(), req: Request = None):
+    # Extract IP and User-Agent
+    ip = req.client.host if req and req.client else "Unknown"
+    device = req.headers.get("User-Agent", "Unknown") if req else "Unknown"
+    
+    return login_logic(request.username, request.password, ip=ip, device=device)
 
 
 @router.post("/register")
-def register_user(request: UserRegisterSchema):
-    return register_user_logic(request)
+def register_user(request: UserRegisterSchema, req: Request = None):
+    # Extract IP and User-Agent
+    ip = req.client.host if req and req.client else "Unknown"
+    device = req.headers.get("User-Agent", "Unknown") if req else "Unknown"
+
+    return register_user_logic(request, ip=ip, device=device)
 
 
 @router.post("/reset-password")

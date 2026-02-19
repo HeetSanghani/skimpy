@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "";
 
 export const createVendor = async ({ user_id, shop_name = "", shop_description = "", address = "", parent_id = "", file = null, token }) => {
   const form = new FormData();

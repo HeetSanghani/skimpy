@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Depends
 from bson import ObjectId
 from typing import List, Optional, Union
 from datetime import datetime
-import os, shutil, uuid
-from ....db.mongodb import cate_db
+import os, shutil, uuid, json
+from ....db.mongodb import cate_db, delivery_addresses_collection, user_collection
 from ....schemas.product import ProductResponse, ProductCondition
 from app.core.security import get_current_user
 from app.services.image_upload import upload_image_to_imgbb
@@ -51,45 +51,34 @@ def save_images(files: Union[List[UploadFile], UploadFile, None]) -> List[str]:
 
 
 # ---------- CREATE PRODUCT ----------
+# ---------- HELPER: Get Vendor for User ----------
+def get_current_vendor_or_403(user_id: str):
+    vendor = cate_db.vendors.find_one({"user_id": user_id})
+    if not vendor:
+        raise HTTPException(status_code=403, detail="You must be a registered seller to perform this action.")
+    return vendor
+
+# ---------- CREATE PRODUCT ----------
 @router.post("", response_model=ProductResponse)
 async def create_product(
-    category_id: str = Form(..., description="Category ID where the product belongs", example="670e8b3f111111111"),
-    product_name: str = Form(..., description="Name of the product", example="Men's Blue T-Shirt"),
-    description: Optional[str] = Form("", description="Detailed description of the product", example="Comfortable cotton T-shirt for daily wear"),
-    price: float = Form(..., description="Base price of the product", example=499.99),
-    stock: int = Form(..., description="Available stock quantity", example=100),
-    product_condition: ProductCondition = Form(ProductCondition.NEW, description="Condition of the product (new/used/refurbished)"),
-    brand: Optional[str] = Form(None, description="Brand name for the product", example="Nike"),
-    vendor_id: Optional[str] = Form(None, description="Vendor ID (if product belongs to a specific vendor)", example="670e8b3f111111112"),
-    files: Optional[List[UploadFile]] = File(None, description="One or more product images"),
+    category_id: str = Form(..., description="Category ID"),
+    product_name: str = Form(..., description="Product Name"),
+    description: Optional[str] = Form("", description="Description"),
+    price: float = Form(..., description="Price"),
+    stock: int = Form(..., description="Stock"),
+    product_condition: ProductCondition = Form(ProductCondition.NEW, description="Condition"),
+    brand: Optional[str] = Form(None, description="Brand"),
+    # vendor_id is ignored from input, strictly sourced from auth
+    files: Optional[List[UploadFile]] = File(None, description="Images"),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Create a new product and upload its images.
-    """
-    category_oid = validate_objectid(category_id)
-    # Resolve the actual vendor ObjectId to associate with the product
-    # Priority:
-    # 1) Use provided vendor_id if it corresponds to an existing vendor
-    # 2) Otherwise, use the vendor whose user_id equals the current user.user_id
-    vendor_oid = None
-    if vendor_id:
-        vid = validate_objectid(vendor_id)
-        vdoc = cate_db.vendors.find_one({"_id": vid})
-        if not vdoc:
-            raise HTTPException(status_code=404, detail="Vendor not found")
-        vendor_oid = vdoc["_id"]
-    else:
-        # current_user comes from the users DB and contains a stable string user_id
-        user_vendor = cate_db.vendors.find_one({"user_id": str(current_user.get("user_id", ""))})
-        if not user_vendor:
-            raise HTTPException(status_code=400, detail="No vendor profile associated with current user")
-        vendor_oid = user_vendor["_id"]
+    user_id = str(current_user["user_id"])
+    vendor = get_current_vendor_or_403(user_id)
+    vendor_oid = vendor["_id"]
 
+    category_oid = validate_objectid(category_id)
     if not cate_db.categories.find_one({"_id": category_oid}):
         raise HTTPException(status_code=404, detail="Category not found")
-    # Accept current user's id as vendor without enforcing presence in vendors collection
-    # If you need strict validation, ensure your auth user ids are stored in vendors
 
     product_dict = {
         "product_name": product_name,
@@ -108,6 +97,35 @@ async def create_product(
     result = product_collection.insert_one(product_dict)
     new_product = product_collection.find_one({"_id": result.inserted_id})
     return objectid_str(new_product)
+
+
+# ---------- GET ALL PRODUCTS ----------
+@router.get("/", response_model=List[ProductResponse])
+def list_product(vendor: Optional[bool] = None):
+    query = {}
+    if vendor is True:
+        query = {"vendor_id": {"$nin": [None, ""]}}
+    elif vendor is False:
+        query = {"$or": [{"vendor_id": None}, {"vendor_id": ""}]}
+
+    products = [objectid_str(p) for p in product_collection.find(query)]
+    return products
+
+# ... (Get by Vendor/Category/ID remains same) ...
+# Assuming lines 132-248 are unchanged, skipping them in replacement chunk if possible
+# BUT replace_file_content replaces a contiguous block.
+# To avoid large replace errors, I will focus on updating CREATE, UPDATE, DELETE individually if they were spread out.
+# However, here I have a chunk from 54 to 301 (Create...Delete).
+# I will break this down or be very careful. 
+# The original file has Create at 54, Get at 114, Update at 252, Delete at 292.
+# I should use multi_replace for safety or do them one by one. I'll use multi_replace to be safe and precise.
+
+# Actually, I'll return and simplify. I'll use `replace_file_content` for Create, then Update, then Delete.
+# This tool call is for CREATE only.
+
+# (Cancelling this big block replacement plan)
+# Returning shorter block for CREATE only.
+
 
 
 # ---------- GET ALL PRODUCTS ----------
@@ -133,9 +151,23 @@ def list_product(vendor: Optional[bool] = None):
 def list_products_by_vendor(vendor_id: str):
     """
     List products that belong to a specific vendor.
+    Accepts Vendor ObjectId OR Seller User ID.
     """
-    vid = validate_objectid(vendor_id)
-    products_cursor = product_collection.find({"vendor_id": vid})
+    v_doc = None
+    
+    # 1. Try finding vendor by ObjectId
+    if ObjectId.is_valid(vendor_id):
+        v_doc = cate_db.vendors.find_one({"_id": ObjectId(vendor_id)})
+        
+    # 2. If not found, try finding vendor by User ID
+    if not v_doc:
+        v_doc = cate_db.vendors.find_one({"user_id": vendor_id})
+        
+    if not v_doc:
+        return []
+        
+    # Query products using the resolved Vendor ObjectId
+    products_cursor = product_collection.find({"vendor_id": v_doc["_id"]})
     return [objectid_str(p) for p in products_cursor]
 
 # ---------- GET PRODUCTS BY CATEGORY SLUG (including descendants) ----------
@@ -200,15 +232,50 @@ def get_product(product_id: str):
         try:
             vdoc = cate_db.vendors.find_one({"_id": ObjectId(vendor_id)})
             if vdoc:
+                # Fetch delivery address
+                vendor_address = vdoc.get("address")
+                user_id = vdoc.get("user_id")
+                if user_id:
+                    delivery_addr = delivery_addresses_collection.find_one({"user_id": str(user_id)})
+                    if delivery_addr:
+                        # Format: Street, City, State - Postcode
+                        parts = [
+                            delivery_addr.get("street_address"),
+                            delivery_addr.get("city"),
+                            delivery_addr.get("state"),
+                            str(delivery_addr.get("postcode", ""))
+                        ]
+                        vendor_address = ", ".join([p for p in parts if p])
+
+                # Fallback to User Avatar if Vendor Image is missing
+                vendor_image = vdoc.get("image")
+                if not vendor_image and user_id:
+                     user = user_collection.find_one({"user_id": str(user_id)}, {"avatar": 1})
+                     if user:
+                        vendor_image = user.get("avatar")
+
                 vendor_data = {
                     "id": str(vdoc.get("_id")),
                     "user_id": vdoc.get("user_id"),
                     "shop_name": vdoc.get("shop_name"),
-                    "address": vdoc.get("address"),
-                    "image": vdoc.get("image"),
+                    "address": vendor_address,
+                    "shop_description": vdoc.get("shop_description"),
+                    "image": vendor_image,
                 }
         except Exception:
             pass
+
+    # Fetch live stock from SQL
+    try:
+        from app.db.session import SessionLocal
+        from app.db.models.product import Product as SQLProduct
+        db = SessionLocal()
+        sql_p = db.query(SQLProduct).filter(SQLProduct.mongo_id == str(product_id)).first()
+        if sql_p:
+            product["stock"] = sql_p.stock # Truth from SQL
+        db.close()
+    except Exception as e:
+        print(f"SQL Stock Fetch Failed: {e}")
 
     return {
         "id": str(product["_id"]),
@@ -221,6 +288,7 @@ def get_product(product_id: str):
         "category_id": category_id,
         "vendor_id": vendor_id,  # ✅ stringified vendor_id always returned
         "vendor": vendor_data,
+        "_id": str(product["_id"]), # Ensure _id is also at root if needed
     }
 
 
@@ -238,27 +306,86 @@ def update_product(
     brand: Optional[str] = Form(None, description="Updated brand name", example="Nike"),
     vendor_id: Optional[str] = Form(None, description="Updated vendor ID", example="670e8b3f111111112"),
     files: Optional[List[UploadFile]] = File(None, description="Upload additional product images"),
+    delete_image_urls: Optional[str] = Form(None, description='JSON list of image URLs to delete'),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Update product details or add new images.
     """
+    user_id = str(current_user["user_id"])
+    vendor_doc = get_current_vendor_or_403(user_id)
+    
     product_oid = validate_objectid(product_id)
     product = product_collection.find_one({"_id": product_oid})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # OWNERSHIP CHECK
+    if str(product.get("vendor_id")) != str(vendor_doc["_id"]):
+        raise HTTPException(status_code=403, detail="You do not own this product")
 
     update_fields = {"updated_at": datetime.utcnow()}
     if category_id: update_fields["category_id"] = validate_objectid(category_id)
     if product_name: update_fields["product_name"] = product_name
     if description: update_fields["description"] = description
     if price is not None: update_fields["price"] = price
-    if stock is not None: update_fields["stock"] = stock
+    if stock is not None: 
+        update_fields["stock"] = stock
+        # Sync to variants if stock is being set to 0 (Out of Stock)
+        # Or if we want to enforce parent-level control.
+        # For now, if stock is 0, zero out variants to ensure they don't show as available.
+        if stock == 0:
+            from app.db.mongodb import variant_collection
+            variant_collection.update_many(
+                {"product_id": str(product_id)},
+                {"$set": {"stock": 0}}
+            )
     if product_condition: update_fields["product_condition"] = product_condition.value
     if brand is not None: update_fields["brand"] = brand
-    if vendor_id: update_fields["vendor_id"] = validate_objectid(vendor_id)
+    # Prevent vendor_id change unless we really want transfer of ownership (usually no)
+    # if vendor_id: update_fields["vendor_id"] = validate_objectid(vendor_id) 
+    
+    # Handle Image Deletion
+    current_images = product.get("images", [])
+    if delete_image_urls:
+        try:
+            urls_to_delete = json.loads(delete_image_urls)
+            if isinstance(urls_to_delete, list):
+                current_images = [img for img in current_images if img not in urls_to_delete]
+                # Force update if deletion occurred
+                update_fields["images"] = current_images 
+        except Exception:
+            pass # ignore invalid json
+
     if files:
-        update_fields["images"] = product.get("images", []) + save_images(files)
+        update_fields["images"] = current_images + save_images(files)
+
+    # SYNC TO SQL
+    try:
+        from app.db.session import SessionLocal
+        from app.db.models.product import Product as SQLProduct
+        db = SessionLocal()
+        
+        # Find or Create SQL Product
+        sql_p = db.query(SQLProduct).filter(SQLProduct.mongo_id == product_id).first()
+        if not sql_p:
+            sql_p = SQLProduct(
+                mongo_id=product_id,
+                product_name=product.get("product_name", "Unknown"),
+                price=product.get("price", 0),
+                stock=product.get("stock", 0)
+            )
+            db.add(sql_p)
+        
+        # Update fields if present in input
+        if stock is not None: sql_p.stock = stock
+        if price is not None: sql_p.price = price
+        if product_name: sql_p.product_name = product_name
+        
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"SQL Sync Failed: {e}")
 
     product_collection.update_one({"_id": product_oid}, {"$set": update_fields})
     updated_product = product_collection.find_one({"_id": product_oid})
@@ -271,7 +398,18 @@ def delete_product(product_id: str, current_user: dict = Depends(get_current_use
     """
     Delete a product by its ID.
     """
+    user_id = str(current_user["user_id"])
+    vendor_doc = get_current_vendor_or_403(user_id)
+
     product_oid = validate_objectid(product_id)
+    product = product_collection.find_one({"_id": product_oid})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # OWNERSHIP CHECK
+    if str(product.get("vendor_id")) != str(vendor_doc["_id"]):
+        raise HTTPException(status_code=403, detail="You do not own this product")
+
     result = product_collection.delete_one({"_id": product_oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")

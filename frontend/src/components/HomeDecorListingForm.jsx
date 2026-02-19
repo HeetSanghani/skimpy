@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { createProduct } from '../api/settingsApi';
-import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { useParams, useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const HOME_DECOR_ATTRIBUTES = [
   { name: "Material", values: ["wood", "metal", "resin", "canvas", "mixed"] },
@@ -12,8 +15,13 @@ const HOME_DECOR_ATTRIBUTES = [
   { name: "Resin Type", values: ["epoxy", "polyester", "acrylic"], hint: "For Resin Art Panels" },
 ];
 
+const inputCls = "w-full bg-white/5 border border-white/15 text-gray-200 placeholder-gray-600 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors";
+const labelCls = "block text-sm font-semibold text-gray-400 mb-2";
+const sectionCls = "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6";
+
 const HomeDecorListingForm = ({ onBack }) => {
   const { id: categoryId } = useParams();
+  const navigate = useNavigate();
   const API_BASE = 'http://127.0.0.1:8000';
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -35,7 +43,6 @@ const HomeDecorListingForm = ({ onBack }) => {
   const [dragActive, setDragActive] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
 
-  // --- Handlers (Full set included) ---
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -52,6 +59,7 @@ const HomeDecorListingForm = ({ onBack }) => {
     else if (e.type === 'dragleave') setDragActive(false);
   };
   const handleDrop = (e) => {
+    e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -60,7 +68,7 @@ const HomeDecorListingForm = ({ onBack }) => {
       updatePreviewImages([...formData.files, ...files]);
     }
   };
-  const updatePreviewImages = (files) => { 
+  const updatePreviewImages = (files) => {
     const previews = files.map(file => URL.createObjectURL(file));
     setPreviewImages(previews);
   };
@@ -70,12 +78,11 @@ const HomeDecorListingForm = ({ onBack }) => {
     setFormData(prev => ({ ...prev, files: newFiles }));
     setPreviewImages(newPreviews);
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // 1) Create Product
       const submitData = new FormData();
       submitData.append('category_id', formData.category_id);
       submitData.append('product_name', formData.product_name);
@@ -88,7 +95,6 @@ const HomeDecorListingForm = ({ onBack }) => {
       const product = await createProduct(submitData);
       const productId = product._id || product.id;
 
-      // 2) Ensure attributes/values
       const [allAttrsResp, allValsResp] = await Promise.all([
         axios.get(`${API_BASE}/Attribute/`),
         axios.get(`${API_BASE}/AttributeValue/`)
@@ -131,7 +137,6 @@ const HomeDecorListingForm = ({ onBack }) => {
         attributePairs.push({ attribute_id: attributeId, value_id: valueId });
       }
 
-      // 3) Create Variant
       if (attributePairs.length > 0) {
         const variantData = new FormData();
         variantData.append('price', formData.price);
@@ -143,166 +148,138 @@ const HomeDecorListingForm = ({ onBack }) => {
         });
       }
 
-      alert('Home Decor item listed successfully!');
+      toast.success('Home Decor item listed successfully!');
       if (onBack) onBack();
+      else navigate('/seller/dashboard?tab=listings');
     } catch (error) {
       console.error('Error creating home decor listing:', error);
-      alert('Error creating listing. Please try again.');
+      toast.error('Error creating listing. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-  // ----------------
-  
+
+  const handleBack = () => {
+    if (onBack) onBack();
+    else navigate(-1);
+  };
+
   return (
-    <div className="w-full p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">List Your Home Decor Item</h1>
-        <button onClick={onBack} className="text-sm underline hover:text-blue-600">Back to Categories</button>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-8">
-        
-        {/* 1. PHOTOS & VIDEO Section */}
-        <div className="bg-white border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">PHOTOS & VIDEO</h2>
-            <button type="button" className="text-sm text-blue-600 hover:underline">
-              See photo options
-            </button>
+    <div className="min-h-screen bg-[#0a0a0a] font-inter">
+      <Navbar />
+
+      {/* Ambient glows */}
+      <div className="fixed top-20 left-1/4 w-96 h-96 bg-indigo-900/20 rounded-full blur-[128px] pointer-events-none z-0" />
+      <div className="fixed bottom-20 right-1/4 w-96 h-96 bg-purple-900/15 rounded-full blur-[128px] pointer-events-none z-0" />
+
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="font-sora text-3xl font-extrabold text-white">List Your Home Decor Item</h1>
+          <button onClick={handleBack} className="text-sm text-gray-400 hover:text-white border border-white/15 px-4 py-2 rounded-xl transition-all">Back to Categories</button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* 1. PHOTOS & VIDEO */}
+          <div className={sectionCls}>
+            <h2 className="font-sora text-lg font-bold text-white mb-1">Photos & Video</h2>
+            <p className="text-sm text-gray-500 mb-5">Add at least 5 photos. Buyers want to see all details and angles.</p>
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${dragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/15 hover:border-indigo-500/50 hover:bg-white/5'}`}
+              onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+            >
+              <div className="text-4xl mb-4">📷</div>
+              <p className="text-gray-400 mb-2 font-medium">Drag and drop files here</p>
+              <input type="file" multiple accept="image/*,video/*" onChange={handleFileChange} className="hidden" id="file-upload-decor" />
+              <label htmlFor="file-upload-decor" className="inline-block px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl cursor-pointer hover:bg-indigo-700 transition-colors">
+                Upload from computer
+              </label>
+            </div>
+            <p className="text-xs text-gray-600 mt-3">{formData.files.length}/25 photos</p>
+            {previewImages.length > 0 && (
+              <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {previewImages.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-20 object-cover rounded-xl border border-white/10" />
+                    <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg transition-colors">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Add at least 5 photos. You can add up to 24 photos and a 1-minute video. 
-            Buyers want to see all details and angles.
-          </p>
-          <div className="flex gap-6">
-            <div className="flex-1">
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center ${
-                  dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <div className="text-4xl mb-4">📷</div>
-                <p className="text-lg mb-2">Drag and drop files</p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-upload-decor"
-                />
-                <label
-                  htmlFor="file-upload-decor"
-                  className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
-                >
-                  Upload from computer
-                </label>
-              </div>
-              
-              <div className="mt-4 text-sm text-gray-600">
-                {formData.files.length}/25 photos
-              </div>
+
+          {/* 2. TITLE */}
+          <div className={sectionCls}>
+            <h2 className="font-sora text-lg font-bold text-white mb-5">Title</h2>
+            <div className="mb-5">
+              <label className={labelCls}>Item title</label>
+              <input type="text" name="product_name" value={formData.product_name} onChange={handleInputChange} placeholder="Home Decor Item Title" maxLength={80} className={inputCls} required />
+              <div className="text-xs text-gray-600 mt-2">{formData.product_name.length}/80 characters</div>
+            </div>
+            <div>
+              <label className={labelCls}>SKU <span className="text-gray-600 font-normal">(optional)</span></label>
+              <input type="text" name="sku" value={formData.sku} onChange={handleInputChange} placeholder="Optional SKU" className={inputCls} />
             </div>
           </div>
-          {previewImages.length > 0 && (
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {previewImages.map((preview, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-24 object-cover rounded"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
+
+          {/* 3. ITEM SPECIFICS */}
+          <div className={sectionCls}>
+            <h2 className="font-sora text-lg font-bold text-white mb-5">Item Specifics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              {HOME_DECOR_ATTRIBUTES.map((attr) => (
+                <div key={attr.name}>
+                  <label className={labelCls}>{attr.name} {attr.hint && <span className="text-xs text-gray-600 font-normal">({attr.hint})</span>}</label>
+                  <select
+                    className={inputCls}
+                    value={selectedAttributes[attr.name] || ''}
+                    onChange={e => setSelectedAttributes(prev => ({ ...prev, [attr.name]: e.target.value }))}
+                    required
                   >
-                    ×
-                  </button>
+                    <option value="" className="bg-[#1a1a2e] text-gray-400">Select {attr.name}</option>
+                    {Array.isArray(attr.values) && attr.values.map(opt => <option key={opt} value={opt} className="bg-[#1a1a2e]">{opt}</option>)}
+                  </select>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* 2. TITLE Section */}
-        <div className="bg-white border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">TITLE</h2>
-            <button type="button" className="text-sm text-blue-600 hover:underline">
-              See title options
-            </button>
           </div>
-          <label className="block text-sm font-medium mb-2">Item title</label>
-          <input
-            type="text"
-            name="product_name"
-            value={formData.product_name}
-            onChange={handleInputChange}
-            placeholder="Home Decor Item Title"
-            maxLength={80}
-            className="w-full border rounded-lg px-3 py-2"
-            required
-          />
 
-          <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">SKU</label>
-            <input
-              type="text"
-              name="sku"
-              value={formData.sku}
-              onChange={handleInputChange}
-              placeholder="Optional SKU"
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
-        {/* 3. ITEM SPECIFICS Section (Your original content) */}
-        <div className="bg-white border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">ITEM SPECIFICS</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-            {HOME_DECOR_ATTRIBUTES.map((attr) => (
-              <div key={attr.name}>
-                <label className="block text-sm font-medium mb-2">{attr.name} {attr.hint && <span className='text-xs text-gray-500'>({attr.hint})</span>}</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2"
-                  value={selectedAttributes[attr.name] || ''}
-                  onChange={e => setSelectedAttributes(prev => ({ ...prev, [attr.name]: e.target.value }))}
-                  required
-                >
-                  <option value=''>Select {attr.name}</option>
-                  {Array.isArray(attr.values) && attr.values.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          {/* 4. ADDITIONAL DETAILS */}
+          <div className={sectionCls}>
+            <h2 className="font-sora text-lg font-bold text-white mb-5">Additional Details</h2>
+            <div className="space-y-5">
+              <div>
+                <label className={labelCls}>Description</label>
+                <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className={inputCls + " resize-none"} placeholder="Describe your item in detail..." />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelCls}>Price (₹)</label>
+                  <input type="number" name="price" value={formData.price} onChange={handleInputChange} step="0.01" min="0" className={inputCls} required />
+                </div>
+                <div>
+                  <label className={labelCls}>Stock Quantity</label>
+                  <input type="number" name="stock" value={formData.stock} onChange={handleInputChange} min="1" className={inputCls} required />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Condition</label>
+                <select name="product_condition" value={formData.product_condition} onChange={handleInputChange} className={inputCls}>
+                  <option value="NEW" className="bg-[#1a1a2e]">New</option>
+                  <option value="USED" className="bg-[#1a1a2e]">Used</option>
+                  <option value="REFURBISHED" className="bg-[#1a1a2e]">Refurbished</option>
                 </select>
               </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* 4. ADDITIONAL DETAILS Section */}
-        <div className="bg-white border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">ADDITIONAL DETAILS</h2>
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium mb-2">Description</label><textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full border rounded-lg px-3 py-2" placeholder="Describe your item in detail..."/></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium mb-2">Price (₹)</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} step="0.01" min="0" className="w-full border rounded-lg px-3 py-2" required/></div>
-              <div><label className="block text-sm font-medium mb-2">Stock Quantity</label><input type="number" name="stock" value={formData.stock} onChange={handleInputChange} min="1" className="w-full border rounded-lg px-3 py-2" required/></div>
             </div>
-            <div><label className="block text-sm font-medium mb-2">Condition</label><select name="product_condition" value={formData.product_condition} onChange={handleInputChange} className="w-full border rounded-lg px-3 py-2"><option value="NEW">New</option><option value="USED">Used</option></select></div>
           </div>
-        </div>
-        
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
-          <button type="button" onClick={onBack} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{loading ? 'Listing...' : 'List Home Decor'}</button>
-        </div>
-      </form>
+
+          <div className="flex justify-end gap-4 pb-8">
+            <button type="button" onClick={handleBack} className="px-6 py-3 border border-white/15 text-gray-400 font-semibold rounded-xl hover:bg-white/5 hover:text-white transition-all">Cancel</button>
+            <button type="submit" disabled={loading} className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-105 disabled:opacity-50">
+              {loading ? 'Listing...' : 'List Home Decor'}
+            </button>
+          </div>
+        </form>
+      </div>
+      <Footer />
     </div>
   );
 };

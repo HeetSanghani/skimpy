@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values
 from app.api.v1.routes import chat
-from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard, cart, wishlist, payments
+from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard, cart, wishlist, payments, orders, contact, n8n
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,11 +64,14 @@ app.include_router(chat.router)
 app.include_router(cart.router)
 app.include_router(wishlist.router)
 app.include_router(payments.router)
+app.include_router(orders.router)
+app.include_router(contact.router)
+app.include_router(seller_dashboard.router)
+app.include_router(n8n.router)
 
 
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
-app.include_router(seller_dashboard.router)
 

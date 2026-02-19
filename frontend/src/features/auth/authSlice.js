@@ -6,7 +6,8 @@ import {
   verifyOtp, 
   registerUser, 
   forgotPassword, 
-  resetPassword  
+  resetPassword,
+  getUserProfile
 } from "../../api/authApi";
 
 /* ----------------- Async Thunks ----------------- */
@@ -86,6 +87,22 @@ export const resetPasswordThunk = createAsyncThunk(
       return res.data; // backend success message
     } catch (err) {
       return rejectWithValue(err.response?.data?.detail || "Failed to reset password");
+    }
+  }
+);
+
+// fetch profile
+export const fetchProfileThunk = createAsyncThunk(
+  "auth/fetchProfile",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (!token) return rejectWithValue("No token found");
+      
+      const res = await getUserProfile(token);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.detail || "Failed to fetch profile");
     }
   }
 );
@@ -203,6 +220,19 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.resetSuccess = false;
+      })
+      
+      /* fetchProfile */
+      .addCase(fetchProfileThunk.pending, (state) => {
+        // state.loading = true; // optional: don't block UI for background fetch
+      })
+      .addCase(fetchProfileThunk.fulfilled, (state, action) => {
+        // state.loading = false;
+        state.user = { ...state.user, ...action.payload };
+      })
+      .addCase(fetchProfileThunk.rejected, (state, action) => {
+        // state.loading = false;
+        // console.error("Profile fetch error:", action.payload);
       });
   },
 });

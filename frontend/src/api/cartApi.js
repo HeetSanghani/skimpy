@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "";
 
 // Helper to get auth headers
 const getAuthHeaders = () => {

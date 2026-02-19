@@ -43,6 +43,13 @@ def get_account_details_logic(current_user: dict):
         DOB = None
 
     computed_user_id = user.get("user_id") or user.get("_id")
+    
+    # Check for delivery address
+    has_address = False
+    if computed_user_id:
+        count = delivery_addresses_collection.count_documents({"user_id": str(computed_user_id)})
+        has_address = count > 0
+
     profile = GetUserDetails(
         user_id=str(computed_user_id) if computed_user_id else "",
         first_name=user.get("first_name", ""),
@@ -54,7 +61,9 @@ def get_account_details_logic(current_user: dict):
         role = user.get("role",""),
         # Prefer new shop_* keys; fallback to legacy store_*
         shop_name=user.get("shop_name") or user.get("store_name", ""),
-        shop_description=user.get("shop_description") or user.get("store_description", "")
+        shop_description=user.get("shop_description") or user.get("store_description", ""),
+        avatar=user.get("avatar"),
+        has_delivery_address=has_address
     )
 
     return profile

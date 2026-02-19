@@ -1,10 +1,19 @@
 import axios from "axios";
 
-const BASE_URL = "http://127.0.0.1:8000"; // 🔥 adjust if different
+const BASE_URL = ""; // Proxy handles prefix
 
+// Helper to get token
 // Helper to get token
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
+  if (!token) {
+      // Return empty or throw, but better to return empty object so axios doesn't send bad header
+      // However, for protected routes we want to ensure we don't make the request at all if possible,
+      // but simpler here is to not send Authorization header if null.
+      return { 
+          "Content-Type": "application/json" 
+      };
+  }
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -258,6 +267,37 @@ export const fetchAttributesWithValues = async () => {
     return res.data;
   } catch (error) {
     console.error("❌ Error fetching attributes with values:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ----------------- VARIANT APIS -----------------
+
+// ✅ Update Variant
+export const updateVariant = async (variantId, formData) => {
+  try {
+    const res = await axios.put(`${BASE_URL}/Variant/update/${variantId}`, formData, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error updating variant:", error.response?.data || error);
+    throw error;
+  }
+};
+
+// ✅ Delete Variant
+export const deleteVariant = async (variantId) => {
+  try {
+    const res = await axios.delete(`${BASE_URL}/Variant/delete/${variantId}`, {
+      headers: getAuthHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error deleting variant:", error.response?.data || error);
     throw error;
   }
 };

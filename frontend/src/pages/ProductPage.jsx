@@ -1,43 +1,25 @@
-// ✅ ProductPage.jsx (Updated to match Products.jsx design)
-
-import React, { useEffect, useState, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+// ✅ ProductPage.jsx (For Category-wise listing)
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CategoryNavbar from "../components/CategoryNavbar";
+import Footer from "../components/Footer";
 import IconBar from "../components/IconBar";
-import "./Products.css";
-
-// ✅ API imports
-import { addToCart } from "../api/cartApi";
-import { addToWishlist, removeFromWishlist, checkWishlist } from "../api/wishlistApi";
-
-// ✅ Price formatting function
-function formatPrice(price) {
-  return price?.toLocaleString("en-IN");
-}
-
-// ✅ Normalize image url
-function normalizeImageUrl(img) {
-  if (!img) return null;
-  if (img.startsWith("http")) return img;
-  return `${import.meta.env.VITE_BASE_URL}/uploads/${img}`;
-}
+import ProductCard from "../components/ProductCard";
+import { Package } from "lucide-react";
 
 export default function ProductPage() {
   const params = useParams();
   const slug = params["*"]; // ✅ full nested category slug
   const [products, setProducts] = useState([]);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
       if (!slug) return;
-
+      setLoading(true);
       try {
-        const res = await fetch(
-          `http://localhost:8000/Product/Category?slug=${slug}`
-        );
+        const res = await fetch(`/Product/Category?slug=${slug}`);
         if (!res.ok) {
           console.error("Failed fetching products for slug:", slug);
           setProducts([]);
@@ -48,139 +30,75 @@ export default function ProductPage() {
       } catch (err) {
         console.error("Error fetching products:", err);
         setProducts([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchProducts();
   }, [slug]);
 
-  const title = slug ? slug.split("/").pop().replace(/-/g, " ") : "Products";
+  // Capitalise each word of the last slug segment
+  const rawTitle = slug ? slug.split("/").pop().replace(/-/g, " ") : "Category";
+  const title = rawTitle.replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Navbar />
       <CategoryNavbar />
+
+      {/* ── Subcategory icon strip ── */}
       <IconBar parentSlug={slug} />
 
-      <div className="products-container">
-        <h1 className="page-title">{title}</h1>
+      {/* ── Hero banner ── */}
+      <div className="relative w-full overflow-hidden bg-gradient-to-r from-[#0a0a0a] via-[#0f0a1e] to-[#0a0a0a] py-5 px-4">
+        {/* Ambient glows */}
+        <div className="absolute top-0 left-1/3 w-64 h-24 bg-indigo-700/30 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-0 right-1/3 w-64 h-24 bg-purple-700/25 rounded-full blur-[80px] pointer-events-none" />
 
-        {products.length === 0 ? (
-          <p className="no-product-text">No products found.</p>
+        <div className="relative z-10 max-w-[1400px] mx-auto flex items-center gap-6">
+          {/* Left: breadcrumb + title */}
+          <div className="flex-1">
+            <p className="text-indigo-400 text-xs font-bold tracking-[0.2em] uppercase mb-1">
+              {slug ? slug.split("/").join(" › ") : "Category"}
+            </p>
+            <h1 className="font-sora text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
+              <span className="text-white">{title.split(" ")[0]}</span>
+              {title.split(" ").length > 1 && (
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-violet-400">
+                  {" "}{title.split(" ").slice(1).join(" ")}
+                </span>
+              )}
+            </h1>
+          </div>
+
+
+        </div>
+      </div>
+
+      {/* ── Product grid ── */}
+      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin mb-4" />
+            <p className="text-gray-400 font-medium">Loading products...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-24 bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <h2 className="text-xl font-bold text-gray-400">No products found for this category.</h2>
+            <p className="text-gray-400 mt-2">Check back later for new arrivals.</p>
+          </div>
         ) : (
-          <div className="grid-container">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {products.map((product) => (
               <ProductCard key={product._id} product={product} />
             ))}
           </div>
         )}
-      </div>
-    </>
-  );
-}
+      </main>
 
-/* ✅ SAME PRODUCT CARD USED IN Products.jsx */
-function ProductCard({ product }) {
-  const navigate = useNavigate();
-  const { token } = useSelector((state) => state.auth);
-
-  // ✅ universal price fix
-  const displayPrice =
-    product?.display_price ||
-    product?.price ||
-    product?.product_price ||
-    0;
-
-  const [idx, setIdx] = useState(0);
-  const [hover, setHover] = useState(false);
-  const [isInWishlist, setIsInWishlist] = useState(false);
-  const [wishlistItemId, setWishlistItemId] = useState(null);
-
-  useEffect(() => {
-    if (token && product?._id) {
-      const check = async () => {
-        const result = await checkWishlist(product._id, null);
-        setIsInWishlist(result.in_wishlist);
-        setWishlistItemId(result.wishlist_item_id);
-      };
-      check();
-    }
-  }, [token, product]);
-
-  // ✅ normalize image
-  const images = useMemo(() => {
-    const arr = Array.isArray(product.images) ? product.images : [];
-    const urls = arr.map(normalizeImageUrl).filter(Boolean);
-    return urls.length > 0
-      ? urls
-      : ["https://via.placeholder.com/800x800?text=No+Image"];
-  }, [product.images]);
-
-  // ✅ Auto image rotate
-  useEffect(() => {
-    if (!hover || images.length <= 1) return;
-    const id = setInterval(() => {
-      setIdx((i) => (i + 1) % images.length);
-    }, 1500);
-    return () => clearInterval(id);
-  }, [hover, images.length]);
-
-  // ✅ Add to cart
-  const handleAddToCart = async (e) => {
-    e.preventDefault();
-    if (!token) return navigate("/login");
-    await addToCart(product._id, null, 1);
-    alert("Added to cart ✅");
-  };
-
-  // ✅ Wishlist toggle
-  const handleWishlistToggle = async (e) => {
-    e.preventDefault();
-    if (!token) return navigate("/login");
-
-    if (isInWishlist && wishlistItemId) {
-      await removeFromWishlist(wishlistItemId);
-      setIsInWishlist(false);
-      return;
-    }
-
-    await addToWishlist(product._id, null);
-    setIsInWishlist(true);
-  };
-
-  return (
-    <div className="single-card">
-      <Link to={`/product/${product._id}`}>
-        <div
-          className="image-container"
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-        >
-          <img src={images[idx]} alt={product.product_name} />
-        </div>
-      </Link>
-
-      <div className="content">
-        <h3 className="product-name">{product.product_name}</h3>
-
-        <p className="product-price">₹ {formatPrice(displayPrice)}</p>
-
-        <div className="actions">
-          <button className="add-cart-btn" onClick={handleAddToCart}>
-            Add to cart
-          </button>
-
-          <button className="wishlist-btn" onClick={handleWishlistToggle}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className={`heart-icon ${isInWishlist ? "filled" : ""}`}
-              viewBox="0 0 24 24"
-            >
-              <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }

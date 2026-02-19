@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "./Products.css";
+import toast from 'react-hot-toast';
 
 import { addToCart } from "../api/cartApi";
 import { getWishlistItems, removeFromWishlist } from "../api/wishlistApi";
@@ -92,7 +93,7 @@ export default function Wishlist() {
           ) : wishlistItems.length === 0 ? (
             <EmptyWishlist navigate={navigate} />
           ) : (
-            <div className="grid-container">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4 sm:p-6">
               {wishlistItems.map((item) => (
                 <WishlistCard
                   key={item._id}
@@ -105,9 +106,9 @@ export default function Wishlist() {
 
         </div>
 
-  {/* STATIC FOOTER */}
-  <Footer />
-</div>
+        {/* STATIC FOOTER */}
+        <Footer />
+      </div>
     </>
   );
 }
@@ -156,9 +157,6 @@ function EmptyWishlist({ navigate }) {
 
 
 
-/* -------------------------
-      WISHLIST CARD
-   ------------------------- */
 function WishlistCard({ item, onRemoveLocal }) {
   const { token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -204,7 +202,7 @@ function WishlistCard({ item, onRemoveLocal }) {
       onRemoveLocal(item._id);
     } catch (err) {
       console.error(err);
-      alert("Failed to remove item");
+      toast.error("Failed to remove item");
     }
   };
 
@@ -219,10 +217,10 @@ function WishlistCard({ item, onRemoveLocal }) {
       await addToCart(product._id, variantId, 1);
       await removeFromWishlist(item._id);
       onRemoveLocal(item._id);
-      alert("Moved to cart ✓");
+      toast.success("Moved to cart ✓");
     } catch (err) {
       console.error(err);
-      alert("Could not move to cart");
+      toast.error("Could not move to cart");
     }
   };
 
@@ -235,116 +233,73 @@ function WishlistCard({ item, onRemoveLocal }) {
 
     try {
       await addToCart(product._id, variantId, 1);
-      alert("Added to cart ✓");
+      toast.success("Added to cart ✓");
     } catch (err) {
       console.error(err);
-      alert("Could not add to cart");
+      toast.error("Could not add to cart");
     }
   };
 
   return (
-    <div
-      className="single-card"
-      style={{ transition: "transform 0.2s ease, box-shadow 0.2s ease" }}
-    >
-      <Link to={`/product/${product._id}`}>
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full border border-gray-100 relative group">
+      <Link to={`/product/${product._id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-100">
         <div
-          className="image-container"
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => {
             setHover(false);
             setIdx(0);
           }}
-          style={{ overflow: "hidden", borderRadius: 8 }}
+          className="w-full h-full"
         >
           <img
             src={images[idx]}
             alt={product.product_name}
-            style={{
-              width: "100%",
-              objectFit: "cover",
-              maxHeight: 360,
-              transition: "opacity 0.45s ease",
-              opacity: hover ? 0.95 : 1,
-            }}
+            className="w-full h-full object-cover transition-opacity duration-500"
+            style={{ opacity: hover ? 0.95 : 1 }}
           />
         </div>
+
+        {/* Remove Button - Absolute positioned */}
+        <button
+          onClick={(e) => { e.preventDefault(); handleRemove(e); }}
+          title="Remove from wishlist"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 transform translate-y-[-10px] group-hover:translate-y-0"
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </Link>
 
-      <div className="content">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h3 className="product-name">
-            <Link to={`/product/${product._id}`} style={{ color: "inherit" }}>
-              {product.product_name || "Unnamed Product"}
-            </Link>
-          </h3>
-
-          {/* DELETE BUTTON */}
-          <button
-            onClick={handleRemove}
-            title="Remove from wishlist"
-            style={{
-              background: "#fee2e2",
-              border: "1px solid #fecaca",
-              borderRadius: "50%",
-              width: 36,
-              height: 36,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "0.2s",
-            }}
-          >
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="#dc2626"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M3 6h18" strokeLinecap="round" />
-              <path
-                d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"
-                strokeLinecap="round"
-              />
-              <path d="M10 11v6" strokeLinecap="round" />
-              <path d="M14 11v6" strokeLinecap="round" />
-              <path
-                d="M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-
-        </div>
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="font-semibold text-gray-900 line-clamp-1 mb-1">
+          <Link to={`/product/${product._id}`} className="hover:text-indigo-600 transition-colors">
+            {product.product_name || "Unnamed Product"}
+          </Link>
+        </h3>
 
         {/* VARIANT DETAILS */}
-        {variant?.size || variant?.color || variant?.material ? (
-          <p style={{ color: "#6b7280", fontSize: 13 }}>
-            {variant.size && `Size: ${variant.size}`}
-            {variant.color && ` | Color: ${variant.color}`}
-            {variant.material && ` | Material: ${variant.material}`}
-          </p>
-        ) : null}
 
-        <p className="product-price" style={{ marginTop: 10 }}>
+        <p className="text-xs text-gray-500 line-clamp-1 h-4">
+          {(variant?.size || variant?.color || variant?.material) ? (
+            <>
+              {variant.size && `Size: ${variant.size}`}
+              {variant.color && ` | ${variant.color}`}
+              {variant.material && ` | ${variant.material}`}
+            </>
+          ) : <span>&nbsp;</span>}
+        </p>
+
+
+        <p className="font-bold text-gray-900 mt-2 text-lg">
           ₹ {formatPrice(price)}
         </p>
 
-        <div className="actions" style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <div className="flex gap-2 mt-auto pt-4">
           {/* MOVE TO CART */}
           <button
             onClick={handleMoveToCart}
-            style={{
-              padding: "10px 12px",
-              background: "#111827",
-              color: "white",
-              borderRadius: 8,
-              border: "none",
-              cursor: "pointer",
-            }}
+            className="flex-1 px-3 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
           >
             Move to Cart
           </button>
@@ -352,13 +307,7 @@ function WishlistCard({ item, onRemoveLocal }) {
           {/* ADD (DO NOT REMOVE FROM WISHLIST) */}
           <button
             onClick={handleAddToCart}
-            style={{
-              padding: "10px 12px",
-              background: "white",
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
+            className="px-3 py-2 bg-white text-slate-700 border border-slate-200 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
           >
             Add
           </button>

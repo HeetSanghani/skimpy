@@ -5,18 +5,29 @@ from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForg
 from datetime import datetime, timedelta
 import uuid, os, shutil, random
 from app.utils.email_service import send_otp_email
+from app.services.n8n_sender import trigger_signup_notification, trigger_login_notification, trigger_otp_verified_notification, trigger_send_otp_notification
 
-def login_logic(email: str, password: str):
+def login_logic(email: str, password: str, ip: str = None, device: str = None):
     user = user_collection.find_one({"email": email})
 
     if not user or not verify_password(password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     access_token = create_access_token(data={"sub": user["email"]})
+    
+    # Trigger n8n login notification
+    # Inject runtime data into user dict for notification purpose (not saved to DB here)
+    user_for_notify = user.copy() if user else {}
+    user_for_notify["ip"] = ip
+    user_for_notify["device"] = device
+    user_for_notify["login_time"] = datetime.now().isoformat()
+    
+    trigger_login_notification(user_for_notify)
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-def register_user_logic(request: UserRegisterSchema):
+def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str = None):
     user_data = request.dict()
     user_data.pop("confirm_password")
 
@@ -34,6 +45,14 @@ def register_user_logic(request: UserRegisterSchema):
     try:
         user_collection.insert_one(user_data)
         otp_collection.delete_one({"email": user_data["email"]})  # cleanup OTP
+        
+        # Trigger n8n signup notification with metadata
+        # Inject metadata into user_data for notification (it might not be in DB schema, but useful for webhook)
+        user_data["ip"] = ip
+        user_data["device"] = device
+        
+        trigger_signup_notification(user_data)
+        
         return {
             "message": f"User {request.first_name} created successfully",
             "user_id": user_data["user_id"],
@@ -72,10 +91,8 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
 def generate_and_send_otp(email: str):
     existing_otp = otp_collection.find_one({"email": email})
 
-    if existing_otp:
-        # Check expiry
-        if existing_otp["expires_at"] > datetime.now():
-            otp_collection.delete_one({"email": email})
+    # Always clear any invalid/old/existing OTPs for this email to prevent duplicates
+    otp_collection.delete_many({"email": email})
 
     # Create new OTP
     otp = str(random.randint(100000, 999999))
@@ -87,7 +104,10 @@ def generate_and_send_otp(email: str):
     }
 
     otp_collection.insert_one(otp_data)
-    send_otp_email(email, otp)
+    
+    # Trigger n8n to send the email instead of logic in email_service.py
+    # send_otp_email(email, otp)
+    trigger_send_otp_notification(email, otp)
 
     return {"message": "New OTP sent to your email"}
 
@@ -103,13 +123,11 @@ def verify_otp_service(email: str, otp: str):
     if record["otp"] != otp:
         return {"success": False, "message": "Invalid OTP"}
     
-    existing_otp = otp_collection.find_one({"email": email})
-
-    if existing_otp:
+    if record:
         # Check expiry
-        if existing_otp["expires_at"] < datetime.now():
+        if record["expires_at"] < datetime.now():
             otp_collection.delete_one({"email": email})
-            return {"invalid otp"}
+            return {"success": False, "message": "OTP expired"}
     
 
     # ✅ Mark OTP as verified
@@ -117,6 +135,9 @@ def verify_otp_service(email: str, otp: str):
         {"email": email},
         {"$set": {"verified": True}}
     )
+    
+    # Trigger n8n notification
+    trigger_otp_verified_notification(email)
 
     return {"success": True, "message": "OTP verified"}
 
@@ -144,8 +165,8 @@ def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
     )
 
     otp_collection.delete_one({"email": request.email})
+    
+    # Trigger n8n notification for OTP verification
+    trigger_otp_verified_notification(request.email)
 
     return {"message": "Password reset successfully"}
-
-
-

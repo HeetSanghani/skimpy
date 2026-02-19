@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException,File, UploadFile, Form, Depends
 from bson import ObjectId
 from typing import List, Optional, Union
 from datetime import datetime
-from ....db.mongodb import cate_db
+from ....db.mongodb import cate_db, delivery_addresses_collection, user_collection
 from ....schemas.vendor import VendorResponse
 import os, shutil
 from app.core.security import get_current_user
@@ -113,14 +113,37 @@ def get_my_vendor(current_user: dict = Depends(get_current_user)):
 
 @router.get("", response_model=VendorResponse)
 def get_vendor(vendor_id: str):
-    try:
-        vendor_obj_id = ObjectId(vendor_id)  
-    except:
-        raise HTTPException(status_code=400, detail="Invalid vendor ID format")
-
-    vendor = cate_db.vendors.find_one({"_id": vendor_obj_id})
+    vendor = None
+    
+    # 1. Try finding by ObjectId (Vendor ID)
+    if ObjectId.is_valid(vendor_id):
+        vendor = cate_db.vendors.find_one({"_id": ObjectId(vendor_id)})
+    
+    # 2. If not found, try finding by User ID (String)
+    if not vendor:
+        vendor = cate_db.vendors.find_one({"user_id": vendor_id})
+        
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
+
+    # Inject delivery address
+    user_id = vendor.get("user_id")
+    if user_id:
+        delivery_addr = delivery_addresses_collection.find_one({"user_id": str(user_id)})
+        if delivery_addr:
+            parts = [
+                delivery_addr.get("street_address"),
+                delivery_addr.get("city"),
+                delivery_addr.get("state"),
+                str(delivery_addr.get("postcode", ""))
+            ]
+            vendor["address"] = ", ".join([p for p in parts if p])
+
+    # Fallback to User Avatar if image is missing
+    if not vendor.get("image") and user_id:
+         user = user_collection.find_one({"user_id": str(user_id)}, {"avatar": 1})
+         if user and user.get("avatar"):
+             vendor["image"] = user.get("avatar")
 
     return objectid_str(vendor) 
 
@@ -165,10 +188,11 @@ def update_vendor(
     if shop_name and shop_name.strip():
         update_fields["shop_name"] = shop_name.strip()
     # keep legacy address and new shop_description in sync
-    if (address and address.strip()) or (shop_description and shop_description.strip()):
-        desc_value = (shop_description or address or "").strip()
-        update_fields["address"] = desc_value
-        update_fields["shop_description"] = desc_value
+    # keep legacy address and new shop_description in sync
+    if address is not None:
+        update_fields["address"] = address.strip()
+    if shop_description is not None:
+        update_fields["shop_description"] = shop_description.strip()
     if parent_id and parent_id.strip():
         update_fields["parent_id"] = parent_id.strip()
 

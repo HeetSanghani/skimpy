@@ -1,10 +1,14 @@
 import axios from "axios";
 
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "";
 
-// Get authentication token from localStorage
+// Helper to get token
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
+  if (!token) {
+    console.warn("No auth token found in localStorage");
+    return {};
+  }
   return {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -15,7 +19,7 @@ const getAuthHeaders = () => {
 export const getMyListings = async (limit = 50, skip = 0) => {
   try {
     const response = await axios.get(
-      `${BASE_URL}/seller/dashboard/listings?limit=${limit}&skip=${skip}`,
+      `${BASE_URL}/api/seller/dashboard/listings?limit=${limit}&skip=${skip}`,
       {
         headers: getAuthHeaders(),
       }
@@ -31,7 +35,7 @@ export const getMyListings = async (limit = 50, skip = 0) => {
 export const getEarningsStats = async () => {
   try {
     const response = await axios.get(
-      `${BASE_URL}/seller/dashboard/earnings`,
+      `${BASE_URL}/api/seller/dashboard/earnings`,
       {
         headers: getAuthHeaders(),
       }
@@ -44,9 +48,11 @@ export const getEarningsStats = async () => {
 };
 
 // 📫 Get Orders
+// 📫 Get Orders (Updated to use new Order System)
+// 📫 Get Orders (Updated to use new Dashboard Endpoint with filtering)
 export const getOrders = async (status = null, limit = 50, skip = 0) => {
   try {
-    let url = `${BASE_URL}/seller/dashboard/orders?limit=${limit}&skip=${skip}`;
+    let url = `${BASE_URL}/api/seller/dashboard/orders?limit=${limit}&skip=${skip}`;
     if (status) {
       url += `&status=${status}`;
     }
@@ -64,7 +70,7 @@ export const getOrders = async (status = null, limit = 50, skip = 0) => {
 export const getDashboard = async (listingsLimit = 10, ordersLimit = 10) => {
   try {
     const response = await axios.get(
-      `${BASE_URL}/seller/dashboard?listings_limit=${listingsLimit}&orders_limit=${ordersLimit}`,
+      `${BASE_URL}/api/seller/dashboard?listings_limit=${listingsLimit}&orders_limit=${ordersLimit}`,
       {
         headers: getAuthHeaders(),
       }

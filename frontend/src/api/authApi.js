@@ -31,7 +31,8 @@
 
 // authApi.js
 import axios from "axios";
-const BASE_URL = "http://127.0.0.1:8000"; // update if needed
+import toast from 'react-hot-toast';
+const BASE_URL = ""; // update if needed
 
 export const sendOtp = async (email) => {
   return axios.post(`${BASE_URL}/auth/send-otp`, { email });
@@ -64,7 +65,7 @@ export const loginUser = async (data) => {
 
 export const getUserProfile = async (token) => {
   try {
-    const response = await axios.get(`${BASE_URL}/user/getprofile`, {
+    const response = await axios.get(`${BASE_URL}/user/settings/get-account-details`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -122,13 +123,13 @@ export const forgotPassword = async (data) => {
       },
     });
     // show success message
-    alert(response.data.message);
+    toast.success(response.data.message);
     return response.data;
   } catch (error) {
     if (error.response) {
-      alert(error.response.data.detail || "Something went wrong");
+      toast.error(error.response.data.detail || "Something went wrong");
     } else {
-      alert("Server not reachable");
+      toast.error("Server not reachable");
     }
     throw error;
   }

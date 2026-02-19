@@ -1,191 +1,12 @@
-
-// import React, { useState } from "react";
-// import { useDispatch, useSelector } from "react-redux";
-// import { sendOtpThunk, forgotPasswordThunk } from "../features/auth/authSlice";
-
-// export default function ForgotPassword() {
-//   const dispatch = useDispatch();
-//   const { loading, error } = useSelector((state) => state.auth);
-
-//   const [email, setEmail] = useState("");
-//   const [otp, setOtp] = useState("");
-//   const [newPassword, setNewPassword] = useState("");
-//   const [confirmPassword, setConfirmPassword] = useState("");
-//   const [showModal, setShowModal] = useState(false);
-
-//   // ✅ Send OTP
-//   const handleSendOtp = async () => {
-//     if (!email) {
-//       alert("Please enter your email");
-//       return;
-//     }
-//     try {
-//       const resultAction = await dispatch(sendOtpThunk(email));
-//       if (sendOtpThunk.fulfilled.match(resultAction)) {
-//         setShowModal(true);
-//         alert("OTP sent to your email!");
-//       } else {
-//         alert(resultAction.payload || "Failed to send OTP");
-//       }
-//     } catch {
-//       alert("Unexpected error while sending OTP");
-//     }
-//   };
-
-//   // ✅ Reset Password with OTP
-//   const handleSave = async () => {
-//     if (!otp || !newPassword || !confirmPassword) {
-//       alert("Please fill all fields");
-//       return;
-//     }
-//     if (newPassword !== confirmPassword) {
-//       alert("Passwords do not match");
-//       return;
-//     }
-
-//     try {
-//       const resultAction = await dispatch(
-//         forgotPasswordThunk({
-//           email,
-//           otp,
-//           new_password: newPassword,
-//           confirm_password: confirmPassword,
-//         })
-//       );
-
-//       if (forgotPasswordThunk.fulfilled.match(resultAction)) {
-//         alert("Password updated successfully!");
-//         setShowModal(false);
-//         setOtp("");
-//         setNewPassword("");
-//         setConfirmPassword("");
-//         setEmail("");
-//       } else {
-//         alert(resultAction.payload || "Failed to update password");
-//       }
-//     } catch {
-//       alert("Unexpected error while resetting password");
-//     }
-//   };
-
-//   return (
-//     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-//       <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8 space-y-6">
-//         <h2 className="text-3xl font-bold text-center">Forgot Password</h2>
-//         <p className="text-sm text-gray-600 text-center">
-//           Enter your email to receive an OTP and reset your password.
-//         </p>
-
-//         {/* Email + Send OTP */}
-//         <div>
-//           <label className="block text-sm font-medium text-gray-700">
-//             Email Address
-//           </label>
-//           <div className="flex mt-1">
-//             <input
-//               type="email"
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//               required
-//               className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//             />
-//             <button
-//               type="button"
-//               onClick={handleSendOtp}
-//               disabled={loading}
-//               className="px-4 py-2 bg-black text-white rounded-r-md hover:bg-gray-900"
-//             >
-//               {loading ? "Sending..." : "Send OTP"}
-//             </button>
-//           </div>
-//           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-//         </div>
-//       </div>
-
-//       {/* OTP + Password Modal */}
-//       {showModal && (
-//         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-//           <div className="bg-white p-6 rounded-lg shadow-lg w-96 space-y-4">
-//             <h3 className="text-xl font-semibold text-center">Reset Password</h3>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">OTP</label>
-//               <input
-//                 type="text"
-//                 maxLength="6"
-//                 value={otp}
-//                 onChange={(e) => setOtp(e.target.value)}
-//                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md tracking-widest text-center text-lg"
-//               />
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 New Password
-//               </label>
-//               <input
-//                 type="password"
-//                 value={newPassword}
-//                 onChange={(e) => setNewPassword(e.target.value)}
-//                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md"
-//               />
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700">
-//                 Confirm Password
-//               </label>
-//               <input
-//                 type="password"
-//                 value={confirmPassword}
-//                 onChange={(e) => setConfirmPassword(e.target.value)}
-//                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md"
-//               />
-//             </div>
-
-//             <div className="flex justify-end gap-3 pt-2">
-//               <button
-//                 onClick={() => setShowModal(false)}
-//                 className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
-//               >
-//                 Cancel
-//               </button>
-//               <button
-//                 onClick={handleSave}
-//                 disabled={loading}
-//                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-//               >
-//                 {loading ? "Saving..." : "Save"}
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { sendOtpThunk, forgotPasswordThunk } from "../features/auth/authSlice";
-import { EyeIcon, EyeOffIcon } from "lucide-react"; // 👁️ install if not already: npm install lucide-react
+import { EyeIcon, EyeOffIcon, Mail, KeyRound, Lock, X } from "lucide-react";
+import toast from 'react-hot-toast';
+
+const inputCls =
+  "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pl-11 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/40 transition-all duration-200";
 
 export default function ForgotPassword() {
   const dispatch = useDispatch();
@@ -196,186 +17,138 @@ export default function ForgotPassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showModal, setShowModal] = useState(false);
-
-  // 👁️ Password visibility toggles
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // ✅ Send OTP
   const handleSendOtp = async () => {
-    if (!email) {
-      alert("Please enter your email");
-      return;
-    }
+    if (!email) { toast.error("Please enter your email"); return; }
     try {
-      const resultAction = await dispatch(sendOtpThunk(email));
-      if (sendOtpThunk.fulfilled.match(resultAction)) {
+      const result = await dispatch(sendOtpThunk(email));
+      if (sendOtpThunk.fulfilled.match(result)) {
         setShowModal(true);
-        alert("OTP sent to your email!");
+        toast.success("OTP sent to your email!");
       } else {
-        alert(resultAction.payload || "Failed to send OTP");
+        toast.error(result.payload || "Failed to send OTP");
       }
-    } catch {
-      alert("Unexpected error while sending OTP");
-    }
+    } catch { toast.error("Unexpected error while sending OTP"); }
   };
 
-  // ✅ Reset Password with OTP
   const handleSave = async () => {
-    if (!otp || !newPassword || !confirmPassword) {
-      alert("Please fill all fields");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-
+    if (!otp || !newPassword || !confirmPassword) { toast.error("Please fill all fields"); return; }
+    if (newPassword !== confirmPassword) { toast.error("Passwords do not match"); return; }
     try {
-      const resultAction = await dispatch(
-        forgotPasswordThunk({
-          email,
-          otp,
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        })
-      );
-
-      if (forgotPasswordThunk.fulfilled.match(resultAction)) {
-        alert("Password updated successfully!");
+      const result = await dispatch(forgotPasswordThunk({ email, otp, new_password: newPassword, confirm_password: confirmPassword }));
+      if (forgotPasswordThunk.fulfilled.match(result)) {
+        toast.success("Password updated successfully!");
         setShowModal(false);
-        setOtp("");
-        setNewPassword("");
-        setConfirmPassword("");
-        setEmail("");
+        setOtp(""); setNewPassword(""); setConfirmPassword(""); setEmail("");
       } else {
-        alert(resultAction.payload || "Failed to update password");
+        toast.error(result.payload || "Failed to update password");
       }
-    } catch {
-      alert("Unexpected error while resetting password");
-    }
+    } catch { toast.error("Unexpected error while resetting password"); }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8 space-y-6">
-        <h2 className="text-3xl font-bold text-center">Forgot Password</h2>
-        <p className="text-sm text-gray-600 text-center">
-          Enter your email to receive an OTP and reset your password.
-        </p>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Ambient glows */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-900/30 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-900/20 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Email + Send OTP */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Email Address
-          </label>
-          <div className="flex mt-1">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <button
-              type="button"
-              onClick={handleSendOtp}
-              disabled={loading}
-              className="px-4 py-2 bg-black text-white rounded-r-md hover:bg-gray-900"
-            >
-              {loading ? "Sending..." : "Send OTP"}
-            </button>
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <span className="text-white font-black text-base">S</span>
+            </div>
+            <span className="font-sora font-extrabold text-2xl bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">SKIMPY</span>
+          </Link>
+          <h2 className="mt-6 text-3xl font-bold text-white">Forgot Password</h2>
+          <p className="mt-2 text-gray-400 text-sm">Enter your email to receive a reset OTP</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-2xl space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Email Address</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                  className={inputCls} placeholder="you@example.com" />
+              </div>
+              <button type="button" onClick={handleSendOtp} disabled={loading}
+                className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl transition-all duration-200 whitespace-nowrap disabled:opacity-60">
+                {loading ? "Sending…" : "Send OTP"}
+              </button>
+            </div>
+            {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
           </div>
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+          <p className="text-center text-sm text-gray-500">
+            Remember your password?{" "}
+            <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">Sign in</Link>
+          </p>
         </div>
       </div>
 
-      {/* OTP + Password Modal */}
+      {/* OTP + Reset Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96 space-y-4">
-            <h3 className="text-xl font-semibold text-center">Reset Password</h3>
-
-            {/* OTP Field */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                OTP
-              </label>
-              <input
-                type="text"
-                maxLength="6"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md tracking-widest text-center text-lg"
-              />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-8 w-full max-w-sm shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Reset Password</h3>
+              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition-all">
+                <X size={16} />
+              </button>
             </div>
 
-            {/* New Password Field with Eye */}
+            {/* OTP */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                New Password
-              </label>
-              <div className="relative mt-1">
-                <input
-                  type={showNewPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="block w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
-                >
-                  {showNewPassword ? (
-                    <EyeOffIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">OTP Code</label>
+              <div className="relative">
+                <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input type="text" maxLength="6" value={otp} onChange={(e) => setOtp(e.target.value)}
+                  className={`${inputCls} tracking-[0.3em] text-center text-lg`} placeholder="• • • • • •" />
+              </div>
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">New Password</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  className={`${inputCls} pr-11`} placeholder="••••••••" />
+                <button type="button" onClick={() => setShowNewPassword((p) => !p)}
+                  className="absolute inset-y-0 right-3.5 flex items-center text-gray-500 hover:text-indigo-400 transition-colors">
+                  {showNewPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Confirm Password Field with Eye */}
+            {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <div className="relative mt-1">
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="block w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOffIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Confirm Password</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`${inputCls} pr-11`} placeholder="••••••••" />
+                <button type="button" onClick={() => setShowConfirmPassword((p) => !p)}
+                  className="absolute inset-y-0 right-3.5 flex items-center text-gray-500 hover:text-indigo-400 transition-colors">
+                  {showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Modal Buttons */}
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
-              >
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setShowModal(false)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl transition-all">
                 Cancel
               </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                {loading ? "Saving..." : "Save"}
+              <button onClick={handleSave} disabled={loading}
+                className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl transition-all disabled:opacity-60">
+                {loading ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

@@ -1,8 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import toast from 'react-hot-toast';
 
 const BASE_URL = "http://localhost:8000";
+
+// ✅ Local SVG Fallback
+const DEFAULT_IMAGE = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22200%22%20height%3D%22200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20200%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23999%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23eee%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2260%22%20y%3D%22105%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
+
+// ✅ Normalize backend image paths
+const normalizeImage = (img) => {
+  if (!img) return DEFAULT_IMAGE;
+  if (typeof img !== "string") return DEFAULT_IMAGE;
+  if (img.startsWith("http://") || img.startsWith("https://")) return img;
+  if (img.startsWith("data:image")) return img;
+  return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
+};
 
 const MessageStatusIcon = ({ status }) => {
   if (!status) return null;
@@ -50,7 +63,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!token) {
-      alert("Please log in first!");
+      toast.error("Please log in first!");
       navigate("/login");
     }
   }, [token, navigate]);
@@ -220,21 +233,26 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#F5F5F7]">
-      <div className="w-full max-w-7xl h-[90vh] rounded-2xl shadow-2xl border border-[#E8E8E8] flex flex-col bg-white">
+    <div className="fixed inset-0 flex items-center justify-center bg-[#F5F5F7] p-0 md:p-4 lg:p-6">
+      <div className="w-full max-w-7xl h-full md:h-[85vh] md:rounded-2xl shadow-none md:shadow-2xl border-0 md:border border-[#E8E8E8] flex flex-col bg-white overflow-hidden">
         {/* ===== Header ===== */}
-        <div className="flex items-center justify-between px-6 py-4 bg-[#14274E] text-white shadow-md">
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 bg-[#14274E] text-white shadow-md z-10 shrink-0">
           <div className="flex items-center space-x-3">
+            <button onClick={() => navigate(-1)} className="md:hidden p-1 -ml-2 text-gray-300 hover:text-white">
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
             <img
-              src={seller?.profile_image || "https://via.placeholder.com/80"}
+              src={normalizeImage(seller?.image || seller?.profile_image)}
               alt="profile"
-              className="w-12 h-12 rounded-full border border-[#9BA4B4] shadow-md object-cover"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-[#9BA4B4] shadow-md object-cover bg-white"
             />
             <div>
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-base md:text-lg font-semibold truncate max-w-[200px]">
                 {seller?.shop_name || "Seller Shop"}
               </h2>
-              <p className="text-sm text-[#9BA4B4]">Online</p>
+              <p className="text-xs md:text-sm text-[#9BA4B4] flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span> Online
+              </p>
             </div>
           </div>
         </div>
@@ -259,16 +277,14 @@ export default function ChatPage() {
               return (
                 <div
                   key={m.id}
-                  className={`flex mb-3 ${
-                    isMine ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex mb-3 ${isMine ? "justify-end" : "justify-start"
+                    }`}
                 >
                   <div
-                    className={`px-4 py-2 rounded-2xl border shadow-md max-w-[75%] ${
-                      isMine
-                        ? "bg-gradient-to-br from-[#394867] to-[#14274E] text-white border-[#14274E] shadow-lg"
-                        : "bg-[#E8E8E8] text-[#14274E] border-[#DDDDDD] shadow-md"
-                    }`}
+                    className={`px-4 py-2 rounded-2xl border shadow-md max-w-[75%] ${isMine
+                      ? "bg-gradient-to-br from-[#394867] to-[#14274E] text-white border-[#14274E] shadow-lg"
+                      : "bg-[#E8E8E8] text-[#14274E] border-[#DDDDDD] shadow-md"
+                      }`}
                     style={{
                       wordWrap: "break-word",
                       overflowWrap: "break-word",
@@ -277,9 +293,8 @@ export default function ChatPage() {
                   >
                     <p className="text-sm leading-snug">{m.text}</p>
                     <div
-                      className={`flex justify-end items-center text-[10px] mt-1 ${
-                        isMine ? "text-gray-300" : "text-gray-500"
-                      }`}
+                      className={`flex justify-end items-center text-[10px] mt-1 ${isMine ? "text-gray-300" : "text-gray-500"
+                        }`}
                     >
                       <span>{formatTime(m.created_at)}</span>
                       {isMine && <MessageStatusIcon status={status} />}

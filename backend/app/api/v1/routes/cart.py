@@ -144,18 +144,24 @@ async def add_to_cart(
     except:
         raise HTTPException(status_code=400, detail="Invalid product ID")
     
-    # Validate variant if provided
+    # Validate variant and Determine Stock
     variant_obj_id = None
+    available_stock = product.get("stock", 0)
+
     if variant_id:
         try:
             variant_obj_id = validate_objectid(variant_id)
             variant = variant_collection.find_one({"_id": variant_obj_id})
             if not variant:
                 raise HTTPException(status_code=404, detail="Variant not found")
+            
+            # If variant has explicit stock, use it
+            if "stock" in variant:
+                available_stock = variant["stock"]
         except:
             raise HTTPException(status_code=400, detail="Invalid variant ID")
     
-    # Check if item already exists in cart
+    # Check if item already exists in cart to calculate total requested
     query = {"user_id": user_id, "product_id": product_id}
     if variant_id:
         query["variant_id"] = variant_id
@@ -163,13 +169,17 @@ async def add_to_cart(
         query["variant_id"] = None
     
     existing_item = cart_collection.find_one(query)
-    
+    current_cart_quantity = existing_item.get("quantity", 0) if existing_item else 0
+    total_requested = current_cart_quantity + quantity
+
+    if total_requested > available_stock:
+        raise HTTPException(status_code=400, detail=f"Insufficient stock. Only {available_stock} available.")
+
     if existing_item:
         # Update quantity
-        new_quantity = existing_item.get("quantity", 0) + quantity
         cart_collection.update_one(
             {"_id": existing_item["_id"]},
-            {"$set": {"quantity": new_quantity, "updated_at": datetime.utcnow()}}
+            {"$set": {"quantity": total_requested, "updated_at": datetime.utcnow()}}
         )
         return {"message": "Cart item updated", "cart_item_id": str(existing_item["_id"])}
     else:
@@ -209,6 +219,24 @@ async def update_cart_item(
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
     
+    # Validate Stock for Update
+    product_id = cart_item.get("product_id")
+    variant_id = cart_item.get("variant_id")
+    
+    product = product_collection.find_one({"_id": validate_objectid(product_id)})
+    if not product:
+         raise HTTPException(status_code=404, detail="Product no longer exists")
+
+    available_stock = product.get("stock", 0)
+
+    if variant_id:
+        variant = variant_collection.find_one({"_id": validate_objectid(variant_id)})
+        if variant and "stock" in variant:
+             available_stock = variant["stock"]
+    
+    if quantity > available_stock:
+        raise HTTPException(status_code=400, detail=f"Insufficient stock. Only {available_stock} available.")
+
     cart_collection.update_one(
         {"_id": cart_obj_id},
         {"$set": {"quantity": quantity, "updated_at": datetime.utcnow()}}

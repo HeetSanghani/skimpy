@@ -1,63 +1,55 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom"; // ❌ useParams removed
-import { ChevronLeft, ChevronRight } from "lucide-react"; 
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const IconBar = ({ parentSlug }) => { // ✅ Only use parentSlug prop
+const IconBar = ({ parentSlug }) => {
   const [categories, setCategories] = useState([]);
   const [activeSlug, setActiveSlug] = useState(null);
   const navigate = useNavigate();
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    // Reset categories when slug changes
-    setCategories([]); 
-    
+    setCategories([]);
+
     const fetchDirectChildren = async () => {
-      // Don't fetch if no slug is provided
-      if (!parentSlug) {
-        setCategories([]);
-        return;
-      }
+      if (!parentSlug) { setCategories([]); return; }
       try {
-        const res = await fetch("http://localhost:8000/Category");
+        const res = await fetch("/Category");
         if (!res.ok) throw new Error("Failed to fetch categories");
-
         const data = await res.json();
-        
-        // ✅ Use parentSlug directly
-        const effectiveSlug = parentSlug;
 
-        // Find the currently selected category by slug
+        const effectiveSlug = parentSlug;
         let currentCategory = data.find((cat) => cat.slug === effectiveSlug);
-        
-        // Fallback logic (FIXED)
+
         if (!currentCategory && effectiveSlug && effectiveSlug.includes("/")) {
-          // ✅ Use 'effectiveSlug' here, not 'slug'
-          const slugParts = effectiveSlug.split("/"); 
-          const lastSlugPart = slugParts[slugParts.length - 1];
+          const lastSlugPart = effectiveSlug.split("/").pop();
           currentCategory = data.find((cat) => cat.slug.endsWith(lastSlugPart));
         }
 
-        if (!currentCategory) {
-          setCategories([]);
-          return;
-        }
+        if (!currentCategory) { setCategories([]); return; }
 
-        // Show ONLY direct children
-        let children = data.filter(
-          (cat) => cat.parent_id === currentCategory._id
-        );
+        let children = data.filter((cat) => cat.parent_id === currentCategory._id);
 
-        // Fallback: if API doesn't provide usable parent_id...
         if (children.length === 0) {
           const base = currentCategory.slug;
           const baseDepth = base.split("/").length;
           children = data.filter((cat) => {
             if (!cat.slug || cat.slug === base) return false;
             if (!cat.slug.startsWith(base + "/")) return false;
-            const depth = cat.slug.split("/").length;
-            return depth === baseDepth + 1; // only immediate children
+            return cat.slug.split("/").length === baseDepth + 1;
           });
+        }
+
+        // ── Fallback: leaf category — show siblings so the strip stays visible ──
+        if (children.length === 0 && currentCategory.parent_id) {
+          const siblings = data.filter(
+            (cat) => cat.parent_id === currentCategory.parent_id
+          );
+          if (siblings.length > 0) {
+            setActiveSlug(currentCategory.slug);
+            setCategories(siblings);
+            return;
+          }
         }
 
         setCategories(children);
@@ -67,99 +59,95 @@ const IconBar = ({ parentSlug }) => { // ✅ Only use parentSlug prop
     };
 
     fetchDirectChildren();
-  }, [parentSlug]); // ✅ Dependency array updated
+  }, [parentSlug]);
 
   const handleClick = (childSlug) => {
     setActiveSlug(childSlug);
     navigate(`/products/${childSlug}`);
   };
 
-  // 🔹 Scroll handlers
-  const scrollLeft = () => {
-    scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
-  };
-
-  const scrollRight = () => {
-    scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
-  };
+  const scrollLeft = () => scrollRef.current.scrollBy({ left: -300, behavior: "smooth" });
+  const scrollRight = () => scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
 
   if (categories.length === 0) return null;
 
   return (
-    <div className="relative w-full bg-white border-b shadow-sm py-5">
+    <div className="relative w-full bg-white border-b border-gray-100 shadow-sm py-4">
       {/* Left Arrow */}
       <button
         onClick={scrollLeft}
-        className="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow-md rounded-full p-2 z-10 hover:bg-gray-100"
+        className="absolute left-1 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-gray-200 shadow-md rounded-full flex items-center justify-center z-10 hover:border-indigo-400 hover:shadow-indigo-100 transition-all duration-200"
       >
-        <ChevronLeft size={24} />
+        <ChevronLeft size={18} className="text-gray-500" />
       </button>
 
       {/* Scroll Container */}
       <div
         ref={scrollRef}
-        className="flex gap-10 justify-start overflow-x-auto scroll-smooth hide-scrollbar px-10"
+        className="flex gap-6 justify-start overflow-x-auto scroll-smooth hide-scrollbar px-12"
       >
-        {categories.map((cat) => (
-          <div
-            key={cat._id}
-            onClick={() => handleClick(cat.slug)}
-            className="flex flex-col items-center cursor-pointer group"
-          >
+        {categories.map((cat) => {
+          const isActive = activeSlug === cat.slug;
+          return (
             <div
-              className={`w-20 h-20 flex items-center justify-center rounded-full border transition-all ${
-                activeSlug === cat.slug
-                  ? "bg-gray-100 border-gray-400"
-                  : "bg-white border-gray-200 hover:bg-gray-50"
-              }`}
+              key={cat._id}
+              onClick={() => handleClick(cat.slug)}
+              className="flex flex-col items-center cursor-pointer group flex-shrink-0"
             >
-              {cat.image ? (
-                <img
-                  src={
-                    (cat.image || "").startsWith("http")
-                      ? cat.image
-                      : `http://localhost:8000/${cat.image.replace(/\\/g, "/")}`
-                  }
-                  alt={cat.category_name}
-                  className="w-10 h-10 object-contain"
-                />
-              ) : (
-                <div className="text-3xl text-gray-400">📦</div>
-              )}
+              {/* Icon container */}
+              <div
+                className={`w-16 h-16 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 ${isActive
+                  ? "border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-100"
+                  : "border-gray-100 bg-gray-50 group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:shadow-md group-hover:shadow-indigo-100"
+                  }`}
+              >
+                {cat.image ? (
+                  <img
+                    src={
+                      (cat.image || "").startsWith("http")
+                        ? cat.image
+                        : `/${cat.image.replace(/\\/g, "/")}`
+                    }
+                    alt={cat.category_name}
+                    className="w-9 h-9 object-contain"
+                  />
+                ) : (
+                  <div className="text-2xl">📦</div>
+                )}
+              </div>
+
+              {/* Label */}
+              <p
+                className={`mt-2 text-xs font-semibold text-center transition-colors duration-200 max-w-[72px] leading-tight ${isActive
+                  ? "text-indigo-600"
+                  : "text-gray-500 group-hover:text-indigo-500"
+                  }`}
+              >
+                {cat.category_name}
+              </p>
+
+              {/* Active indicator dot */}
+              <div
+                className={`mt-1.5 w-1.5 h-1.5 rounded-full transition-all duration-200 ${isActive ? "bg-indigo-500 scale-100" : "bg-transparent scale-0"
+                  }`}
+              />
             </div>
-            <p
-              className={`mt-2 text-sm font-medium text-center ${
-                activeSlug === cat.slug
-                  ? "text-black underline"
-                  : "text-gray-700 group-hover:text-black"
-              }`}
-            >
-              {cat.category_name}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Right Arrow */}
       <button
         onClick={scrollRight}
-        className="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow-md rounded-full p-2 z-10 hover:bg-gray-100"
+        className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-gray-200 shadow-md rounded-full flex items-center justify-center z-10 hover:border-indigo-400 hover:shadow-indigo-100 transition-all duration-200"
       >
-        <ChevronRight size={24} />
+        <ChevronRight size={18} className="text-gray-500" />
       </button>
 
-      {/* Hide Scrollbar */}
-      <style>
-        {`
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `}
-      </style>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 };

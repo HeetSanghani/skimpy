@@ -1,168 +1,18 @@
-// // src/pages/SellerShopPage.jsx
-// import React, { useState } from "react";
-// import { useNavigate, useParams } from "react-router-dom";
-
-// export default function SellerShopPage() {
-//   const { sellerId } = useParams();
-//   const navigate = useNavigate();
-
-//   const seller = {
-//     name: "Elegant Finds",
-//     description: "Handcrafted treasures and timeless pieces curated for you.",
-//     followers: 240,
-//     products: 6,
-//     image:
-//       "https://i.pinimg.com/736x/14/86/86/148686b4a830e06d8089db5cb1e521f4.jpg",
-//     banner: "", // leave empty to show default
-//   };
-
-//   const [activeTab, setActiveTab] = useState("products");
-
-//   const demoProducts = [
-//     { id: 1, name: "Vintage Lamp", price: 999, image: "https://via.placeholder.com/400x300" },
-//     { id: 2, name: "Handmade Vase", price: 749, image: "https://via.placeholder.com/400x300" },
-//     { id: 3, name: "Antique Clock", price: 1299, image: "https://via.placeholder.com/400x300" },
-//     { id: 4, name: "Wooden Frame", price: 499, image: "https://via.placeholder.com/400x300" },
-//   ];
-
-//   const demoReviews = [
-//     { id: 1, name: "Priya Patel", rating: 5, comment: "Beautiful craftsmanship! Worth every penny." },
-//     { id: 2, name: "Aarav Shah", rating: 4, comment: "Good product and quick delivery." },
-//   ];
-
-//   return (
-//     <div className="min-h-screen bg-[#F1F6F9] flex flex-col">
-//       {/* ===== Banner Section ===== */}
-//       <div className="w-full h-72 relative">
-//         {seller.banner ? (
-//           <img
-//             src={seller.banner}
-//             alt={`${seller.name} banner`}
-//             className="w-full h-full object-cover"
-//           />
-//         ) : (
-//           <div className="w-full h-full bg-gradient-to-r from-[#9BA4B4] to-[#394867] flex items-center justify-center text-white text-3xl font-semibold">
-//             {seller.name} Shop
-//           </div>
-//         )}
-//       </div>
-
-//       {/* ===== Seller Info Header ===== */}
-//       <div className="w-full bg-white border-b border-[#E8E8E8] shadow-sm px-6 md:px-20 py-6 flex flex-col md:flex-row items-center md:justify-between">
-//         {/* Left Section */}
-//         <div className="flex items-center space-x-5 mb-4 md:mb-0">
-//           <img
-//             src={seller.image}
-//             alt={seller.name}
-//             className="w-20 h-20 rounded-full object-cover border-4 border-[#9BA4B4] shadow-lg"
-//           />
-//           <div>
-//             <h1 className="text-2xl font-bold text-[#14274E]">{seller.name}</h1>
-//             <p className="text-[#394867] text-sm mt-1">{seller.description}</p>
-//             <div className="flex items-center space-x-4 mt-2 text-sm text-[#9BA4B4]">
-//               <p>👥 {seller.followers} followers</p>
-//               <p>🛍 {seller.products} products</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Right Section */}
-//         <div className="flex space-x-3">
-//           <button
-//             onClick={() => alert("Followed!")}
-//             className="px-5 py-2 bg-[#394867] text-white rounded-full hover:bg-[#14274E] shadow-md transition"
-//           >
-//             Follow
-//           </button>
-//           <button
-//             onClick={() => navigate(`/chat/${sellerId || "seller456"}`)}
-//             className="px-5 py-2 bg-[#9BA4B4] text-[#14274E] rounded-full hover:bg-[#4C7B8B] hover:text-white shadow-md transition"
-//           >
-//             Message
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* ===== Navigation Tabs ===== */}
-//       <div className="w-full bg-white border-b border-[#E8E8E8] shadow-sm sticky top-0 z-20">
-//         <nav className="flex justify-center md:justify-start space-x-10 px-6 md:px-20 py-4">
-//           {["products", "reviews"].map((tab) => (
-//             <button
-//               key={tab}
-//               onClick={() => setActiveTab(tab)}
-//               className={`pb-2 text-lg font-medium transition relative ${
-//                 activeTab === tab
-//                   ? "text-[#14274E] border-b-2 border-[#394867]"
-//                   : "text-[#9BA4B4] hover:text-[#394867]"
-//               }`}
-//             >
-//               {tab.charAt(0).toUpperCase() + tab.slice(1)}
-//             </button>
-//           ))}
-//         </nav>
-//       </div>
-
-//       {/* ===== Content Area ===== */}
-//       <div className="w-full flex-grow bg-[#F1F6F9]">
-//         {activeTab === "products" && (
-//           <div className="max-w-7xl mx-auto py-10 px-6 md:px-10">
-//             <h2 className="text-xl font-semibold text-[#14274E] mb-6">Products</h2>
-//             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-//               {demoProducts.map((p) => (
-//                 <div
-//                   key={p.id}
-//                   className="bg-white border border-[#E8E8E8] rounded-2xl shadow-md hover:shadow-xl transition p-3 cursor-pointer"
-//                 >
-//                   <img
-//                     src={p.image}
-//                     alt={p.name}
-//                     className="w-full h-56 object-cover rounded-lg"
-//                   />
-//                   <div className="p-3">
-//                     <h3 className="text-[#14274E] font-semibold text-lg truncate">{p.name}</h3>
-//                     <p className="text-[#394867] text-sm mt-1">₹{p.price}</p>
-//                   </div>
-//                 </div>
-//               ))}
-//             </div>
-//           </div>
-//         )}
-
-//         {activeTab === "reviews" && (
-//           <div className="max-w-5xl mx-auto py-10 px-6 md:px-10">
-//             <h2 className="text-xl font-semibold text-[#14274E] mb-6">Customer Reviews</h2>
-//             <div className="space-y-6">
-//               {demoReviews.map((r) => (
-//                 <div
-//                   key={r.id}
-//                   className="bg-white border border-[#E8E8E8] rounded-xl shadow-md p-4 hover:shadow-lg transition"
-//                 >
-//                   <div className="flex items-center justify-between mb-2">
-//                     <h4 className="font-semibold text-[#14274E]">{r.name}</h4>
-//                     <p className="text-[#394867] text-sm">⭐ {r.rating}/5</p>
-//                   </div>
-//                   <p className="text-[#495464] text-sm">{r.comment}</p>
-//                 </div>
-//               ))}
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-// src/pages/SellerShopPage.jsx
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchProfileThunk } from "../features/auth/authSlice";
+import ProfileCompletionModal from "../components/ProfileCompletionModal";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import toast from 'react-hot-toast';
+import { MessageCircle, ShoppingBag, Store, MapPin, Calendar, Star, Package } from "lucide-react";
+import ProductCardDark from "../components/ProductCardDark";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "";
+
+const DEFAULT_IMAGE = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22200%22%20height%3D%22200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20200%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23666%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%231a1a2e%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2260%22%20y%3D%22105%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
 
 function SellerShopPage() {
   const { sellerId } = useParams();
@@ -172,16 +22,53 @@ function SellerShopPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const dispatch = useDispatch();
+  const { token, user } = useSelector((state) => state.auth || {});
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [missingFields, setMissingFields] = useState([]);
+
+  // Fetch profile checks
+  useEffect(() => {
+    if (token && (!user || !user.email)) {
+      dispatch(fetchProfileThunk());
+    }
+  }, [dispatch, token, user]);
+
+  const validateProfile = () => {
+    if (!user) return ["Log in to continue"];
+    const missing = [];
+    if (!user.phone) missing.push("Mobile Number");
+    if (!user.DOB) missing.push("Date of Birth");
+    if (!user.gender) missing.push("Gender");
+    if (!user.has_delivery_address) missing.push("At least one Delivery Address");
+    if (!user.avatar) missing.push("Profile Avatar");
+    return missing;
+  };
+
+  const handleMessageSeller = () => {
+    if (!token) {
+      toast.error("Please log in to message the seller.");
+      navigate("/login");
+      return;
+    }
+    const missing = validateProfile();
+    if (missing.length > 0) {
+      toast.error(`Please complete your profile: ${missing.join(", ")}`);
+      setMissingFields(missing);
+      setShowProfileModal(true);
+      return;
+    }
+    navigate(`/chat/${sellerId}`);
+  };
+
   // Fetch Seller details and their products
   useEffect(() => {
     const fetchSellerData = async () => {
       try {
-        // Fetch seller info
-        // const sellerRes = await axios.get(`${BASE_URL}/Vendor/${sellerId}`);
         const sellerRes = await axios.get(`${BASE_URL}/Vendor?vendor_id=${sellerId}`);
         setSeller(sellerRes.data);
 
-        // Fetch products added by this seller
         const productRes = await axios.get(`${BASE_URL}/Product/by-vendor/${sellerId}`);
         setProducts(Array.isArray(productRes.data) ? productRes.data : []);
       } catch (err) {
@@ -194,134 +81,169 @@ function SellerShopPage() {
     fetchSellerData();
   }, [sellerId]);
 
+  const normalizeImage = (img) => {
+    if (!img) return DEFAULT_IMAGE;
+    if (typeof img !== "string") return DEFAULT_IMAGE;
+    if (img.startsWith("http://") || img.startsWith("https://")) return img;
+    if (img.startsWith("data:image")) return img;
+    return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
+  };
+
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F1F6F9] text-[#394867]">
-        Loading Seller Shop...
+      <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-white font-inter">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+            <p className="text-gray-400">Loading Shop...</p>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
 
   if (!seller)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F1F6F9] text-[#394867]">
-        Seller not found.
+      <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-white font-inter">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <Store className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+            <h2 className="text-xl font-bold mb-2">Seller Not Found</h2>
+            <p className="text-gray-400 mb-6">This shop is unavailable or does not exist.</p>
+            <button onClick={() => navigate("/")} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+              Back to Home
+            </button>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-[#F1F6F9] flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col font-inter text-gray-200">
+      <Navbar />
+
       {/* ===== Banner Section ===== */}
-      <div className="w-full h-72 relative">
+      <div className="w-full h-48 md:h-72 relative">
         {seller.banner ? (
-          <img src={seller.banner} alt="banner" className="w-full h-full object-cover" />
+          <img src={normalizeImage(seller.banner)} alt="banner" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-[#9BA4B4] to-[#394867] flex items-center justify-center text-white text-3xl font-semibold">
-            {seller.shop_name || "Seller Shop"}
+          <div className="w-full h-full bg-gradient-to-r from-gray-900 via-[#1a1a2e] to-indigo-950 flex items-center justify-center text-white/20">
+            <Store className="w-24 h-24 opacity-20" />
           </div>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-90" />
       </div>
 
       {/* ===== Seller Header ===== */}
-      <div className="w-full bg-white border-b border-[#E8E8E8] shadow-sm px-6 md:px-20 py-6 flex flex-col md:flex-row items-center md:justify-between">
-        {/* Left */}
-        <div className="flex items-center space-x-5 mb-4 md:mb-0">
-          <img
-            src={seller.profile_image || "https://via.placeholder.com/80"}
-            alt={seller.name}
-            className="w-20 h-20 rounded-full object-cover border-4 border-[#9BA4B4] shadow-lg"
-          />
-          <div>
-            <h1 className="text-2xl font-bold text-[#14274E]">{seller.shop_name}</h1>
-            <p className="text-[#394867] text-sm mt-1">{seller.description}</p>
-            <div className="flex items-center space-x-4 mt-2 text-sm text-[#9BA4B4]">
-              <p>👥 {seller.followers || 0} followers</p>
-              <p>🛍 {products.length} products</p>
+      <div className="w-full bg-[#0a0a0a] border-b border-white/10 shadow-lg shadow-indigo-500/5 px-4 pb-8 -mt-12 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 blur group-hover:opacity-100 transition duration-500"></div>
+              <img
+                src={normalizeImage(seller.image || seller.profile_image)}
+                alt={seller.shop_name}
+                className="relative w-28 h-28 md:w-32 md:h-32 rounded-full object-cover border-4 border-[#0a0a0a] bg-[#1a1a2e]"
+              />
+            </div>
+
+            <div className="flex-grow text-center md:text-left pb-2">
+              <h1 className="text-2xl md:text-4xl font-extrabold text-white font-sora tracking-tight mb-2">
+                {seller.shop_name}
+              </h1>
+              <p className="text-gray-400 text-sm md:text-base max-w-2xl mx-auto md:mx-0 line-clamp-2 mb-4">
+                {seller.description || "Welcome to my shop! Check out my latest products and deals."}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                  <ShoppingBag className="w-4 h-4 text-indigo-400" />
+                  <span>{products.length} Products</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                  <Star className="w-4 h-4 text-amber-400" />
+                  <span>4.8 Rating</span>
+                </div>
+                {/* Placeholder for location/joined if available */}
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  <span>Joined 2024</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 pb-2 w-full md:w-auto">
+              <button
+                onClick={handleMessageSeller}
+                className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Message Seller
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Right */}
-        <div className="flex space-x-3">
-          <button
-            onClick={() => alert("Followed!")}
-            className="px-5 py-2 bg-[#394867] text-white rounded-full hover:bg-[#14274E] shadow-md transition"
-          >
-            Follow
-          </button>
-          <button
-            onClick={() => navigate(`/chat/${sellerId}`)}
-            className="px-5 py-2 bg-[#9BA4B4] text-[#14274E] rounded-full hover:bg-[#4C7B8B] hover:text-white shadow-md transition"
-          >
-            Message
-          </button>
         </div>
       </div>
 
       {/* ===== Tabs ===== */}
-      <div className="w-full bg-white border-b border-[#E8E8E8] shadow-sm sticky top-0 z-20">
-        <nav className="flex justify-center md:justify-start space-x-10 px-6 md:px-20 py-4">
-          {["products", "reviews"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-2 text-lg font-medium transition ${
-                activeTab === tab
-                  ? "text-[#14274E] border-b-2 border-[#394867]"
-                  : "text-[#9BA4B4] hover:text-[#394867]"
-              }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </nav>
+      <div className="w-full bg-[#0a0a0a] border-b border-white/10 sticky top-[72px] z-20 z-[40]"> {/* Adjusted z-index and top if Navbar is sticky */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
+            {["products", "reviews"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-4 text-sm font-semibold border-b-2 transition-colors duration-200 ${activeTab === tab
+                  ? "border-indigo-500 text-indigo-400"
+                  : "border-transparent text-gray-500 hover:text-white hover:border-white/20"
+                  }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {/* ===== Content ===== */}
-      <div className="w-full flex-grow bg-[#F1F6F9]">
-        {activeTab === "products" && (
-          <div className="max-w-7xl mx-auto py-10 px-6 md:px-10">
-            {products.length === 0 ? (
-              <p className="text-center text-[#394867] text-lg">
-                No products found for this seller.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                {products.map((product) => (
-                  <Link
-                    key={product._id}
-                    to={`/product/${product._id}`}
-                    className="bg-white border border-[#E8E8E8] rounded-2xl shadow-md hover:shadow-xl transition p-3 cursor-pointer"
-                  >
-                    <img
-                      src={
-                        Array.isArray(product.images) && product.images.length > 0
-                          ? product.images[0]   // direct link from backend
-                          : "https://via.placeholder.com/300"
-                      }
-                      alt={product.product_name}
-                      className="w-full h-56 object-cover rounded-lg"
-                    />
+      <div className="flex-grow bg-[#0a0a0a] py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {activeTab === "products" && (
+            <>
+              {products.length === 0 ? (
+                <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-700" />
+                  <p className="text-gray-400 text-lg">No products found for this seller.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {products.map((product) => (
+                    <ProductCardDark key={product._id} product={product} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
-                    <div className="p-3">
-                      <h3 className="text-[#14274E] font-semibold text-lg truncate">
-                        {product.product_name}
-                      </h3>
-                      <p className="text-[#394867] text-sm mt-1">₹{product.price}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "reviews" && (
-          <div className="max-w-5xl mx-auto py-10 px-6 md:px-10 text-center text-[#394867]">
-            <h2 className="text-xl font-semibold mb-6">Customer Reviews</h2>
-            <p>No reviews yet.</p>
-          </div>
-        )}
+          {activeTab === "reviews" && (
+            <div className="max-w-3xl mx-auto text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+              <Star className="w-12 h-12 mx-auto mb-4 text-gray-700" />
+              <h2 className="text-xl font-semibold text-white mb-2">Customer Reviews</h2>
+              <p className="text-gray-400">Reviews coming soon. Stay tuned!</p>
+            </div>
+          )}
+        </div>
       </div>
+
+      <Footer />
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        missingFields={missingFields}
+      />
     </div>
   );
 }

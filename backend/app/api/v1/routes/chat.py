@@ -17,6 +17,8 @@ conversations = cate_db["conversations"]
 messages = cate_db["messages"]
 vendors = cate_db["vendors"]
 
+SKIMPY_SUPPORT_ID = "skimpy_support_official"
+
 # ---------------- REST Endpoints ----------------
 
 @router.post("/Chat/start")
@@ -26,6 +28,15 @@ def start_conversation(
     product_id: Optional[str] = Query(None),
 ):
     """Create or return a 1:1 conversation between buyer and vendor."""
+    # START PROFILE CHECK
+    user_doc = user_collection.find_one({"user_id": buyer_id})
+    if user_doc:
+         required_fields = ["phone", "DOB", "gender", "avatar"]
+         missing = [f for f in required_fields if not user_doc.get(f)]
+         if missing:
+             raise HTTPException(status_code=403, detail=f"Incomplete profile. Missing: {', '.join(missing)}")
+    # END PROFILE CHECK (If user not found, logic below might handle or error, but this gate is for known users)
+    
     resolved_vendor_user_id = vendor_user_id
     resolved_vendor_id = None
 
@@ -140,6 +151,16 @@ def resolve_display_info(participant_id: str):
             "is_seller": False,
             "user_id": "",
             "vendor_id": None,
+        }
+
+    if participant_id == SKIMPY_SUPPORT_ID:
+        return {
+            "display_name": "Skimpy Support",
+            "avatar": "https://cdn-icons-png.flaticon.com/512/4712/4712035.png", # Professional support icon
+            "is_seller": False,
+            "user_id": SKIMPY_SUPPORT_ID,
+            "vendor_id": None,
+            "is_support": True
         }
 
     # Try to resolve via vendor (seller) profile first
@@ -364,6 +385,15 @@ def post_message(
     sender_id = str(current_user.get("user_id"))
     if not sender_id:
         raise HTTPException(status_code=401, detail="Unauthenticated user")
+
+    # START PROFILE CHECK
+    user_doc = user_collection.find_one({"user_id": sender_id})
+    if user_doc:
+         required_fields = ["phone", "DOB", "gender", "avatar"]
+         missing = [f for f in required_fields if not user_doc.get(f)]
+         if missing:
+             raise HTTPException(status_code=403, detail=f"Incomplete profile. Missing: {', '.join(missing)}")
+    # END PROFILE CHECK
 
     text = text.strip()
     if not text:

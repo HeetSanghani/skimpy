@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends  # <-- This is the corrected line
+from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 from typing import List, Optional
 from datetime import datetime
@@ -6,10 +6,14 @@ from ....db.mongodb import cate_db, user_db
 from ....schemas.dashboard import SellerDashboardResponse, DashboardStats
 from ....schemas.product import ProductResponse
 from app.core.security import get_current_user
-router = APIRouter(prefix="/seller/dashboard", tags=["Seller Dashboard"])
+
+router = APIRouter(prefix="/api/seller/dashboard", tags=["Seller Dashboard"])
+
 # Collections
 product_collection = cate_db.products
-orders_collection = user_db.orders
+# Fixed: Use cate_db.orders to match orders.py where orders are actually created
+orders_collection = cate_db.orders 
+
 # ---------- Helpers ----------
 def objectid_str(doc):
     """Convert ObjectId fields to strings for JSON response."""
@@ -27,13 +31,14 @@ def objectid_str(doc):
     if "seller_id" in doc and doc["seller_id"]:
         doc["seller_id"] = str(doc["seller_id"])
     return doc
+
 def validate_objectid(id_str: str) -> ObjectId:
     """Validate and convert string to ObjectId."""
     if not ObjectId.is_valid(id_str):
         raise HTTPException(status_code=400, detail="Invalid ObjectId")
     return ObjectId(id_str)
+
 # --- MODIFIED HELPER ---
-# This function now matches the logic from your old 'products.py'
 def get_vendor_oid_from_token(current_user: dict) -> ObjectId:
     """
     Looks up the vendor_id from the 'vendors' collection based on
@@ -43,18 +48,23 @@ def get_vendor_oid_from_token(current_user: dict) -> ObjectId:
     user_id_str = current_user.get("user_id")
     if not user_id_str:
         raise HTTPException(status_code=400, detail="User ID field not found in token")
+    
     # Find the matching vendor in the 'vendors' collection
     user_vendor = cate_db.vendors.find_one({"user_id": str(user_id_str)})
+    
     if not user_vendor:
         raise HTTPException(status_code=404, detail="No vendor profile associated with current user")
+    
     # Return the vendor's _id (as an ObjectId)
     return user_vendor["_id"]
+
 def ensure_seller(current_user: dict):
     """Ensure the authenticated user has seller role."""
     role = (current_user.get("role") or "").lower()
     if role != "seller":
         raise HTTPException(status_code=403, detail="Seller access required")
-# ---------- :package: MY LISTINGS (MODIFIED) ----------
+
+# ---------- :package: MY LISTINGS ----------
 @router.get("/listings", response_model=List[ProductResponse])
 def get_my_listings(
     current_user: dict = Depends(get_current_user),
@@ -66,13 +76,30 @@ def get_my_listings(
     Returns a list of products where vendor_id matches the current user's vendor profile.
     """
     ensure_seller(current_user)
-    # --- CHANGED ---
-    # We now get the complex vendor ID, not the simple user ID
+    
+    # We now get the complex vendor ID
     vendor_id = get_vendor_oid_from_token(current_user)
+    
     query = {"vendor_id": vendor_id}
     products = list(product_collection.find(query).skip(skip).limit(limit).sort("created_at", -1))
-    return [objectid_str(p) for p in products]
-# ---------- :moneybag: EARNINGS / SALES (MODIFIED) ----------
+    
+    # Attach variants to each product
+    results = []
+    for p in products:
+        p_data = objectid_str(p)
+        # Fetch variants - Try both string and ObjectId
+        p_id = p["_id"]
+        v_query = {"$or": [{"product_id": str(p_id)}, {"product_id": p_id}]}
+        if ObjectId.is_valid(p_id):
+             v_query["$or"].append({"product_id": ObjectId(p_id)})
+             
+        variants = list(cate_db.variants.find(v_query))
+        p_data["variants"] = [objectid_str(v) for v in variants]
+        results.append(p_data)
+    
+    return results
+
+# ---------- :moneybag: EARNINGS / SALES ----------
 @router.get("/earnings", response_model=DashboardStats)
 def get_earnings_and_sales(current_user: dict = Depends(get_current_user)):
     """
@@ -80,34 +107,42 @@ def get_earnings_and_sales(current_user: dict = Depends(get_current_user)):
     Returns total products, total sales, total revenue, and order statistics.
     """
     ensure_seller(current_user)
-    # --- CHANGED ---
+    
     vendor_id = get_vendor_oid_from_token(current_user)
+    
     # Get total products count
     total_products = product_collection.count_documents({"vendor_id": vendor_id})
+    
     # Initialize stats
     total_sales = 0
     total_revenue = 0.0
     pending_orders = 0
     completed_orders = 0
+    
     # Try to get orders if collection exists and has data
     try:
-        # NOTE: This assumes your 'orders' collection uses the 'vendor_id'
-        # from the 'vendors' collection. If it uses the user '_id', this will fail.
-        orders_query = {"seller_id": vendor_id} # <-- This might be a new bug
+        # Fixed: Use vendor_id (string) to match orders.py structure
+        orders_query = {"vendor_id": str(vendor_id)}
         orders = list(orders_collection.find(orders_query))
+        
         for order in orders:
             order = objectid_str(order)
+            status = str(order.get("status", "")).lower()
+            
             # Calculate revenue from completed orders
-            if order.get("status") == "completed" or order.get("status") == "delivered":
+            if status in ["completed", "delivered"]:
                 completed_orders += 1
-                order_total = order.get("total", 0) or order.get("amount", 0)
+                order_total = order.get("total_amount", 0) or order.get("total", 0) or order.get("amount", 0)
                 if isinstance(order_total, (int, float)):
                     total_revenue += float(order_total)
                     total_sales += 1
-            elif order.get("status") in ["pending", "processing", "confirmed"]:
+            # Pending statuses
+            elif status in ["pending", "processing", "confirmed", "shipped", "pending priority approval"]:
                 pending_orders += 1
+                
     except Exception:
         pass
+        
     stats = DashboardStats(
         total_products=total_products,
         total_sales=total_sales,
@@ -115,8 +150,10 @@ def get_earnings_and_sales(current_user: dict = Depends(get_current_user)):
         pending_orders=pending_orders,
         completed_orders=completed_orders
     )
+    
     return stats
-# ---------- :mailbox: ORDERS (MODIFIED) ----------
+
+# ---------- :mailbox: ORDERS ----------
 @router.get("/orders")
 def get_my_orders(
     current_user: dict = Depends(get_current_user),
@@ -129,22 +166,36 @@ def get_my_orders(
     Optional status filter: pending, processing, completed, cancelled, etc.
     """
     ensure_seller(current_user)
-    # --- CHANGED ---
+    
     vendor_id = get_vendor_oid_from_token(current_user)
-    try:
-        # NOTE: This assumes 'seller_id' in your 'orders' collection
-        # matches the '_id' from the 'vendors' collection.
-        query = {"seller_id": vendor_id} # <-- This might be a new bug
-        if status:
-            query["status"] = status
-        orders = list(orders_collection.find(query).skip(skip).limit(limit).sort("created_at", -1))
-        return [objectid_str(order) for order in orders]
-    except Exception as e:
-        return {
-            "message": "Orders collection not yet implemented or empty",
-            "orders": []
-        }
-# ---------- :package: COMPLETE DASHBOARD (MODIFIED) ----------
+    print(f"DEBUG: get_my_orders - Vendor OID: {vendor_id}, Type: {type(vendor_id)}")
+    
+    # Fixed: Use vendor_id (string) as used in orders.py
+    query = {"vendor_id": str(vendor_id)}
+    
+    if status is not None and status != "":
+        status_lower = status.lower()
+        if status_lower == "pending":
+            # Match "Pending" OR "Pending Priority Approval"
+            query["status"] = {"$in": ["Pending", "Pending Priority Approval", "pending"]}
+        elif status_lower == "processing":
+            # Match "Processing" OR "Approved" (Since approved usually means ready to process)
+            query["status"] = {"$in": ["Processing", "Approved", "processing"]}
+        elif status_lower == "completed":
+             # Match "Completed" OR "Delivered" if needed, but usually just Completed
+             query["status"] = {"$regex": "^Completed", "$options": "i"}
+        else:
+            # Fallback for others (cancelled, delivered, shipped)
+            query["status"] = {"$regex": f"^{status}$", "$options": "i"}
+        
+    print(f"DEBUG: get_my_orders - Query: {query}")
+
+    orders = list(orders_collection.find(query).skip(skip).limit(limit).sort("created_at", -1))
+    print(f"DEBUG: get_my_orders - Found {len(orders)} orders")
+    
+    return [objectid_str(order) for order in orders]
+
+# ---------- :package: COMPLETE DASHBOARD ----------
 @router.get("", response_model=SellerDashboardResponse)
 def get_dashboard(
     current_user: dict = Depends(get_current_user),
@@ -158,40 +209,61 @@ def get_dashboard(
     - :mailbox: Recent Orders
     """
     ensure_seller(current_user)
-    # --- CHANGED ---
+    
     vendor_id = get_vendor_oid_from_token(current_user)
+    
     # Get recent listings
     query = {"vendor_id": vendor_id}
-    products = list(product_collection.find(query).limit(listings_limit).sort("created_at", -1))
-    my_listings = [objectid_str(p) for p in products]
-    # Get stats
+    products_cursor = list(product_collection.find(query).limit(listings_limit).sort("created_at", -1))
+    
+    my_listings = []
+    for p in products_cursor:
+        p_data = objectid_str(p)
+        # Fetch variants - Try both string and ObjectId
+        p_id = p["_id"]
+        v_query = {"$or": [{"product_id": str(p_id)}, {"product_id": p_id}]}
+        if ObjectId.is_valid(p_id):
+             v_query["$or"].append({"product_id": ObjectId(p_id)})
+
+        variants = list(cate_db.variants.find(v_query))
+        p_data["variants"] = [objectid_str(v) for v in variants]
+        my_listings.append(p_data)
+    
+    # Get Stats (same logic as earnings endpoint)
     total_products = product_collection.count_documents({"vendor_id": vendor_id})
     total_sales = 0
     total_revenue = 0.0
     pending_orders = 0
     completed_orders = 0
+    
     orders = []
     try:
-        # NOTE: This assumes 'seller_id' in your 'orders' collection
-        # matches the '_id' from the 'vendors' collection.
-        orders_query = {"seller_id": vendor_id} # <-- This might be a new bug
-        orders_list = list(orders_collection.find(orders_query).limit(orders_limit).sort("created_at", -1))
-        orders = [objectid_str(order) for order in orders_list]
-        # Recalculate stats based *only* on the limited orders
-        # This logic is flawed, it should query all orders for stats.
-        # But I am keeping your original logic.
-        for order in orders_list:
+        # Fixed: query by vendor_id string
+        orders_query = {"vendor_id": str(vendor_id)}
+        
+        # Get ALL orders for stats
+        all_orders = list(orders_collection.find(orders_query).sort("created_at", -1))
+        
+        for order in all_orders:
             order_dict = objectid_str(order)
-            if order_dict.get("status") == "completed" or order_dict.get("status") == "delivered":
+            status = str(order_dict.get("status", "")).lower()
+            
+            if status in ["completed", "delivered"]:
                 completed_orders += 1
-                order_total = order_dict.get("total", 0) or order_dict.get("amount", 0)
+                order_total = order_dict.get("total_amount", 0) or order_dict.get("total", 0) or order_dict.get("amount", 0)
                 if isinstance(order_total, (int, float)):
                     total_revenue += float(order_total)
                     total_sales += 1
-            elif order_dict.get("status") in ["pending", "processing", "confirmed"]:
+            elif status in ["pending", "processing", "confirmed", "shipped", "pending priority approval"]:
                 pending_orders += 1
+                
+        # Slice for the response list
+        orders_list = all_orders[:orders_limit]
+        orders = [objectid_str(order) for order in orders_list]
+        
     except Exception:
         pass
+        
     stats = DashboardStats(
         total_products=total_products,
         total_sales=total_sales,
@@ -199,6 +271,7 @@ def get_dashboard(
         pending_orders=pending_orders,
         completed_orders=completed_orders
     )
+    
     return SellerDashboardResponse(
         my_listings=my_listings,
         stats=stats,
