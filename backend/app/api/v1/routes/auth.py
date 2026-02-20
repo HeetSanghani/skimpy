@@ -9,40 +9,41 @@ from app.services.auth import login_logic, reset_password_logic, generate_and_se
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+from fastapi import BackgroundTasks
+
 @router.post("/login")
-def login(request: OAuth2PasswordRequestForm = Depends(), req: Request = None):
+def login(request: OAuth2PasswordRequestForm = Depends(), req: Request = None, background_tasks: BackgroundTasks = None):
     # Extract IP and User-Agent
     ip = req.client.host if req and req.client else "Unknown"
     device = req.headers.get("User-Agent", "Unknown") if req else "Unknown"
     
-    return login_logic(request.username, request.password, ip=ip, device=device)
+    return login_logic(request.username, request.password, ip=ip, device=device, background_tasks=background_tasks)
 
 
 @router.post("/register")
-def register_user(request: UserRegisterSchema, req: Request = None):
+def register_user(request: UserRegisterSchema, req: Request = None, background_tasks: BackgroundTasks = None):
     # Extract IP and User-Agent
     ip = req.client.host if req and req.client else "Unknown"
     device = req.headers.get("User-Agent", "Unknown") if req else "Unknown"
 
-    return register_user_logic(request, ip=ip, device=device)
+    return register_user_logic(request, ip=ip, device=device, background_tasks=background_tasks)
 
 
 @router.post("/reset-password")
 def reset_password(request: ResetPasswordRequest, current_user: dict = Depends(get_current_user)):
     return reset_password_logic(request, current_user)
 
-from fastapi import BackgroundTasks
 
 @router.post("/send-otp")
 def send_otp(request: EmailModel, background_tasks: BackgroundTasks):
     return generate_and_send_otp(request.email, background_tasks)
 
 @router.post("/verify-otp")
-def verify_otp(request: VerifyOtpModel):
-    return verify_otp_service(request.email, request.otp)
+def verify_otp(request: VerifyOtpModel, background_tasks: BackgroundTasks):
+    return verify_otp_service(request.email, request.otp, background_tasks)
 
 # ---------------- VERIFY FORGOT PASSWORD OTP ---------------- #
 @router.post("/verify-forgot-otp")
-def verify_forgot_otp(request: VerifyForgotOtpRequest):
-    return verify_forgot_otp_logic(request)
+def verify_forgot_otp(request: VerifyForgotOtpRequest, background_tasks: BackgroundTasks):
+    return verify_forgot_otp_logic(request, background_tasks)
 

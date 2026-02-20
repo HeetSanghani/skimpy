@@ -7,7 +7,7 @@ import uuid, os, shutil, random
 from app.utils.email_service import send_otp_email
 from app.services.n8n_sender import trigger_signup_notification, trigger_login_notification, trigger_otp_verified_notification, trigger_send_otp_notification
 
-def login_logic(email: str, password: str, ip: str = None, device: str = None):
+def login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
     user = user_collection.find_one({"email": email})
 
     if not user or not verify_password(password, user["password"]):
@@ -22,12 +22,15 @@ def login_logic(email: str, password: str, ip: str = None, device: str = None):
     user_for_notify["device"] = device
     user_for_notify["login_time"] = datetime.now().isoformat()
     
-    trigger_login_notification(user_for_notify)
+    if background_tasks:
+        background_tasks.add_task(trigger_login_notification, user_for_notify)
+    else:
+        trigger_login_notification(user_for_notify)
     
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str = None):
+def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
     user_data = request.dict()
     user_data.pop("confirm_password")
 
@@ -51,7 +54,10 @@ def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str
         user_data["ip"] = ip
         user_data["device"] = device
         
-        trigger_signup_notification(user_data)
+        if background_tasks:
+            background_tasks.add_task(trigger_signup_notification, user_data)
+        else:
+            trigger_signup_notification(user_data)
         
         return {
             "message": f"User {request.first_name} created successfully",
@@ -105,8 +111,7 @@ def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
 
     otp_collection.insert_one(otp_data)
     
-    # Trigger n8n to send the email instead of logic in email_service.py
-    # send_otp_email(email, otp)
+    # Send OTP using n8n webhook
     if background_tasks:
         background_tasks.add_task(trigger_send_otp_notification, email, otp)
     else:
@@ -118,7 +123,7 @@ def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
 
 
 
-def verify_otp_service(email: str, otp: str):
+def verify_otp_service(email: str, otp: str, background_tasks: BackgroundTasks = None):
     record = otp_collection.find_one({"email": email})
 
     if not record:
@@ -141,13 +146,16 @@ def verify_otp_service(email: str, otp: str):
     )
     
     # Trigger n8n notification
-    trigger_otp_verified_notification(email)
+    if background_tasks:
+        background_tasks.add_task(trigger_otp_verified_notification, email)
+    else:
+        trigger_otp_verified_notification(email)
 
     return {"success": True, "message": "OTP verified"}
 
 
 # ---------------- VERIFY FORGOT PASSWORD OTP ---------------- #
-def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
+def verify_forgot_otp_logic(request: VerifyForgotOtpRequest, background_tasks: BackgroundTasks = None):
     user = user_collection.find_one({"email": request.email})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -171,6 +179,9 @@ def verify_forgot_otp_logic(request: VerifyForgotOtpRequest):
     otp_collection.delete_one({"email": request.email})
     
     # Trigger n8n notification for OTP verification
-    trigger_otp_verified_notification(request.email)
+    if background_tasks:
+        background_tasks.add_task(trigger_otp_verified_notification, request.email)
+    else:
+        trigger_otp_verified_notification(request.email)
 
     return {"message": "Password reset successfully"}

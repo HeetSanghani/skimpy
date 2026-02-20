@@ -15,6 +15,7 @@ origins = [
     "http://localhost:3000",  # For Docker use
     "http://127.0.0.1:3000",
     "http://frontend:3000", 
+    "https://skimpy.vercel.app"
 ]
 app.add_middleware(
     CORSMiddleware,

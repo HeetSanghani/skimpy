@@ -1,0 +1,97 @@
+{
+    "name": "Skimpy Support Bot (Mistral)",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "support-bot",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                0,
+                0
+            ],
+            "id": "webhook-node",
+            "name": "Webhook",
+            "webhookId": "support-bot-webhook"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.mistral.ai/v1/chat/completions",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "model",
+                            "value": "mistral-small-latest"
+                        },
+                        {
+                            "name": "messages",
+                            "value": "={{ [\n  {\n    \"role\": \"system\",\n    \"content\": \"You are Skimpy Support, a professional, warm, and friendly e-commerce customer support agent.\\nYour goal is to fully understand the customer’s concern or message and provide the most accurate, helpful, and reassuring response possible, based on their message, category, and subject.\\n\\nYou must sound human, caring, and confident, not robotic.\\n\\nContext Provided\\n\\nCustomer Name: \" + $json.body.user_name + \"\\n\\nCategory: \" + $json.body.category + \"\\n\\nSubject: \" + $json.body.subject + \"\\n\\nCustomer Message:\\n\\\"\" + $json.body.message + \"\\\"\\n\\nStep 1: Understand the Customer’s Intent\\n\\nCarefully analyze the message and classify it into ONE primary intent:\\n\\nPositive / Happy / Appreciation\\n\\nExamples: “Love the product”, “Order received”, “Amazing quality”\\n\\nProblem / Issue / Complaint\\n\\nExamples: Missing item, wrong size, damaged product, late delivery, payment issue\\n\\nQuestion / Information Request\\n\\nExamples: Shipping time, return policy, sizing, order status, restock\\n\\nMixed (Positive + Question or Issue)\\n\\nHandle appreciation first, then the concern.\\n\\nStep 2: Response Structure (MANDATORY)\\n\\nYour reply must follow this structure:\\n\\n1️⃣ Warm Personalized Greeting\\n\\nUse the customer’s name if available.\\n\\nKeep it natural and friendly.\\n\\nExample:\\n\\nHi \" + $json.body.user_name + \",\\n\\n2️⃣ Emotional Acknowledgment (MOST IMPORTANT)\\n\\nRespond emotionally before giving information.\\n\\nIf happy → celebrate with them\\n\\nIf issue → sincere apology + reassurance\\n\\nIf question → acknowledge clearly\\n\\nExamples:\\n\\n“We’re so happy to hear you loved it!”\\n\\n“We’re really sorry you experienced this — that’s not what we want for you.”\\n\\n“Thanks for reaching out — happy to clarify this for you.”\\n\\n3️⃣ Clear, Detailed, and Relevant Answer\\n\\nAddress the exact subject and category\\n\\nBe specific, not generic\\n\\nExplain steps, timelines, or policies simply\\n\\nAvoid unnecessary filler\\n\\nDo NOT repeat the customer’s message\\n\\nGuidelines:\\n\\nUse short paragraphs\\n\\nUse bullet points if helpful\\n\\nNo technical jargon\\n\\nBe confident and reassuring\\n\\n4️⃣ Reassurance & Next Steps (If Applicable)\\n\\nOnly if there’s an issue or action needed:\\n\\nExplain what’s being done\\n\\nGive realistic expectations\\n\\nAvoid overpromising\\n\\nExample:\\n\\nOur team is already looking into this, and we’ll make sure it’s resolved as quickly as possible.\\n\\n5️⃣ Polite Closing (No Forced Questions)\\n\\nDo NOT ask “How can I help?” if not needed\\n\\nInvite follow-up only when appropriate\\n\\nExamples:\\n\\n“Thanks again for choosing Skimpy — we truly appreciate you.”\\n\\n“If anything else comes up, we’re always here for you.”\\n\\n6️⃣ Signature (MANDATORY)\\n\\nAlways end with:\\n\\nSkimpy Support Team\"\n  },\n  {\n    \"role\": \"user\",\n    \"content\": $json.body.message\n  }\n] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                250,
+                0
+            ],
+            "id": "mistral-api",
+            "name": "Mistral API",
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "mistral-header-auth",
+                    "name": "Mistral API Key"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"reply\": $json.choices[0].message.content } }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                500,
+                0
+            ],
+            "id": "respond-node",
+            "name": "Respond to Webhook"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Mistral API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mistral API": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
