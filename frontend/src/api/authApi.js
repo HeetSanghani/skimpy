@@ -1,6 +1,6 @@
 
 // import axios from "axios";
-// const BASE_URL = "http://127.0.0.1:8000"; // update if needed
+// const BASE_URL = "https://skimpy-backend.onrender.com"; // update if needed
 
 // export const sendOtp = async (email) => {
 //   return axios.post(`${BASE_URL}/auth/send-otp`, { email });
@@ -32,7 +32,7 @@
 // authApi.js
 import axios from "axios";
 import toast from 'react-hot-toast';
-const BASE_URL = ""; // update if needed
+const BASE_URL = "https://skimpy-backend.onrender.com"; // update if needed
 
 export const sendOtp = async (email) => {
   return axios.post(`${BASE_URL}/auth/send-otp`, { email });

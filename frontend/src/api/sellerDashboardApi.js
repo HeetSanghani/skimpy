@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "";
+const BASE_URL = "https://skimpy-backend.onrender.com";
 
 // Helper to get token
 const getAuthHeaders = () => {
