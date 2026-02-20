@@ -1,9 +1,10 @@
-# chat.py
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 from typing import Optional
+import httpx
+import os
 
 from ....db.mongodb import cate_db, user_collection
 from ....services.chat_manager import manager
@@ -18,6 +19,101 @@ messages = cate_db["messages"]
 vendors = cate_db["vendors"]
 
 SKIMPY_SUPPORT_ID = "skimpy_support_official"
+
+def trigger_support_bot(text: str, sender_id: str, conversation_id: str):
+    """
+    Background task to send the user's message to n8n Support Bot webhook
+    and handle the synchronous response.
+    """
+    webhook_url = os.getenv("N8N_SUPPORT_BOT_WEBHOOK_URL")
+    if not webhook_url:
+        print("⚠️ N8N_SUPPORT_BOT_WEBHOOK_URL not set. Skipping support bot trigger.")
+        return
+
+    # 1. Fetch User Details for better context
+    user_name = "Customer"
+    try:
+        user = user_collection.find_one({"user_id": sender_id})
+        if user:
+            # Try to construct a good name
+            first = user.get("first_name", "")
+            last = user.get("last_name", "")
+            full = f"{first} {last}".strip()
+            user_name = full if full else user.get("username", "Customer")
+    except Exception:
+        pass
+
+    # 2. Call n8n Webhook
+    try:
+        # We expect n8n to process and return {"reply": "..."}
+        # Timeout set to 60s to accommodate AI processing + Wait node
+        response = httpx.post(
+            webhook_url,
+            json={
+                "user_name": user_name,
+                "category": "General",
+                "subject": "Inquiry",
+                "message": text,
+                "conversation_id": conversation_id
+            },
+            timeout=60.0
+        )
+        
+        if response.status_code != 200:
+            print(f"❌ Support Bot returned status {response.status_code}")
+            return
+
+        data = response.json()
+        reply_text = data.get("reply")
+        
+        if not reply_text:
+            print("⚠️ Support Bot response missing 'reply' field")
+            return
+
+        # 3. Save Bot Reply to DB
+        msg_doc = {
+            "conversation_id": conversation_id,
+            "sender_id": SKIMPY_SUPPORT_ID,
+            "text": reply_text,
+            "created_at": datetime.utcnow(),
+            "read_by": []
+        }
+        res = messages.insert_one(msg_doc)
+        msg_id = str(res.inserted_id)
+
+        # 4. Update Conversation
+        conversations.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$set": {"last_text": reply_text, "updated_at": datetime.utcnow()}}
+        )
+
+        # 5. Notify User via WebSocket
+        # Iterate over other participants (the user)
+        # Note: This is a best-effort attempt. The frontend polling will catch it anyway.
+        conv = conversations.find_one({"_id": ObjectId(conversation_id)})
+        if conv:
+            for p in conv.get("participants", []):
+                if str(p) != SKIMPY_SUPPORT_ID:
+                    try:
+                        # Convert to JSON-serializable format
+                        final_msg = {
+                            "id": msg_id,
+                            "conversation_id": conversation_id,
+                            "sender_id": SKIMPY_SUPPORT_ID,
+                            "text": reply_text,
+                            "created_at": msg_doc["created_at"].isoformat(),
+                            "read_by": []
+                        }
+                        manager.send_personal_message_sync(
+                            {"type": "message", "message": final_msg}, str(p)
+                        )
+                    except Exception as e:
+                        print(f"⚠️ WS Notify failed (harmless): {e}")
+
+        print(f"✅ Support Bot replied to conversation {conversation_id}")
+
+    except Exception as e:
+        print(f"❌ Failed to trigger Support Bot: {e}")
 
 # ---------------- REST Endpoints ----------------
 
@@ -380,6 +476,7 @@ def post_message(
     conversation_id: str = Query(...),
     text: str = Query(...),
     current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None
 ):
     """Send a chat message — works with PyMongo (not async)."""
     sender_id = str(current_user.get("user_id"))
@@ -423,6 +520,12 @@ def post_message(
         {"_id": ObjectId(conversation_id)},
         {"$set": {"last_text": text, "updated_at": datetime.utcnow()}},
     )
+    
+    # ✅ Check if we need to trigger the Support Bot
+    # If the user is sending a message AND the support bot is a participant
+    if SKIMPY_SUPPORT_ID in conv.get("participants", []) and sender_id != SKIMPY_SUPPORT_ID:
+        if background_tasks:
+            background_tasks.add_task(trigger_support_bot, text, sender_id, conversation_id)
 
     # ✅ Return normalized response
     return {
