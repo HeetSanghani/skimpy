@@ -72,7 +72,7 @@ def trigger_login_notification(user_data: dict):
         }
 
         # Send POST request
-        response = requests.post(webhook_url, json=payload, timeout=5)
+        response = requests.post(webhook_url, json=payload, timeout=20)
         
         if response.status_code == 200:
             logger.info(f"Successfully triggered n8n login notification for user {user_data.get('email')}")
@@ -103,7 +103,7 @@ def trigger_otp_verified_notification(email: str):
         }
 
         # Send POST request
-        response = requests.post(webhook_url, json=payload, timeout=5)
+        response = requests.post(webhook_url, json=payload, timeout=20)
         
         if response.status_code == 200:
             logger.info(f"Successfully triggered n8n OTP verification for user {email}")
@@ -136,7 +136,7 @@ def trigger_order_success_notification(user_data: dict, order_summary: dict):
         }
 
         # Send POST request
-        response = requests.post(webhook_url, json=payload, timeout=5)
+        response = requests.post(webhook_url, json=payload, timeout=20)
         
         if response.status_code == 200:
             logger.info(f"Successfully triggered n8n order notification for user {user_data.get('email')}")
@@ -169,7 +169,7 @@ def trigger_send_otp_notification(email: str, otp: str):
         }
 
         # Send POST request
-        response = requests.post(webhook_url, json=payload, timeout=5)
+        response = requests.post(webhook_url, json=payload, timeout=20)
         
         if response.status_code == 200:
             logger.info(f"Successfully triggered n8n OTP send for user {email}")
