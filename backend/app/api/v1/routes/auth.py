@@ -31,9 +31,11 @@ def register_user(request: UserRegisterSchema, req: Request = None):
 def reset_password(request: ResetPasswordRequest, current_user: dict = Depends(get_current_user)):
     return reset_password_logic(request, current_user)
 
+from fastapi import BackgroundTasks
+
 @router.post("/send-otp")
-def send_otp(request: EmailModel):
-    return generate_and_send_otp(request.email)
+def send_otp(request: EmailModel, background_tasks: BackgroundTasks):
+    return generate_and_send_otp(request.email, background_tasks)
 
 @router.post("/verify-otp")
 def verify_otp(request: VerifyOtpModel):

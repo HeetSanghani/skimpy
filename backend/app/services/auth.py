@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from app.db.mongodb import user_collection, otp_collection
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
@@ -88,7 +88,7 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
     return {"message": "Password updated successfully"}
 
 
-def generate_and_send_otp(email: str):
+def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
     existing_otp = otp_collection.find_one({"email": email})
 
     # Always clear any invalid/old/existing OTPs for this email to prevent duplicates
@@ -107,7 +107,11 @@ def generate_and_send_otp(email: str):
     
     # Trigger n8n to send the email instead of logic in email_service.py
     # send_otp_email(email, otp)
-    trigger_send_otp_notification(email, otp)
+    if background_tasks:
+        background_tasks.add_task(trigger_send_otp_notification, email, otp)
+    else:
+        # Fallback for sync usage if needed
+        trigger_send_otp_notification(email, otp)
 
     return {"message": "New OTP sent to your email"}
 
