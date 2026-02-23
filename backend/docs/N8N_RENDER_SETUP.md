@@ -51,7 +51,12 @@ Use the **Production URL** from the "Send OTP Webhook" node in your **Skimpy Not
 
 ## 5. Gmail in production
 
-OTP and other emails are sent via **n8n's Gmail node** only (no SMTP fallback). With Google OAuth configured in **production** (correct redirect URI for your n8n URL, e.g. `https://skimpy-n8n.onrender.com/...`), the Gmail credential stays valid and n8n can send mail long-term.
+The backend tries **n8n's Gmail node** first. If n8n is down or times out, it **falls back to SMTP** so registration still works. Set these on the **backend** (Render) for reliable OTP when n8n is unavailable:
+
+- `sender_email` — Gmail address used to send OTP
+- `sender_password` — Gmail [App Password](https://support.google.com/accounts/answer/185833)
+
+With Google OAuth configured in production for n8n, the Gmail node works long-term; SMTP is the fallback.
 
 ## 6. Connection checklist (backend ↔ n8n, register flow)
 

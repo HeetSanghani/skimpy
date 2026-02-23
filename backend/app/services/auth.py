@@ -1,3 +1,4 @@
+import logging
 from fastapi import HTTPException, BackgroundTasks
 from app.db.mongodb import user_collection, otp_collection
 from app.core.security import get_password_hash, verify_password, create_access_token
@@ -5,6 +6,9 @@ from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForg
 from datetime import datetime, timedelta
 import uuid, os, shutil, random
 from app.services.n8n_sender import trigger_signup_notification, trigger_login_notification, trigger_otp_verified_notification, trigger_send_otp_notification
+from app.utils.email_service import send_otp_email
+
+logger = logging.getLogger(__name__)
 
 def login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
     user = user_collection.find_one({"email": email})
@@ -111,13 +115,18 @@ def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
             detail="Service temporarily unavailable. Please try again in a moment."
         )
 
-    # Call n8n synchronously so we only return success when email is actually sent
+    # Try n8n first; if n8n fails (timeout, 503, etc.), fall back to SMTP so registration still works
     sent = trigger_send_otp_notification(email, otp)
     if not sent:
-        raise HTTPException(
-            status_code=503,
-            detail="OTP service temporarily unavailable. Please try again in a moment."
-        )
+        try:
+            send_otp_email(email, otp)
+            logger.info(f"OTP sent via SMTP fallback for {email}")
+        except Exception as e:
+            logger.exception("OTP fallback SMTP failed: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="OTP service temporarily unavailable. Please try again in a moment."
+            )
 
     return {"message": "New OTP sent to your email"}
 
