@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "/wishlist";
+const BASE_URL = "https://skimpy-backend.onrender.com/wishlist";
 
 // Helper to get auth headers
 const getAuthHeaders = () => {

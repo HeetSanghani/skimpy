@@ -1,7 +1,6 @@
 import axios from "axios";
 
-// Access the VITE_BASE_URL env var or fallback
-const BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:8000";
+const BASE_URL = "https://skimpy-backend.onrender.com";
 
 /**
  * Send a contact message

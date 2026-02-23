@@ -1,7 +1,7 @@
 import axios from "axios";
 import { store } from "../app/store";
 
-const BASE_URL = "/payment";
+const BASE_URL = "https://skimpy-backend.onrender.com/payment";
 
 // Helper to get token (optional if verification doesn't need auth, but good practice)
 const getAuthHeader = () => {
