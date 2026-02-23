@@ -102,18 +102,7 @@ async def send_contact_message(
                 }}
             )
 
-            # 5. Trigger n8n Webhook in Background
-            webhook_payload = {
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "user_name": contact_data.name,
-                "user_email": contact_data.email,
-                "subject": contact_data.subject,
-                "category": contact_data.category,
-                "message": contact_data.message,
-                "full_text": full_text
-            }
-            background_tasks.add_task(trigger_n8n_webhook, webhook_payload)
+            # n8n webhook removed; auto-reply above is sufficient
 
             return {
                 "message": "Support chat started",
@@ -138,31 +127,3 @@ async def send_contact_message(
     except Exception as e:
         print(f"Error saving contact message: {e}")
         raise HTTPException(status_code=500, detail="Failed to send message")
-
-import os
-import httpx
-from app.services.bot_handler import handle_bot_reply
-
-async def trigger_n8n_webhook(payload: dict):
-    """
-    Sends data to n8n webhook.
-    """
-    url = os.getenv("N8N_SUPPORT_BOT_URL")
-    if not url:
-        print("N8N_SUPPORT_BOT_URL not set. Skipping webhook.")
-        return
-
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url, json=payload, timeout=20.0) # Increased timeout for sync processing
-            
-            # check if successful response
-            if response.status_code == 200:
-                data = response.json()
-                # Check if n8n returned a reply immediately (Sync)
-                if "reply" in data:
-                    await handle_bot_reply(payload["conversation_id"], data["reply"])
-                    print("Processed synchronous n8n reply.")
-            
-        except Exception as e:
-            print(f"Failed to trigger n8n webhook: {e}")

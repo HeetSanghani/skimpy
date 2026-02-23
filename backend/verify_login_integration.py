@@ -22,26 +22,24 @@ class TestLoginWebhook(unittest.TestCase):
     @patch('app.services.auth.user_collection')
     @patch('app.services.auth.verify_password')
     @patch('app.services.auth.create_access_token')
-    @patch('app.services.auth.trigger_login_notification')
-    def test_login_triggers_webhook(self, mock_trigger, mock_create_token, mock_verify, mock_user_collection):
-        # Setup Mocks
+    @patch('app.services.auth.send_login_alert_email')
+    def test_login_triggers_email(self, mock_send_email, mock_create_token, mock_verify, mock_user_collection):
         mock_user = {
             "email": "test@example.com",
             "password": "hashed_secret",
-            "user_id": "123"
+            "user_id": "123",
+            "first_name": "Test",
+            "last_name": "User"
         }
         mock_user_collection.find_one.return_value = mock_user
-        mock_verify.return_value = True # Password matches
+        mock_verify.return_value = True
         mock_create_token.return_value = "fake_token"
 
-        # Execute
-        print("Calling login_logic...")
         response = auth.login_logic("test@example.com", "secret")
 
-        # Verify
-        print("Checking if trigger_login_notification was called...")
-        mock_trigger.assert_called_once_with(mock_user)
-        print("SUCCESS: trigger_login_notification was called with user data.")
+        mock_send_email.assert_called_once()
+        call_args = mock_send_email.call_args[0][0]
+        assert call_args.get("email") == "test@example.com"
 
 if __name__ == '__main__':
     unittest.main()

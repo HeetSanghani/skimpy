@@ -119,6 +119,6 @@ marketplace-app/
 ├── docker-compose.yml                      # backend, frontend, mongodb, kafka, zookeeper
 └── README.md
 
-## n8n on Render (503 "Database is not ready")
+## Email Setup
 
-If n8n at https://skimpy-n8n.onrender.com/ shows **503 – Database is not ready**, add a PostgreSQL database and set the DB env vars on the n8n service. See **backend/docs/N8N_RENDER_SETUP.md** for step-by-step instructions.
+All transactional emails (OTP, signup, login, order) are sent via SMTP. Set `sender_email` and `sender_password` (Gmail App Password) on the backend. See **backend/docs/EMAIL_SETUP.md**.

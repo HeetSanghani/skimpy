@@ -5,8 +5,12 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
 from datetime import datetime, timedelta
 import uuid, os, shutil, random
-from app.services.n8n_sender import trigger_signup_notification, trigger_login_notification, trigger_otp_verified_notification, trigger_send_otp_notification
-from app.utils.email_service import send_otp_email
+from app.utils.email_service import (
+    send_otp_email,
+    send_signup_welcome_email,
+    send_login_alert_email,
+    send_otp_verified_email,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +22,15 @@ def login_logic(email: str, password: str, ip: str = None, device: str = None, b
 
     access_token = create_access_token(data={"sub": user["email"]})
     
-    # Trigger n8n login notification
-    # Inject runtime data into user dict for notification purpose (not saved to DB here)
     user_for_notify = user.copy() if user else {}
     user_for_notify["ip"] = ip
     user_for_notify["device"] = device
     user_for_notify["login_time"] = datetime.now().isoformat()
-    
+
     if background_tasks:
-        background_tasks.add_task(trigger_login_notification, user_for_notify)
+        background_tasks.add_task(send_login_alert_email, user_for_notify)
     else:
-        trigger_login_notification(user_for_notify)
+        send_login_alert_email(user_for_notify)
     
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -52,15 +54,13 @@ def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str
         user_collection.insert_one(user_data)
         otp_collection.delete_one({"email": user_data["email"]})  # cleanup OTP
         
-        # Trigger n8n signup notification with metadata
-        # Inject metadata into user_data for notification (it might not be in DB schema, but useful for webhook)
         user_data["ip"] = ip
         user_data["device"] = device
-        
+
         if background_tasks:
-            background_tasks.add_task(trigger_signup_notification, user_data)
+            background_tasks.add_task(send_signup_welcome_email, user_data)
         else:
-            trigger_signup_notification(user_data)
+            send_signup_welcome_email(user_data)
         
         return {
             "message": f"User {request.first_name} created successfully",
@@ -115,24 +115,20 @@ def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
             detail="Service temporarily unavailable. Please try again in a moment."
         )
 
-    # Try n8n first; if n8n fails (timeout, 503, etc.), fall back to SMTP so registration still works
-    sent = trigger_send_otp_notification(email, otp)
-    if not sent:
-        try:
-            send_otp_email(email, otp)
-            logger.info(f"OTP sent via SMTP fallback for {email}")
-        except ValueError as e:
-            logger.warning("OTP SMTP fallback not configured: %s", e)
-            raise HTTPException(
-                status_code=503,
-                detail="OTP service unavailable. Please try again later or contact support."
-            )
-        except Exception as e:
-            logger.exception("OTP fallback SMTP failed: %s", e)
-            raise HTTPException(
-                status_code=503,
-                detail="OTP service temporarily unavailable. Please try again in a moment."
-            )
+    try:
+        send_otp_email(email, otp)
+    except ValueError as e:
+        logger.warning("OTP email not configured: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="OTP service unavailable. Set sender_email and sender_password on the backend."
+        )
+    except Exception as e:
+        logger.exception("OTP email failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="OTP service temporarily unavailable. Please try again in a moment."
+        )
 
     return {"message": "New OTP sent to your email"}
 
@@ -161,11 +157,10 @@ def verify_otp_service(email: str, otp: str, background_tasks: BackgroundTasks =
         {"$set": {"verified": True}}
     )
     
-    # Trigger n8n notification
     if background_tasks:
-        background_tasks.add_task(trigger_otp_verified_notification, email)
+        background_tasks.add_task(send_otp_verified_email, email)
     else:
-        trigger_otp_verified_notification(email)
+        send_otp_verified_email(email)
 
     return {"success": True, "message": "OTP verified"}
 
@@ -194,10 +189,9 @@ def verify_forgot_otp_logic(request: VerifyForgotOtpRequest, background_tasks: B
 
     otp_collection.delete_one({"email": request.email})
     
-    # Trigger n8n notification for OTP verification
     if background_tasks:
-        background_tasks.add_task(trigger_otp_verified_notification, request.email)
+        background_tasks.add_task(send_otp_verified_email, request.email)
     else:
-        trigger_otp_verified_notification(request.email)
+        send_otp_verified_email(request.email)
 
     return {"message": "Password reset successfully"}

@@ -324,9 +324,9 @@ async def process_successful_payment(session):
         
     print(f":white_check_mark: Created orders {created_order_ids} for user {user_id}")
 
-    # 4. Trigger Notification
+    # 4. Send Order Invoice Email
     try:
-        from app.services.n8n_sender import trigger_order_success_notification
+        from app.utils.email_service import send_order_invoice_email
         grand_total = sum(vendor_totals.values())
         user_email = session.get("customer_details", {}).get("email")
         user_name = session.get("customer_details", {}).get("name")
@@ -361,7 +361,7 @@ async def process_successful_payment(session):
              "shop_address": "Ahmedabad, Gujarat, India",
              "support_contact": "support@skimpy.com"
         }
-        trigger_order_success_notification(user_data, order_summary)
+        send_order_invoice_email(user_data, order_summary)
     except Exception as e:
         print(f"Failed to trigger webhook: {e}")
 
