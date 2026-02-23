@@ -146,35 +146,44 @@ def trigger_order_success_notification(user_data: dict, order_summary: dict):
     except Exception as e:
         logger.error(f"Error triggering n8n order notification: {str(e)}")
 
-def trigger_send_otp_notification(email: str, otp: str):
+def trigger_send_otp_notification(email: str, otp: str) -> bool:
     """
     Triggers the n8n webhook to send an OTP email.
-    
-    Args:
-        email (str): The recipient's email address.
-        otp (str): The OTP code to send.
+    Returns True if n8n accepted the request (HTTP 200), False otherwise.
+    Payload matches n8n Gmail node: $json.body.email, $json.body.otp
     """
-    webhook_url = os.getenv("N8N_SEND_OTP_WEBHOOK_URL")
-    
+    webhook_url = (os.getenv("N8N_SEND_OTP_WEBHOOK_URL") or "").strip()
     if not webhook_url:
-        logger.warning("N8N_SEND_OTP_WEBHOOK_URL is not set. Skipping OTP email.")
-        return
+        logger.warning("N8N_SEND_OTP_WEBHOOK_URL is not set. Skipping n8n OTP.")
+        return False
+
+    payload = {
+        "email": email,
+        "otp": otp,
+        "timestamp": str(datetime.datetime.now())
+    }
+    headers = {"Content-Type": "application/json"}
+
+    # Allow time for n8n on Render free tier to wake (cold start ~50s)
+    timeout_seconds = 45
 
     try:
-        # Prepare payload
-        payload = {
-            "email": email,
-            "otp": otp,
-            "timestamp": str(datetime.datetime.now())
-        }
-
-        # Send POST request
-        response = requests.post(webhook_url, json=payload, timeout=20)
-        
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            headers=headers,
+            timeout=timeout_seconds
+        )
         if response.status_code == 200:
             logger.info(f"Successfully triggered n8n OTP send for user {email}")
-        else:
-            logger.error(f"Failed to trigger n8n OTP send. Status: {response.status_code}, Response: {response.text}")
-            
-    except Exception as e:
+            return True
+        logger.error(
+            f"n8n OTP webhook failed. Status: {response.status_code}, Response: {response.text[:500]}"
+        )
+        return False
+    except requests.exceptions.Timeout:
+        logger.error("n8n OTP webhook timed out (n8n may be spinning up on Render).")
+        return False
+    except requests.exceptions.RequestException as e:
         logger.error(f"Error triggering n8n OTP send: {str(e)}")
+        return False

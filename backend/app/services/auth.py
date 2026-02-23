@@ -4,7 +4,6 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
 from datetime import datetime, timedelta
 import uuid, os, shutil, random
-from app.utils.email_service import send_otp_email
 from app.services.n8n_sender import trigger_signup_notification, trigger_login_notification, trigger_otp_verified_notification, trigger_send_otp_notification
 
 def login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
@@ -95,28 +94,30 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
 
 
 def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
-    existing_otp = otp_collection.find_one({"email": email})
+    try:
+        otp_collection.delete_many({"email": email})
 
-    # Always clear any invalid/old/existing OTPs for this email to prevent duplicates
-    otp_collection.delete_many({"email": email})
+        otp = str(random.randint(100000, 999999))
+        otp_data = {
+            "email": email,
+            "otp": otp,
+            "expires_at": datetime.now() + timedelta(minutes=5),
+            "verified": False
+        }
+        otp_collection.insert_one(otp_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable. Please try again in a moment."
+        )
 
-    # Create new OTP
-    otp = str(random.randint(100000, 999999))
-    otp_data = {
-        "email": email,
-        "otp": otp,
-        "expires_at": datetime.now() + timedelta(minutes=5),
-        "verified": False
-    }
-
-    otp_collection.insert_one(otp_data)
-    
-    # Send OTP using n8n webhook
-    if background_tasks:
-        background_tasks.add_task(trigger_send_otp_notification, email, otp)
-    else:
-        # Fallback for sync usage if needed
-        trigger_send_otp_notification(email, otp)
+    # Call n8n synchronously so we only return success when email is actually sent
+    sent = trigger_send_otp_notification(email, otp)
+    if not sent:
+        raise HTTPException(
+            status_code=503,
+            detail="OTP service temporarily unavailable. Please try again in a moment."
+        )
 
     return {"message": "New OTP sent to your email"}
 

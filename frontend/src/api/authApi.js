@@ -36,7 +36,7 @@ import toast from 'react-hot-toast';
 const BASE_URL = "https://skimpy-backend.onrender.com"; // update if needed
 
 export const sendOtp = async (email) => {
-  return axios.post(`${BASE_URL}/auth/send-otp`, { email });
+  return axios.post(`${BASE_URL}/auth/send-otp`, { email }, { timeout: 60000 });
 };
 
 export const verifyOtp = async (email, otp) => {
