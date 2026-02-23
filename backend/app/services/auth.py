@@ -97,8 +97,19 @@ def reset_password_logic(request: ResetPasswordRequest, current_user: dict):
     return {"message": "Password updated successfully"}
 
 
+def _delete_expired_otps():
+    """Remove all OTPs that have already expired (keeps MongoDB clean)."""
+    try:
+        result = otp_collection.delete_many({"expires_at": {"$lt": datetime.now()}})
+        if result.deleted_count:
+            logger.info("Cleaned up %d expired OTP(s)", result.deleted_count)
+    except Exception as e:
+        logger.warning("Expired OTP cleanup failed: %s", e)
+
+
 def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
     try:
+        _delete_expired_otps()
         otp_collection.delete_many({"email": email})
 
         otp = str(random.randint(100000, 999999))

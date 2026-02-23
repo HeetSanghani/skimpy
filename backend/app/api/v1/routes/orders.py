@@ -128,7 +128,7 @@ async def create_orders_from_cart(
 
 
 
-    # 4. Trigger n8n Order Success Notification
+    # 4. Send order invoice email
     try:
         grand_total = sum(vendor_totals.values())
         all_products = []

@@ -33,7 +33,8 @@ contact_messages_collection = user_db["contact_messages"]
 # User Indexes
 user_collection.create_index("email", unique=True)
 user_collection.create_index("user_id", unique=True)
-otp_collection.create_index("created_at", expireAfterSeconds=300)
+# Auto-remove OTP documents when expires_at has passed (TTL index)
+otp_collection.create_index("expires_at", expireAfterSeconds=0)
 
 # Collections for product DB
 # Collections for product DB

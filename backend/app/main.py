@@ -1,9 +1,10 @@
 import os
 import logging
 from fastapi import FastAPI
-from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values
-from app.api.v1.routes import chat
-from app.api.v1.routes import auth,users,categories,products,vendors,variants, attributes, attribute_values, seller_dashboard, cart, wishlist, payments, orders, contact
+from app.api.v1.routes import (
+    auth, chat, users, categories, products, vendors, variants, attributes, attribute_values,
+    seller_dashboard, cart, wishlist, payments, orders, contact,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -78,8 +79,8 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.on_event("startup")
-def check_email_config():
-    """Log email config status so Render logs show any missing env vars."""
+def startup_tasks():
+    """Run once on deploy: email config check + cleanup expired OTPs."""
     smtp_email = os.getenv("sender_email")
     smtp_pass = os.getenv("sender_password")
     if not smtp_email or not smtp_pass:
@@ -87,6 +88,8 @@ def check_email_config():
             "Email: sender_email/sender_password not set. OTP, signup, login, and order emails will fail. "
             "Set both on Render Environment (Gmail App Password)."
         )
+    from app.services.auth import _delete_expired_otps
+    _delete_expired_otps()
 
 
 
