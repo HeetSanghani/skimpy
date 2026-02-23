@@ -121,6 +121,12 @@ def generate_and_send_otp(email: str, background_tasks: BackgroundTasks = None):
         try:
             send_otp_email(email, otp)
             logger.info(f"OTP sent via SMTP fallback for {email}")
+        except ValueError as e:
+            logger.warning("OTP SMTP fallback not configured: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="OTP service unavailable. Please try again later or contact support."
+            )
         except Exception as e:
             logger.exception("OTP fallback SMTP failed: %s", e)
             raise HTTPException(
