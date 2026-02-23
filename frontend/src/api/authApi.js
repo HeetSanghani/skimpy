@@ -1,5 +1,4 @@
-
-// Trigger Vercel Deploy - Force update of Base URL
+// authApi — backend: skimpy-backend.onrender.com | send-otp timeout: 60s
 import { createAsyncThunk } from "@reduxjs/toolkit";
 // const BASE_URL = "https://skimpy-backend.onrender.com"; // update if needed
 
