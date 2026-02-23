@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    { "source": "/auth/:path*", "destination": "https://skimpy-backend.onrender.com/auth/:path*" },
+    { "source": "/user/:path*", "destination": "https://skimpy-backend.onrender.com/user/:path*" },
+    { "source": "/Category", "destination": "https://skimpy-backend.onrender.com/Category" },
+    { "source": "/Category/:path*", "destination": "https://skimpy-backend.onrender.com/Category/:path*" },
+    { "source": "/Product/:path*", "destination": "https://skimpy-backend.onrender.com/Product/:path*" },
+    { "source": "/Vendor/:path*", "destination": "https://skimpy-backend.onrender.com/Vendor/:path*" },
+    { "source": "/Variant/:path*", "destination": "https://skimpy-backend.onrender.com/Variant/:path*" },
+    { "source": "/Attribute/:path*", "destination": "https://skimpy-backend.onrender.com/Attribute/:path*" },
+    { "source": "/AttributeValue/:path*", "destination": "https://skimpy-backend.onrender.com/AttributeValue/:path*" },
+    { "source": "/Chat/:path*", "destination": "https://skimpy-backend.onrender.com/Chat/:path*" },
+    { "source": "/cart/:path*", "destination": "https://skimpy-backend.onrender.com/cart/:path*" },
+    { "source": "/wishlist/:path*", "destination": "https://skimpy-backend.onrender.com/wishlist/:path*" },
+    { "source": "/orders/:path*", "destination": "https://skimpy-backend.onrender.com/orders/:path*" },
+    { "source": "/payment/:path*", "destination": "https://skimpy-backend.onrender.com/payment/:path*" },
+    { "source": "/api/:path*", "destination": "https://skimpy-backend.onrender.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://skimpy-backend.onrender.com/uploads/:path*" }
+  ]
+}

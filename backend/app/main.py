@@ -81,12 +81,23 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 @app.on_event("startup")
 def startup_tasks():
     """Run once on deploy: email config check + cleanup expired OTPs."""
+    # Prefer Gmail API config; fall back to SMTP.
+    gmail_ok = all(
+        os.getenv(k)
+        for k in ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_USER_EMAIL"]
+    )
     smtp_email = os.getenv("sender_email")
     smtp_pass = os.getenv("sender_password")
-    if not smtp_email or not smtp_pass:
+
+    if gmail_ok:
+        logging.info("Email: using Gmail API transport (HTTPS).")
+    elif smtp_email and smtp_pass:
+        logging.info("Email: using SMTP transport (gmail.com:465).")
+    else:
         logging.warning(
-            "Email: sender_email/sender_password not set. OTP, signup, login, and order emails will fail. "
-            "Set both on Render Environment (Gmail App Password)."
+            "Email: no valid email transport configured. "
+            "Set Gmail API env (GMAIL_CLIENT_ID/SECRET, GMAIL_REFRESH_TOKEN, GMAIL_USER_EMAIL) "
+            "or sender_email/sender_password."
         )
     from app.services.auth import _delete_expired_otps
     _delete_expired_otps()

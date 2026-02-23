@@ -1,12 +1,21 @@
 """
-Skimpy Email Service — sends all transactional emails via SMTP (Gmail).
+Skimpy Email Service — sends all transactional emails.
+
 Replaces n8n webhooks for: OTP, signup, login, OTP verified, order invoice.
+
+Transport priority:
+1. Gmail API over HTTPS (preferred in hosted environments like Render)
+2. SMTP (Gmail) as a fallback when network allows direct SMTP
 """
+import base64
+import json
+import logging
 import os
 import smtplib
-import logging
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,6 +23,89 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://skimpy.vercel.app")
+
+
+def _gmail_api_enabled() -> bool:
+    """Return True when all Gmail API env vars are present."""
+    required = [
+        "GMAIL_CLIENT_ID",
+        "GMAIL_CLIENT_SECRET",
+        "GMAIL_REFRESH_TOKEN",
+        "GMAIL_USER_EMAIL",
+    ]
+    return all(os.getenv(k) for k in required)
+
+
+def _get_gmail_access_token() -> str:
+    """
+    Exchange a long‑lived refresh token for a short‑lived access token.
+
+    This uses the standard Google OAuth2 token endpoint and does not require
+    any interactive flow at runtime.
+    """
+    client_id = os.getenv("GMAIL_CLIENT_ID")
+    client_secret = os.getenv("GMAIL_CLIENT_SECRET")
+    refresh_token = os.getenv("GMAIL_REFRESH_TOKEN")
+
+    if not (client_id and client_secret and refresh_token):
+        raise ValueError("Gmail API not configured: missing client id/secret or refresh token")
+
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token",
+    }
+    resp = requests.post(token_url, data=data, timeout=15)
+    try:
+        resp.raise_for_status()
+    except Exception:
+        logger.error("Gmail token refresh failed: %s - %s", resp.status_code, resp.text)
+        raise
+
+    payload = resp.json()
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise ValueError("Gmail token response missing access_token")
+    return access_token
+
+
+def _send_via_gmail_api(to_email: str, subject: str, html_body: str):
+    """
+    Send HTML email using Gmail API over HTTPS.
+
+    This avoids direct SMTP connections (which are often blocked on PaaS
+    free tiers) while keeping all existing templates intact.
+    """
+    user_email = os.getenv("GMAIL_USER_EMAIL")
+    if not user_email:
+        raise ValueError("GMAIL_USER_EMAIL not set")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = user_email
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html"))
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
+    access_token = _get_gmail_access_token()
+
+    send_url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+    resp = requests.post(
+        send_url,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json={"raw": raw},
+        timeout=15,
+    )
+    try:
+        resp.raise_for_status()
+    except Exception:
+        logger.error("Gmail API send failed: %s - %s", resp.status_code, resp.text)
+        raise
 
 
 def _get_smtp():
@@ -24,7 +116,8 @@ def _get_smtp():
     return sender, password
 
 
-def _send_html(to_email: str, subject: str, html_body: str):
+def _send_via_smtp(to_email: str, subject: str, html_body: str):
+    """Fallback SMTP sender (used when Gmail API is not configured)."""
     sender, password = _get_smtp()
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -34,6 +127,21 @@ def _send_html(to_email: str, subject: str, html_body: str):
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
         server.login(sender, password)
         server.sendmail(sender, to_email, msg.as_string())
+
+
+def _send_html(to_email: str, subject: str, html_body: str):
+    """
+    Send HTML email using the best available transport.
+
+    1. If Gmail API env vars are present → use Gmail API over HTTPS.
+    2. Otherwise fall back to SMTP (if configured).
+    """
+    if _gmail_api_enabled():
+        _send_via_gmail_api(to_email, subject, html_body)
+        return
+
+    # Fallback to SMTP (works only when environment allows direct SMTP).
+    _send_via_smtp(to_email, subject, html_body)
 
 
 # ─── TEMPLATE HELPERS ─────────────────────────────────────────────────────
