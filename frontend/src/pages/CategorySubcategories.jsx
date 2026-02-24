@@ -60,6 +60,12 @@ export default function CategorySubcategories() {
     return `${API_BASE_URL}/uploads/${cleanPath}`;
   };
 
+  const isSvgIcon = (img) => {
+    if (!img) return false;
+    const lower = img.toLowerCase();
+    return lower.includes(".svg") || lower.startsWith("data:image/svg");
+  };
+
   const handleCategoryClick = (category) => {
     const children = subcategories.filter(sub => sub.parent_id === category._id || sub.parent_id === category.id);
     const categoryId = category._id || category.id;
@@ -144,11 +150,21 @@ export default function CategorySubcategories() {
                 onClick={() => handleCategoryClick(sub)}
               >
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-300 bg-white flex items-center justify-center">
+                <div
+                  className={
+                    isSvgIcon(sub.image)
+                      ? "w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-300 bg-white/5 flex items-center justify-center"
+                      : "w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-300 bg-white flex items-center justify-center"
+                  }
+                >
                   <img
                     src={normalizeImage(sub.image)}
                     alt={sub.category_name}
-                    className="w-full h-full object-contain p-2 bg-white group-hover:scale-110 transition-transform duration-500"
+                    className={
+                      isSvgIcon(sub.image)
+                        ? "w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 filter invert brightness-200"
+                        : "w-full h-full object-contain p-2 bg-white group-hover:scale-110 transition-transform duration-500"
+                    }
                     onError={(e) => {
                       e.currentTarget.src = "https://via.placeholder.com/120x120?text=No+Image";
                     }}
