@@ -66,6 +66,24 @@ export default function CategorySubcategories() {
     return lower.includes(".svg") || lower.startsWith("data:image/svg");
   };
 
+  const shouldTreatAsIconRaster = (img) => {
+    if (!img) return false;
+    if (isSvgIcon(img)) return false;
+    const lower = img.toLowerCase();
+    if (!(lower.includes(".png") || lower.includes(".jpg") || lower.includes(".jpeg") || lower.startsWith("data:image/"))) {
+      return false;
+    }
+
+    // Heuristic: treat as an icon when the URL hints it's a generic icon asset.
+    // This avoids applying filters to real photos.
+    return (
+      lower.includes("icon") ||
+      lower.includes("icons") ||
+      lower.includes("svg") ||
+      lower.includes("image.jpg")
+    );
+  };
+
   const handleCategoryClick = (category) => {
     const children = subcategories.filter(sub => sub.parent_id === category._id || sub.parent_id === category.id);
     const categoryId = category._id || category.id;
@@ -152,7 +170,7 @@ export default function CategorySubcategories() {
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div
                   className={
-                    isSvgIcon(sub.image)
+                    isSvgIcon(sub.image) || shouldTreatAsIconRaster(sub.image)
                       ? "w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-300 bg-white/5 flex items-center justify-center"
                       : "w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-2 ring-white/10 group-hover:ring-indigo-500/30 transition-all duration-300 bg-white flex items-center justify-center"
                   }
@@ -162,6 +180,8 @@ export default function CategorySubcategories() {
                     alt={sub.category_name}
                     className={
                       isSvgIcon(sub.image)
+                        ? "w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 filter invert brightness-200"
+                        : shouldTreatAsIconRaster(sub.image)
                         ? "w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-500 filter invert brightness-200"
                         : "w-full h-full object-contain p-2 bg-white group-hover:scale-110 transition-transform duration-500"
                     }
