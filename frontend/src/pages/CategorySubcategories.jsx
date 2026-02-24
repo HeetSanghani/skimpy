@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { fetchSubcategories } from "../features/settings/settingsSlice";
 import ProductListingForm from "../components/ProductListingForm";
+import { API_BASE_URL } from "../api/baseUrl";
 
 export default function CategorySubcategories() {
   const { id } = useParams();
@@ -53,9 +54,10 @@ export default function CategorySubcategories() {
   const normalizeImage = (img) => {
     if (!img) return "https://via.placeholder.com/120x120?text=No+Image";
     if (img.startsWith("http") || img.startsWith("data:")) return img;
+
     const cleanPath = img.startsWith("/") ? img.slice(1) : img;
-    if (cleanPath.startsWith("uploads/")) return `/${cleanPath}`;
-    return `/uploads/${cleanPath}`;
+    if (cleanPath.startsWith("uploads/")) return `${API_BASE_URL}/${cleanPath}`;
+    return `${API_BASE_URL}/uploads/${cleanPath}`;
   };
 
   const handleCategoryClick = (category) => {
@@ -146,7 +148,10 @@ export default function CategorySubcategories() {
                   <img
                     src={normalizeImage(sub.image)}
                     alt={sub.category_name}
-                    className="w-12 h-12 sm:w-16 sm:h-16 object-contain group-hover:scale-110 transition-transform duration-500"
+                    className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://via.placeholder.com/120x120?text=No+Image";
+                    }}
                   />
                 </div>
                 <p className="capitalize font-semibold text-gray-300 group-hover:text-white text-center text-xs sm:text-sm transition-colors duration-200 line-clamp-2">
