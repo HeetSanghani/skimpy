@@ -148,7 +148,7 @@ export default function CategorySubcategories() {
                   <img
                     src={normalizeImage(sub.image)}
                     alt={sub.category_name}
-                    className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => {
                       e.currentTarget.src = "https://via.placeholder.com/120x120?text=No+Image";
                     }}
