@@ -8,23 +8,8 @@ from fastapi import HTTPException, UploadFile
 def _is_svg_bytes(file_bytes: bytes) -> bool:
     if not file_bytes:
         return False
-    head = file_bytes.lstrip()[:100].lower()
-    return head.startswith(b"<svg") or b"<svg" in head
-
-
-def _svg_to_png_bytes(svg_bytes: bytes) -> bytes:
-    try:
-        import cairosvg  # type: ignore
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail="SVG upload is not supported on this server yet (missing cairosvg). Please upload PNG.",
-        ) from e
-
-    try:
-        return cairosvg.svg2png(bytestring=svg_bytes)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid SVG file") from e
+    head = file_bytes.lstrip()[:200].lower()
+    return head.startswith(b"<svg") or head.startswith(b"<?xml") or b"<svg" in head
 
 
 IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
@@ -53,9 +38,9 @@ def upload_image_to_imgbb(file_or_bytes: Union[UploadFile, bytes]) -> Tuple[str,
     else:
         file_bytes = file_or_bytes
 
-    # If SVG is uploaded, convert to PNG first.
+    # SVG uploads are disabled. Please upload PNG.
     if _is_svg_bytes(file_bytes):
-        file_bytes = _svg_to_png_bytes(file_bytes)
+        raise HTTPException(status_code=400, detail="SVG images are not supported. Please upload a PNG image.")
 
     response = requests.post(
         "https://api.imgbb.com/1/upload",
