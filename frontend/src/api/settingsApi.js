@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const BASE_URL = "https://skimpy-backend.onrender.com"; // Proxy handles prefix
+import { API_BASE_URL } from "./baseUrl";
+
+const BASE_URL = API_BASE_URL; // Proxy handles prefix
 
 // Helper to get token
 // Helper to get token

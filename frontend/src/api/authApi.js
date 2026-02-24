@@ -33,7 +33,9 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import toast from 'react-hot-toast';
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://skimpy-backend.onrender.com";
+import { API_BASE_URL } from "./baseUrl";
+
+const BASE_URL = API_BASE_URL;
 
 export const sendOtp = async (email) => {
   return axios.post(`${BASE_URL}/auth/send-otp`, { email }, { timeout: 60000 });

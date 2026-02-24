@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const BASE_URL = "https://skimpy-backend.onrender.com";
+import { API_BASE_URL } from "./baseUrl";
+
+const BASE_URL = API_BASE_URL;
 
 // Helper to get auth headers
 const getAuthHeaders = () => {

@@ -1,7 +1,9 @@
 import axios from "axios";
 import { store } from "../app/store"; // Corrected named import
 
-const BASE_URL = "https://skimpy-backend.onrender.com/orders";
+import { API_BASE_URL } from "./baseUrl";
+
+const BASE_URL = `${API_BASE_URL}/orders`;
 
 // Helper to get token
 const getAuthHeader = () => {
