@@ -92,7 +92,7 @@ function AppRouter() {
       />
 
 
-      <Route path="/Products" element={<Products />} />
+      <Route path="/products" element={<Products />} />
       <Route path="/product/:id" element={<ProductDetails />} />
       <Route
         path="/messages"
