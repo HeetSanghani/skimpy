@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { API_BASE_URL } from "../api/baseUrl";
 
 const IconBar = ({ parentSlug }) => {
   const [categories, setCategories] = useState([]);
@@ -14,7 +15,7 @@ const IconBar = ({ parentSlug }) => {
     const fetchDirectChildren = async () => {
       if (!parentSlug) { setCategories([]); return; }
       try {
-        const res = await fetch("/Category");
+        const res = await fetch(`${API_BASE_URL}/Category`);
         if (!res.ok) throw new Error("Failed to fetch categories");
         const data = await res.json();
 
@@ -88,6 +89,14 @@ const IconBar = ({ parentSlug }) => {
       >
         {categories.map((cat) => {
           const isActive = activeSlug === cat.slug;
+          const img = cat.image;
+          const normalizeImage = (v) => {
+            if (!v || typeof v !== "string") return "";
+            if (v.startsWith("http") || v.startsWith("data:")) return v;
+            const clean = v.startsWith("/") ? v.slice(1) : v;
+            if (clean.startsWith("uploads/")) return `${API_BASE_URL}/${clean}`;
+            return `${API_BASE_URL}/uploads/${clean}`;
+          };
           return (
             <div
               key={cat._id}
@@ -101,12 +110,10 @@ const IconBar = ({ parentSlug }) => {
                   : "border-gray-100 bg-gray-50 group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:shadow-md group-hover:shadow-indigo-100"
                   }`}
               >
-                {cat.image ? (
+                {img ? (
                   <img
                     src={
-                      (cat.image || "").startsWith("http")
-                        ? cat.image
-                        : `/${cat.image.replace(/\\/g, "/")}`
+                      normalizeImage(img)
                     }
                     alt={cat.category_name}
                     className="w-9 h-9 object-contain"

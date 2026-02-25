@@ -7,6 +7,7 @@ import Footer from "../components/Footer";
 import IconBar from "../components/IconBar";
 import ProductCard from "../components/ProductCard";
 import { Package } from "lucide-react";
+import { API_BASE_URL } from "../api/baseUrl";
 
 export default function ProductPage() {
   const params = useParams();
@@ -19,7 +20,7 @@ export default function ProductPage() {
       if (!slug) return;
       setLoading(true);
       try {
-        const res = await fetch(`/Product/Category?slug=${slug}`);
+        const res = await fetch(`${API_BASE_URL}/Product/Category?slug=${encodeURIComponent(slug)}`);
         if (!res.ok) {
           console.error("Failed fetching products for slug:", slug);
           setProducts([]);
