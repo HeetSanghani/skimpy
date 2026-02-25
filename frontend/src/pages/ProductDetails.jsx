@@ -243,26 +243,6 @@ const ProductDetails = () => {
     }
   };
 
-  // ✅ Message Seller Handler
-  const handleMessageSeller = (sellerId) => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    // Check Profile
-    const missing = validateProfile();
-    if (missing.length > 0) {
-      setMissingFields(missing);
-      setShowProfileModal(true);
-      return;
-    }
-
-    if (sellerId) {
-      navigate(`/chat/${sellerId}`);
-    }
-  };
-
   // ✅ Wishlist toggle
   const handleWishlistToggle = async () => {
     if (!token) return navigate("/login");
@@ -480,14 +460,9 @@ const ProductDetails = () => {
                   </button>
                 </div>
                 <button
-                  onClick={() => {
-                    const sid = vendor?._id || vendor?.id || product?.vendor_id;
-                    handleMessageSeller(sid);
-                  }}
-                  className="w-full py-3 text-slate-500 font-medium hover:text-indigo-600 transition-colors flex items-center justify-center gap-2 text-base group"
-                >
-                  <span className="text-xl group-hover:scale-110 transition-transform">💬</span> Ask a question about this item
-                </button>
+                  onClick={() => {}}
+                  className="hidden"
+                />
               </div>
 
               {/* SELLER CARD */}

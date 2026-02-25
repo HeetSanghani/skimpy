@@ -46,22 +46,6 @@ function SellerShopPage() {
     return missing;
   };
 
-  const handleMessageSeller = () => {
-    if (!token) {
-      toast.error("Please log in to message the seller.");
-      navigate("/login");
-      return;
-    }
-    const missing = validateProfile();
-    if (missing.length > 0) {
-      toast.error(`Please complete your profile: ${missing.join(", ")}`);
-      setMissingFields(missing);
-      setShowProfileModal(true);
-      return;
-    }
-    navigate(`/chat/${sellerId}`);
-  };
-
   // Fetch Seller details and their products
   useEffect(() => {
     const fetchSellerData = async () => {

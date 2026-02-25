@@ -21,13 +21,10 @@ import ProductPage from '../pages/ProductPage';
 
 import Products from '../pages/Products';
 import ProductDetails from '../pages/ProductDetails';
-import Messages from '../pages/Messages';
 import Wishlist from '../pages/Wishlist';
 import Orders from '../pages/Orders';
 import OrderDetails from '../pages/OrderDetails';
 import PaymentSuccess from "../pages/PaymentSuccess";
-
-import ChatPage from '../pages/ChatPage.jsx';
 import SellerShopPage from '../pages/SellerShopPage.jsx'
 
 
@@ -61,14 +58,6 @@ function AppRouter() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <Messages />
-          </ProtectedRoute>
-        }
-      />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -95,14 +84,6 @@ function AppRouter() {
       <Route path="/products" element={<Products />} />
       <Route path="/product/:id" element={<ProductDetails />} />
       <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <Messages />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/my-orders"
         element={
           <ProtectedRoute>
@@ -121,14 +102,6 @@ function AppRouter() {
 
       <Route path="/order-confirmation" element={<PaymentSuccess />} />
       <Route path="/seller/:sellerId" element={<SellerShopPage />} />
-      <Route
-        path="/chat/:sellerId"
-        element={
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        }
-      />
 
 
       {/* :small_blue_diamond: Category & Products */}

@@ -7,7 +7,7 @@ import { fetchAvatar } from "../features/settings/settingsSlice";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Heart, ShoppingCart, Package, MessageCircle } from "lucide-react";
+import { Heart, ShoppingCart, Package } from "lucide-react";
 
 const BASE_URL = "http://localhost:8000";
 
@@ -20,7 +20,6 @@ export default function Navbar() {
   const { avatarUrl } = useSelector((state) => state.settings);
 
   const [query, setQuery] = useState("");
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -50,22 +49,6 @@ export default function Navbar() {
     }
     setIsMenuOpen(false);
   };
-
-  useEffect(() => {
-    if (!token) { setUnreadCount(0); return; }
-    let cancelled = false;
-    const loadUnread = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/Chat/unread`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!cancelled) setUnreadCount(res.data?.total_unread ?? 0);
-      } catch { if (!cancelled) setUnreadCount(0); }
-    };
-    loadUnread();
-    const interval = setInterval(loadUnread, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [token]);
 
   return (
     <nav
@@ -150,20 +133,6 @@ export default function Navbar() {
             {token && (
               <NavIconBtn to="/my-orders" label="Orders">
                 <Package size={18} strokeWidth={1.8} />
-              </NavIconBtn>
-            )}
-
-            {/* Messages (logged in only) */}
-            {token && (
-              <NavIconBtn to="/messages" label="Messages">
-                <div className="relative">
-                  <MessageCircle size={18} strokeWidth={1.8} />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-2.5 -right-2.5 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-[9px] font-bold text-white ring-2 ring-[#0a0a0a] animate-pulse">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </div>
               </NavIconBtn>
             )}
 
