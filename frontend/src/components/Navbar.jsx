@@ -106,18 +106,6 @@ export default function Navbar() {
               {isCategoriesOpen && (
                 <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-white/10 bg-[#0d0d0d]/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
                   <div className="max-h-80 overflow-auto py-2">
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        navigate("/sell");
-                        setIsCategoriesOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-semibold text-indigo-300 hover:bg-white/5 transition-colors"
-                    >
-                      Sell (All Categories)
-                    </button>
-                    <div className="my-1 h-px bg-white/10" />
                     {visibleCategories.map((cat) => (
                       <button
                         key={cat._id || cat.id}

@@ -41,7 +41,8 @@ export default function ProductPage() {
 
   // Capitalise each word of the last slug segment
   const rawTitle = slug ? slug.split("/").pop().replace(/-/g, " ") : "Category";
-  const title = rawTitle.replace(/\b\w/g, (c) => c.toUpperCase());
+  const cleanedRawTitle = rawTitle.replace(/\s*\d+\s*$/, "").trim();
+  const title = cleanedRawTitle.replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -61,7 +62,12 @@ export default function ProductPage() {
           {/* Left: breadcrumb + title */}
           <div className="flex-1">
             <p className="text-indigo-400 text-xs font-bold tracking-[0.2em] uppercase mb-1">
-              {slug ? slug.split("/").join(" › ") : "Category"}
+              {slug
+                ? slug
+                    .split("/")
+                    .map((seg) => seg.replace(/-\d+$/, "").replace(/-/g, " "))
+                    .join(" › ")
+                : "Category"}
             </p>
             <h1 className="font-sora text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
               <span className="text-white">{title.split(" ")[0]}</span>
