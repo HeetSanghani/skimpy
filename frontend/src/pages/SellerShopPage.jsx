@@ -7,10 +7,11 @@ import ProfileCompletionModal from "../components/ProfileCompletionModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import toast from 'react-hot-toast';
-import { MessageCircle, ShoppingBag, Store, MapPin, Calendar, Star, Package } from "lucide-react";
+import { ShoppingBag, Store, MapPin, Calendar, Star, Package } from "lucide-react";
 import ProductCardDark from "../components/ProductCardDark";
+import { API_BASE_URL } from "../api/baseUrl";
 
-const BASE_URL = "";
+const BASE_URL = API_BASE_URL;
 
 const DEFAULT_IMAGE = "data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22200%22%20height%3D%22200%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20200%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3A%23666%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_1%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%231a1a2e%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2260%22%20y%3D%22105%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E";
 
@@ -21,6 +22,7 @@ function SellerShopPage() {
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const dispatch = useDispatch();
   const { token, user } = useSelector((state) => state.auth || {});
@@ -50,13 +52,17 @@ function SellerShopPage() {
   useEffect(() => {
     const fetchSellerData = async () => {
       try {
+        setError("");
+
         const sellerRes = await axios.get(`${BASE_URL}/Vendor?vendor_id=${sellerId}`);
-        setSeller(sellerRes.data);
+        const sellerData = sellerRes?.data || null;
+        setSeller(sellerData);
 
         const productRes = await axios.get(`${BASE_URL}/Product/by-vendor/${sellerId}`);
         setProducts(Array.isArray(productRes.data) ? productRes.data : []);
       } catch (err) {
         console.error("Error fetching seller or products:", err);
+        setError("Failed to load shop. Please try again.");
         setProducts([]);
       } finally {
         setLoading(false);
@@ -70,7 +76,9 @@ function SellerShopPage() {
     if (typeof img !== "string") return DEFAULT_IMAGE;
     if (img.startsWith("http://") || img.startsWith("https://")) return img;
     if (img.startsWith("data:image")) return img;
-    return `${BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
+    const cleanPath = img.startsWith("/") ? img.slice(1) : img;
+    if (cleanPath.startsWith("uploads/")) return `${BASE_URL}/${cleanPath}`;
+    return `${BASE_URL}/uploads/${cleanPath}`;
   };
 
   if (loading)
@@ -95,7 +103,7 @@ function SellerShopPage() {
           <div className="text-center">
             <Store className="w-16 h-16 mx-auto mb-4 text-gray-600" />
             <h2 className="text-xl font-bold mb-2">Seller Not Found</h2>
-            <p className="text-gray-400 mb-6">This shop is unavailable or does not exist.</p>
+            <p className="text-gray-400 mb-6">{error || "This shop is unavailable or does not exist."}</p>
             <button onClick={() => navigate("/")} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
               Back to Home
             </button>
@@ -136,10 +144,10 @@ function SellerShopPage() {
 
             <div className="flex-grow text-center md:text-left pb-2">
               <h1 className="text-2xl md:text-4xl font-extrabold text-white font-sora tracking-tight mb-2">
-                {seller.shop_name}
+                {seller.shop_name || "Shop"}
               </h1>
               <p className="text-gray-400 text-sm md:text-base max-w-2xl mx-auto md:mx-0 line-clamp-2 mb-4">
-                {seller.description || "Welcome to my shop! Check out my latest products and deals."}
+                {seller.shop_description || seller.description || seller.address || "Welcome to my shop! Check out my latest products and deals."}
               </p>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500">
@@ -151,22 +159,15 @@ function SellerShopPage() {
                   <Star className="w-4 h-4 text-amber-400" />
                   <span>4.8 Rating</span>
                 </div>
-                {/* Placeholder for location/joined if available */}
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                  <Calendar className="w-4 h-4 text-emerald-400" />
-                  <span>Joined 2024</span>
-                </div>
+                {(seller.city || seller.state || seller.country || seller.address) && (
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                    <MapPin className="w-4 h-4 text-emerald-400" />
+                    <span className="line-clamp-1">
+                      {seller.city || seller.state || seller.country || seller.address}
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-
-            <div className="flex-shrink-0 pb-2 w-full md:w-auto">
-              <button
-                onClick={handleMessageSeller}
-                className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
-              >
-                <MessageCircle className="w-5 h-5" />
-                Message Seller
-              </button>
             </div>
           </div>
         </div>
