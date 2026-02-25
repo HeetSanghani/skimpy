@@ -53,6 +53,8 @@ const btnPrimary = "px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 t
 const btnSecondary = "px-6 py-2.5 border border-white/15 text-gray-300 font-semibold rounded-xl hover:bg-white/5 hover:text-white transition-all";
 const btnDanger = "px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all";
 
+const getVariantId = (v) => String(v?.id ?? v?._id ?? "");
+
 
 export default function ProductDetail() {
   const { productId } = useParams();
@@ -222,8 +224,9 @@ export default function ProductDetail() {
   const fetchVariants = async (pid = productId) => {
     try {
       const res = await axios.get(`${BASE_URL}/Variant/list/${pid}`, { headers: getAuthHeaders() });
-      const v = res.data?.variants ?? res.data ?? [];
-      setVariants(Array.isArray(v) ? v : []);
+      const vRaw = res.data?.variants ?? res.data ?? [];
+      const v = Array.isArray(vRaw) ? vRaw : [];
+      setVariants(v);
     } catch (err) {
       console.error("fetchVariants error:", err);
       setVariants([]);
@@ -605,9 +608,9 @@ export default function ProductDetail() {
                     </thead>
                     <tbody className="divide-y divide-white/10">
                       {variants.map((v) => (
-                        <tr key={v._id || v.id} className="hover:bg-white/5 transition-colors">
+                        <tr key={getVariantId(v)} className="hover:bg-white/5 transition-colors">
                           <td className="px-4 py-3 font-medium text-white">
-                            {v.attribute_values?.map(av => av.value).join(", ") || "Standard"}
+                            {v.attributes?.map(a => `${a.attribute_name}: ${a.value_name}`).join(", ") || "Standard"}
                           </td>
                           <td className="px-4 py-3">₹{v.price}</td>
                           <td className="px-4 py-3">{v.stock}</td>
