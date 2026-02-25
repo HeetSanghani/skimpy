@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import CategoryNavbar from "../components/CategoryNavbar";
 import Footer from "../components/Footer";
 import IconBar from "../components/IconBar";
 import ProductCard from "../components/ProductCard";
@@ -46,6 +47,7 @@ export default function ProductPage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Navbar />
+      <CategoryNavbar />
 
       {/* ── Subcategory icon strip ── */}
       <IconBar parentSlug={slug} />

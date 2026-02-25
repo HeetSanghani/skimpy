@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import CategoryNavbar from "../components/CategoryNavbar";
 import ProductCard from "../components/ProductCard";
 import { fetchAllProducts } from "../api/settingsApi";
 
@@ -45,6 +46,7 @@ export default function Products() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Navbar />
+      <CategoryNavbar />
 
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}

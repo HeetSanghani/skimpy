@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import CategoryNavbar from "../components/CategoryNavbar";
 import Footer from "../components/Footer";
 import ProductCard from "../components/ProductCard";
 import { fetchAllCategories, fetchAllProducts } from "../api/settingsApi";
@@ -76,6 +77,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-inter">
       <Navbar />
+      <CategoryNavbar />
 
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
         {/* HERO SECTION */}

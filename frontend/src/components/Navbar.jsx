@@ -6,7 +6,7 @@ import defaultAvatar from "../assets/default-avatar.png";
 import { fetchAvatar, fetchCategories } from "../features/settings/settingsSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Heart, ShoppingCart, Package, ChevronDown } from "lucide-react";
+import { Heart, ShoppingCart, Package } from "lucide-react";
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -20,7 +20,6 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
   useEffect(() => {
     if (token) dispatch(fetchAvatar());
@@ -58,7 +57,6 @@ export default function Navbar() {
     const id = cat?._id || cat?.id;
     if (!id) return;
     navigate(`/category/${id}`);
-    setIsCategoriesOpen(false);
     setIsMenuOpen(false);
   };
 
@@ -90,39 +88,9 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* CENTER — Categories + Search */}
+          {/* CENTER — Search */}
           <div className="w-full max-w-2xl mx-auto flex items-center gap-3">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsCategoriesOpen((v) => !v)}
-                onBlur={() => setTimeout(() => setIsCategoriesOpen(false), 120)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/12 bg-white/6 text-gray-200 hover:bg-white/10 hover:border-white/20 transition-all duration-200 text-sm font-semibold"
-              >
-                Categories
-                <ChevronDown size={16} strokeWidth={2} className={`transition-transform duration-200 ${isCategoriesOpen ? "rotate-180" : "rotate-0"}`} />
-              </button>
-
-              {isCategoriesOpen && (
-                <div className="absolute left-0 mt-2 w-72 rounded-2xl border border-white/10 bg-[#0d0d0d]/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
-                  <div className="max-h-80 overflow-auto py-2">
-                    {visibleCategories.map((cat) => (
-                      <button
-                        key={cat._id || cat.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleCategoryNavigate(cat)}
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 transition-colors"
-                      >
-                        {cat.category_name || cat.name || "Category"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSearchSubmit} className="flex-1">
+            <form onSubmit={handleSearchSubmit} className="w-full">
             <label htmlFor="nav-search-desktop" className="sr-only">Search products</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
