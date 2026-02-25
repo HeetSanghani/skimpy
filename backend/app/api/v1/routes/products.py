@@ -344,12 +344,17 @@ def update_product(
     if category_id: update_fields["category_id"] = validate_objectid(category_id)
     if product_name: update_fields["product_name"] = product_name
     if description: update_fields["description"] = description
-    if price is not None: update_fields["price"] = price
-    if stock is not None: 
+    if price is not None:
+        update_fields["price"] = price
+        # ✅ Sync updated price to all variants so the product detail page shows the correct price
+        from app.db.mongodb import variant_collection
+        variant_collection.update_many(
+            {"product_id": str(product_id)},
+            {"$set": {"price": price}}
+        )
+    if stock is not None:
         update_fields["stock"] = stock
-        # Sync to variants if stock is being set to 0 (Out of Stock)
-        # Or if we want to enforce parent-level control.
-        # For now, if stock is 0, zero out variants to ensure they don't show as available.
+        # If stock is 0, zero out variants too so they show as unavailable
         if stock == 0:
             from app.db.mongodb import variant_collection
             variant_collection.update_many(
