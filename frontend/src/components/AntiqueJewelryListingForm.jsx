@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { API_BASE_URL } from '../api/baseUrl';
 
 const ANTIQUE_ATTRIBUTES = [
   { name: "Material", values: ["Gold", "Silver", "Platinum", "Brass", "Copper", "Bronze", "Alloy", "Mixed Metal"] },
@@ -25,7 +26,7 @@ const sectionCls = "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2
 const AntiqueJewelryListingForm = ({ onBack }) => {
   const { id: categoryId } = useParams();
   const navigate = useNavigate();
-  const API_BASE = 'http://127.0.0.1:8000';
+  const API_BASE = API_BASE_URL;
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
