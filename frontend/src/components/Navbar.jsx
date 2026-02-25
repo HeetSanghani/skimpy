@@ -256,16 +256,6 @@ export default function Navbar() {
         <div className="px-4 pt-3 pb-4 space-y-3 border-t border-white/10 bg-[#0d0d0d]">
           {/* Mobile Categories */}
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            <button
-              type="button"
-              onClick={() => {
-                navigate("/sell");
-                setIsMenuOpen(false);
-              }}
-              className="flex-shrink-0 px-4 py-2 rounded-full bg-white/8 border border-white/12 text-sm font-semibold text-indigo-300"
-            >
-              Categories
-            </button>
             {visibleCategories.slice(0, 8).map((cat) => (
               <button
                 key={cat._id || cat.id}
