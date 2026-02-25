@@ -4,12 +4,9 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import defaultAvatar from "../assets/default-avatar.png";
 import { fetchAvatar } from "../features/settings/settingsSlice";
-import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Heart, ShoppingCart, Package } from "lucide-react";
-
-const BASE_URL = "http://localhost:8000";
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -234,21 +231,6 @@ export default function Navbar() {
               <MobileNavLink to="/wishlist" label="Wishlist" icon={Heart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-cart" label="Cart" icon={ShoppingCart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-orders" label="Orders" icon={Package} onClick={() => setIsMenuOpen(false)} />
-              <Link
-                to="/messages"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-400 transition-colors duration-200"
-              >
-                <div className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-indigo-500/10 transition-colors duration-200">
-                  <MessageCircle size={20} strokeWidth={1.8} />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium">Messages</span>
-              </Link>
             </div>
           ) : null}
 
