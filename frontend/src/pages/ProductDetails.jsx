@@ -110,10 +110,19 @@ const ProductDetails = () => {
         // Variants
         try {
           const variantRes = await axios.get(`${BASE_URL}/Variant/list/${id}`);
-          const fetchedVariants = variantRes.data?.variants || [];
+          const fetchedVariantsRaw = variantRes.data?.variants ?? variantRes.data ?? [];
+          const fetchedVariants = Array.isArray(fetchedVariantsRaw) ? fetchedVariantsRaw : [];
           if (!mounted) return;
           setVariants(fetchedVariants);
-          if (fetchedVariants.length > 0) setSelectedVariant(fetchedVariants[0]);
+          if (fetchedVariants.length > 0) {
+            setSelectedVariant((prev) => {
+              const prevId = getVariantId(prev);
+              const stillExists = prevId && fetchedVariants.some((v) => getVariantId(v) === prevId);
+              return stillExists ? prev : fetchedVariants[0];
+            });
+          } else {
+            setSelectedVariant(null);
+          }
         } catch {
           setVariants([]);
           setSelectedVariant(null);
