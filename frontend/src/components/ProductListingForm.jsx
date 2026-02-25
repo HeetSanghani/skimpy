@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createProduct } from '../api/settingsApi';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Upload, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from "../api/baseUrl";
@@ -41,6 +42,8 @@ const labelCls = "block text-sm font-semibold text-gray-400 mb-2";
 const sectionCls = "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6";
 
 const ProductListingForm = ({ category, onBack }) => {
+  const navigate = useNavigate();
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
