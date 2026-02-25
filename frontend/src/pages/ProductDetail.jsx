@@ -76,6 +76,10 @@ export default function ProductDetail() {
   const [editingVariantId, setEditingVariantId] = useState(null);
   const [variantForm, setVariantForm] = useState({ price: "", stock: "", selectedAttributes: {} });
 
+  const [showAddVariant, setShowAddVariant] = useState(false);
+  const [addVariantForm, setAddVariantForm] = useState({ sku: "", price: "", stock: "", selectedAttributes: {} });
+  const [creatingVariant, setCreatingVariant] = useState(false);
+
   const [editForm, setEditForm] = useState({});
   const [editMode, setEditMode] = useState(false);
 
@@ -163,6 +167,65 @@ export default function ProductDetail() {
     setVariantForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAddVariantChange = (e) => {
+    const { name, value } = e.target;
+    setAddVariantForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const setAddVariantAttr = (attributeId, valueId) => {
+    setAddVariantForm((prev) => ({
+      ...prev,
+      selectedAttributes: {
+        ...(prev.selectedAttributes || {}),
+        [attributeId]: valueId,
+      },
+    }));
+  };
+
+  const resetAddVariantForm = () => {
+    setAddVariantForm({ sku: "", price: "", stock: "", selectedAttributes: {} });
+    setShowAddVariant(false);
+  };
+
+  const createVariant = async () => {
+    try {
+      setCreatingVariant(true);
+      const selected = addVariantForm.selectedAttributes || {};
+      const attributePairs = Object.entries(selected)
+        .filter(([, valueId]) => valueId)
+        .map(([attributeId, valueId]) => ({ attribute_id: attributeId, value_id: valueId }));
+
+      if (!addVariantForm.price || !addVariantForm.stock) {
+        toast.error("Price and stock are required.");
+        return;
+      }
+
+      if (attributePairs.length === 0) {
+        toast.error("Select at least one attribute.");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("price", addVariantForm.price);
+      fd.append("stock", addVariantForm.stock);
+      if (addVariantForm.sku) fd.append("sku", addVariantForm.sku);
+      fd.append("attribute_values", JSON.stringify(attributePairs));
+
+      await axios.post(`${BASE_URL}/Variant/add/${productId}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
+      });
+
+      toast.success("Variant created!");
+      await fetchVariants(productId);
+      resetAddVariantForm();
+    } catch (err) {
+      console.error("createVariant error:", err);
+      toast.error("Failed to create variant.");
+    } finally {
+      setCreatingVariant(false);
+    }
+  };
+
   const saveVariant = async () => {
     if (!editingVariantId) return;
     try {
@@ -213,6 +276,19 @@ export default function ProductDetail() {
     fetchAllAttributeValues();
     // eslint-disable-next-line
   }, [productId]);
+
+  useEffect(() => {
+    if (!product?.category_id) return;
+    const cid = product.category_id;
+    setLoadingAttributes(true);
+    axios
+      .get(`${BASE_URL}/Attribute/by_category/${cid}`, { headers: getAuthHeaders() })
+      .then((res) => {
+        setAttributes(res.data?.attributes || []);
+      })
+      .catch(() => setAttributes([]))
+      .finally(() => setLoadingAttributes(false));
+  }, [product?.category_id]);
 
   useEffect(() => {
     if (!product) return;
@@ -450,7 +526,95 @@ export default function ProductDetail() {
 
               {/* --- VARIANTS SECTION --- */}
               <div className="pt-6 border-t border-white/10">
-                <h3 className="text-lg font-bold text-white mb-4">Manage Variants</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-white">Manage Variants</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddVariant((v) => !v)}
+                    className={btnSecondary}
+                  >
+                    Add Variant
+                  </button>
+                </div>
+
+                {showAddVariant && (
+                  <div className={cardCls + " mb-6 space-y-4"}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className={labelCls}>SKU (optional)</label>
+                        <input
+                          type="text"
+                          name="sku"
+                          value={addVariantForm.sku}
+                          onChange={handleAddVariantChange}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Price</label>
+                        <input
+                          type="number"
+                          name="price"
+                          value={addVariantForm.price}
+                          onChange={handleAddVariantChange}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Stock</label>
+                        <input
+                          type="number"
+                          name="stock"
+                          value={addVariantForm.stock}
+                          onChange={handleAddVariantChange}
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={labelCls + " mb-0"}>Attributes</span>
+                        {loadingAttributes && <span className="text-xs text-gray-500">Loading...</span>}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {(attributes || []).map((attr) => {
+                          const attrId = String(attr._id || attr.id || "");
+                          const selectedValueId = addVariantForm.selectedAttributes?.[attrId] || "";
+                          const values = (allAttributeValues || []).filter((v) => String(v.attribute_id) === attrId);
+                          return (
+                            <div key={attrId}>
+                              <label className={labelCls}>{attr.name}</label>
+                              <select
+                                value={selectedValueId}
+                                onChange={(e) => setAddVariantAttr(attrId, e.target.value)}
+                                className={inputCls}
+                              >
+                                <option value="">Select {attr.name}</option>
+                                {values.map((v) => (
+                                  <option key={String(v._id || v.id)} value={String(v._id || v.id)}>
+                                    {v.value}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-2">
+                      <button type="button" onClick={resetAddVariantForm} className={btnSecondary}>
+                        Cancel
+                      </button>
+                      <button type="button" onClick={createVariant} disabled={creatingVariant} className={btnPrimary}>
+                        {creatingVariant ? "Creating..." : "Create Variant"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm text-gray-400">
                     <thead className="text-xs uppercase bg-white/5 text-gray-300">
