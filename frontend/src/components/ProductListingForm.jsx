@@ -156,7 +156,7 @@ const ProductListingForm = ({ category, onBack }) => {
     if (existingAttr) {
       attributeId = existingAttr._id;
     } else {
-      const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
+      const addAttrResp = await axios.post(`${API_BASE_URL}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
       });
       attributeId = addAttrResp.data?.id;
@@ -166,7 +166,7 @@ const ProductListingForm = ({ category, onBack }) => {
     let valueId = findValueId(attributeId, chosenValue);
     if (!valueId) {
       try {
-        const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
+        const addValResp = await axios.post(`${API_BASE_URL}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
         });
         valueId = addValResp.data?.id;
