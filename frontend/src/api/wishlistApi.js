@@ -1,7 +1,7 @@
 import axios from "axios";
 import { API_BASE_URL } from "./baseUrl";
 
-const BASE_URL = API_BASE_URL;
+const BASE_URL = `${API_BASE_URL}/wishlist`;
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
