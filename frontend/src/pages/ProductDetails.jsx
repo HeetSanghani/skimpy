@@ -109,11 +109,19 @@ const ProductDetails = () => {
 
         // Variants
         try {
-          const variantRes = await axios.get(`${BASE_URL}/Variant/list/${id}`);
-          const fetchedVariantsRaw = variantRes.data?.variants ?? variantRes.data ?? [];
-          const fetchedVariants = Array.isArray(fetchedVariantsRaw) ? fetchedVariantsRaw : [];
+          let fetchedVariants = [];
+          try {
+            const variantRes = await axios.get(`${BASE_URL}/Variant/list/${id}`);
+            const fetchedVariantsRaw = variantRes.data?.variants ?? variantRes.data ?? [];
+            fetchedVariants = Array.isArray(fetchedVariantsRaw) ? fetchedVariantsRaw : [];
+          } catch {
+            const variantRes = await axios.get(`${BASE_URL}/Variant`, { params: { product_id: id } });
+            const fetchedVariantsRaw = variantRes.data?.variants ?? variantRes.data ?? [];
+            fetchedVariants = Array.isArray(fetchedVariantsRaw) ? fetchedVariantsRaw : [];
+          }
           if (!mounted) return;
           setVariants(fetchedVariants);
+          console.log("Variants loaded:", fetchedVariants.length);
           if (fetchedVariants.length > 0) {
             setSelectedVariant((prev) => {
               const prevId = getVariantId(prev);
