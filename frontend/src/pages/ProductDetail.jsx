@@ -6,6 +6,7 @@ import { fetchProductById, deleteProduct, updateProduct, updateVariant, deleteVa
 import axios from "axios";
 import { useConfirmation } from "../context/ConfirmationContext";
 import toast from "react-hot-toast";
+import { API_BASE_URL } from "../api/baseUrl";
 
 // --- PRESET ATTRIBUTE DEFINITIONS (same as ProductListingForm) ---
 const CLOTHING_KEYWORDS = [
@@ -15,7 +16,7 @@ const CLOTHING_KEYWORDS = [
 ];
 
 const BOOK_KEYWORDS = ["book", "books", "novel", "comics", "magazine", "textbook", "encyclopedia"];
-const BASE_URL = 'http://127.0.0.1:8000';
+const BASE_URL = API_BASE_URL;
 
 const CLOTHING_ATTRIBUTES = [
   { name: "Size", values: ["XS", "S", "M", "L", "XL", "XXL"] },
