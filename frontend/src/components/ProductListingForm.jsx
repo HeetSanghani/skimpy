@@ -3,6 +3,7 @@ import { createProduct } from '../api/settingsApi';
 import axios from 'axios';
 import { Plus, Trash2, Upload, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from "../api/baseUrl";
 
 const CLOTHING_KEYWORDS = ["clothes", "clothing", "t-shirt", "shirt", "jeans", "trousers", "pants", "dress", "skirt", "shorts", "jacket", "coat", "sweater", "hoodie", "kurta", "suit", "blazer", "top"];
 const BOOK_KEYWORDS = ["book", "books", "novel", "comics", "magazine", "textbook", "encyclopedia"];
@@ -40,7 +41,6 @@ const labelCls = "block text-sm font-semibold text-gray-400 mb-2";
 const sectionCls = "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6";
 
 const ProductListingForm = ({ category, onBack }) => {
-  const API_BASE = 'http://127.0.0.1:8000';
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -71,7 +71,7 @@ const ProductListingForm = ({ category, onBack }) => {
     const fetchDynamicAttributes = async () => {
       try {
         if (!category._id) return;
-        const res = await axios.get(`${API_BASE}/Attribute/by_category/${category._id}`, { headers: getAuthHeaders() });
+        const res = await axios.get(`${API_BASE_URL}/Attribute/by_category/${category._id}`, { headers: getAuthHeaders() });
         setAttributes(res.data.attributes || []);
       } catch (e) {
         setAttributes([]);
@@ -197,8 +197,8 @@ const ProductListingForm = ({ category, onBack }) => {
       const productId = product._id || product.id;
 
       const [allAttrsResp, allValsResp] = await Promise.all([
-        axios.get(`${API_BASE}/Attribute/`),
-        axios.get(`${API_BASE}/AttributeValue/`)
+        axios.get(`${API_BASE_URL}/Attribute/`),
+        axios.get(`${API_BASE_URL}/AttributeValue/`)
       ]);
       const allAttributes = (allAttrsResp.data?.attributes || []);
       const allValues = allValsResp.data?.attribute_values || [];
@@ -228,13 +228,14 @@ const ProductListingForm = ({ category, onBack }) => {
         if (spec.sku) variantData.append('sku', spec.sku);
         if (spec.brand) variantData.append('brand', spec.brand);
 
-        await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
+        await axios.post(`${API_BASE_URL}/Variant/add/${productId}`, variantData, {
           headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
         });
       }
 
       toast.success('Product and all variants created successfully!');
-      onBack();
+      if (onBack) onBack();
+      else navigate('/seller/dashboard?tab=listings');
     } catch (error) {
       console.error('Error creating product:', error);
       toast.error('Error creating product. Please try again.');
