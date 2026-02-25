@@ -223,9 +223,20 @@ export default function ProductDetail() {
 
   const fetchVariants = async (pid = productId) => {
     try {
-      const res = await axios.get(`${BASE_URL}/Variant/list/${pid}`, { headers: getAuthHeaders() });
+      let res;
+      try {
+        const url = `${BASE_URL}/Variant/list/${pid}`;
+        console.log("Fetching variants:", url);
+        res = await axios.get(url, { headers: getAuthHeaders() });
+      } catch (e) {
+        const url = `${API_BASE_URL}/Variant/list/${pid}`;
+        console.log("Fetching variants (fallback):", url);
+        res = await axios.get(url, { headers: getAuthHeaders() });
+      }
+
       const vRaw = res.data?.variants ?? res.data ?? [];
       const v = Array.isArray(vRaw) ? vRaw : [];
+      console.log("Variants fetched:", v.length);
       setVariants(v);
     } catch (err) {
       console.error("fetchVariants error:", err);
