@@ -74,10 +74,10 @@ export default function ProductDetail() {
   const [loadingAttributes, setLoadingAttributes] = useState(false);
 
   const [editingVariantId, setEditingVariantId] = useState(null);
-  const [variantForm, setVariantForm] = useState({ price: "", stock: "", selectedAttributes: {} });
+  const [variantForm, setVariantForm] = useState({ price: "", stock: "", sku: "", description: "", product_condition: "NEW", selectedAttributes: {} });
 
   const [showAddVariant, setShowAddVariant] = useState(false);
-  const [addVariantForm, setAddVariantForm] = useState({ sku: "", price: "", stock: "", selectedAttributes: {} });
+  const [addVariantForm, setAddVariantForm] = useState({ sku: "", price: "", stock: "", description: "", product_condition: "NEW", selectedAttributes: {} });
   const [creatingVariant, setCreatingVariant] = useState(false);
 
   const [editForm, setEditForm] = useState({});
@@ -111,6 +111,9 @@ export default function ProductDetail() {
     product_name: p?.product_name ?? p?.name ?? "",
     description: p?.description ?? "",
     brand: p?.brand ?? p?.manufacturer ?? "",
+    price: p?.price ?? "",
+    stock: p?.stock ?? "",
+    product_condition: p?.product_condition ?? p?.condition ?? "NEW",
     images: p?.images ?? p?.images_list ?? []
   });
 
@@ -153,13 +156,15 @@ export default function ProductDetail() {
     setVariantForm({
       price: variant.price,
       stock: variant.stock,
-      sku: variant.sku
+      sku: variant.sku || "",
+      description: variant.description || "",
+      product_condition: variant.product_condition || "NEW",
     });
   };
 
   const cancelEditingVariant = () => {
     setEditingVariantId(null);
-    setVariantForm({ price: "", stock: "", selectedAttributes: {} });
+    setVariantForm({ price: "", stock: "", sku: "", description: "", product_condition: "NEW", selectedAttributes: {} });
   };
 
   const handleVariantFormChange = (e) => {
@@ -183,7 +188,7 @@ export default function ProductDetail() {
   };
 
   const resetAddVariantForm = () => {
-    setAddVariantForm({ sku: "", price: "", stock: "", selectedAttributes: {} });
+    setAddVariantForm({ sku: "", price: "", stock: "", description: "", product_condition: "NEW", selectedAttributes: {} });
     setShowAddVariant(false);
   };
 
@@ -209,6 +214,8 @@ export default function ProductDetail() {
       fd.append("price", addVariantForm.price);
       fd.append("stock", addVariantForm.stock);
       if (addVariantForm.sku) fd.append("sku", addVariantForm.sku);
+      if (addVariantForm.description) fd.append("description", addVariantForm.description);
+      if (addVariantForm.product_condition) fd.append("product_condition", addVariantForm.product_condition);
       fd.append("attribute_values", JSON.stringify(attributePairs));
 
       await axios.post(`${BASE_URL}/Variant/add/${productId}`, fd, {
@@ -233,6 +240,8 @@ export default function ProductDetail() {
       formData.append("price", variantForm.price);
       formData.append("stock", variantForm.stock);
       if (variantForm.sku) formData.append("sku", variantForm.sku);
+      if (variantForm.description !== undefined) formData.append("description", variantForm.description);
+      if (variantForm.product_condition) formData.append("product_condition", variantForm.product_condition);
 
       await updateVariant(editingVariantId, formData);
 
@@ -372,7 +381,12 @@ export default function ProductDetail() {
       const formData = new FormData();
       formData.append("product_name", editForm.product_name);
       formData.append("description", editForm.description);
-      if (editForm.brand) formData.append("manufacturer", editForm.brand);
+      // ✅ Fixed: use "brand" not "manufacturer"
+      if (editForm.brand) formData.append("brand", editForm.brand);
+      // ✅ Added: send price, stock, product_condition
+      if (editForm.price !== "") formData.append("price", editForm.price);
+      if (editForm.stock !== "") formData.append("stock", editForm.stock);
+      if (editForm.product_condition) formData.append("product_condition", editForm.product_condition);
 
       // Append new images
       newImages.forEach(file => {
@@ -386,10 +400,7 @@ export default function ProductDetail() {
 
       await updateProduct(productId, formData);
 
-      // Refresh product data to show new images
-      // Or manually update local state if we get the new image URL back.
-      // updateProduct returns the updated product object, so we can set it.
-      const updatedProduct = await fetchProductById(productId); // safer to refetch to get image URLs
+      const updatedProduct = await fetchProductById(productId);
       setProduct(updatedProduct);
       setEditForm(normalizeProductToForm(updatedProduct));
 
@@ -513,6 +524,48 @@ export default function ProductDetail() {
                 />
               </div>
 
+              {/* ✅ Added: Price, Stock, Condition */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div>
+                  <label className={labelCls}>Price (₹)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={editForm.price}
+                    onChange={handleEditChange}
+                    step="0.01"
+                    min="0"
+                    className={inputCls}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Stock Quantity</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={editForm.stock}
+                    onChange={handleEditChange}
+                    min="0"
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Condition</label>
+                  <select
+                    name="product_condition"
+                    value={editForm.product_condition}
+                    onChange={handleEditChange}
+                    className={inputCls}
+                  >
+                    <option value="NEW" className="bg-[#1a1a2e]">New</option>
+                    <option value="USED" className="bg-[#1a1a2e]">Used</option>
+                    <option value="REFURBISHED" className="bg-[#1a1a2e]">Refurbished</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className={labelCls}>Brand / Manufacturer</label>
                 <input
@@ -604,6 +657,34 @@ export default function ProductDetail() {
                       </div>
                     </div>
 
+                    {/* Description + Condition for new variant */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>Description</label>
+                        <textarea
+                          name="description"
+                          value={addVariantForm.description}
+                          onChange={handleAddVariantChange}
+                          rows={2}
+                          className={inputCls + " resize-none"}
+                          placeholder="Variant description..."
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Condition</label>
+                        <select
+                          name="product_condition"
+                          value={addVariantForm.product_condition}
+                          onChange={handleAddVariantChange}
+                          className={inputCls}
+                        >
+                          <option value="NEW" className="bg-[#1a1a2e]">New</option>
+                          <option value="USED" className="bg-[#1a1a2e]">Used</option>
+                          <option value="REFURBISHED" className="bg-[#1a1a2e]">Refurbished</option>
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-2">
                       <button type="button" onClick={resetAddVariantForm} className={btnSecondary}>
                         Cancel
@@ -623,6 +704,7 @@ export default function ProductDetail() {
                         <th className="px-4 py-3">Price</th>
                         <th className="px-4 py-3">Stock</th>
                         <th className="px-4 py-3">SKU</th>
+                        <th className="px-4 py-3">Condition</th>
                         <th className="px-4 py-3 rounded-tr-lg">Action</th>
                       </tr>
                     </thead>
@@ -671,6 +753,22 @@ export default function ProductDetail() {
                                 />
                               ) : (
                                 v.sku || "-"
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <select
+                                  name="product_condition"
+                                  value={variantForm.product_condition}
+                                  onChange={handleVariantFormChange}
+                                  className="bg-black/20 border border-white/10 rounded px-2 py-1 text-white text-sm"
+                                >
+                                  <option value="NEW" className="bg-[#1a1a2e]">New</option>
+                                  <option value="USED" className="bg-[#1a1a2e]">Used</option>
+                                  <option value="REFURBISHED" className="bg-[#1a1a2e]">Refurbished</option>
+                                </select>
+                              ) : (
+                                <span className="text-xs">{v.product_condition || "-"}</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -778,6 +876,7 @@ export default function ProductDetail() {
                         <th className="px-4 py-3 rounded-tl-lg">Attributes</th>
                         <th className="px-4 py-3">Price</th>
                         <th className="px-4 py-3">Stock</th>
+                        <th className="px-4 py-3">Condition</th>
                         <th className="px-4 py-3 rounded-tr-lg">SKU</th>
                       </tr>
                     </thead>
@@ -789,6 +888,9 @@ export default function ProductDetail() {
                           </td>
                           <td className="px-4 py-3">₹{v.price}</td>
                           <td className="px-4 py-3">{v.stock}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs">{v.product_condition || "-"}</span>
+                          </td>
                           <td className="px-4 py-3">{v.sku || "-"}</td>
                         </tr>
                       ))}
@@ -810,8 +912,8 @@ export default function ProductDetail() {
                   <span className="text-gray-200 font-medium">{product.stock || "0"}</span>
                 </div>
                 <div>
-                  <span className="block text-xs text-gray-500 uppercase tracking-wider">Manufacturer</span>
-                  <span className="text-gray-200 font-medium">{product.manufacturer || "-"}</span>
+                  <span className="block text-xs text-gray-500 uppercase tracking-wider">Brand</span>
+                  <span className="text-gray-200 font-medium">{product.brand || "-"}</span>
                 </div>
               </div>
             </div>

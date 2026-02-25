@@ -68,6 +68,7 @@ async def create_product(
     stock: int = Form(..., description="Stock"),
     product_condition: ProductCondition = Form(ProductCondition.NEW, description="Condition"),
     brand: Optional[str] = Form(None, description="Brand"),
+    extra_fields: Optional[str] = Form(None, description="JSON string of extra category-specific fields, e.g. '{\"capacity_ml\": 250}'"),
     # vendor_id is ignored from input, strictly sourced from auth
     files: Optional[List[UploadFile]] = File(None, description="Images"),
     current_user: dict = Depends(get_current_user)
@@ -93,6 +94,16 @@ async def create_product(
         "created_at": datetime.utcnow(),
         "updated_at": None
     }
+
+    # Merge any extra category-specific fields (e.g. pottery dimensions)
+    if extra_fields:
+        try:
+            import json
+            parsed_extra = json.loads(extra_fields)
+            if isinstance(parsed_extra, dict):
+                product_dict.update(parsed_extra)
+        except Exception:
+            pass  # Silently ignore malformed JSON
 
     result = product_collection.insert_one(product_dict)
     new_product = product_collection.find_one({"_id": result.inserted_id})
@@ -279,16 +290,21 @@ def get_product(product_id: str):
 
     return {
         "id": str(product["_id"]),
+        "_id": str(product["_id"]),
+        # Both keys so frontend can read by either name
+        "product_name": product.get("product_name") or product.get("name") or "Untitled Product",
         "name": product.get("product_name") or product.get("name") or "Untitled Product",
-        "description": product.get("description", "No description available"),
+        "description": product.get("description", ""),
         "price": product.get("price"),
         "stock": product.get("stock"),
-        "condition": product.get("product_condition") or product.get("condition") or "N/A",
-        "images": product.get("images", []),  # ✅ return list of all image paths
+        # Both keys for condition too
+        "product_condition": product.get("product_condition") or product.get("condition") or "NEW",
+        "condition": product.get("product_condition") or product.get("condition") or "NEW",
+        "brand": product.get("brand"),
+        "images": product.get("images", []),
         "category_id": category_id,
-        "vendor_id": vendor_id,  # ✅ stringified vendor_id always returned
+        "vendor_id": vendor_id,
         "vendor": vendor_data,
-        "_id": str(product["_id"]), # Ensure _id is also at root if needed
     }
 
 

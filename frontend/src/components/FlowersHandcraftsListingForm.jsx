@@ -143,6 +143,8 @@ const FlowersHandcraftsListingForm = ({ onBack }) => {
         const variantData = new FormData();
         variantData.append('price', formData.price);
         variantData.append('stock', formData.stock);
+        variantData.append('product_condition', formData.product_condition);
+        variantData.append('description', formData.description);
         variantData.append('attribute_values', JSON.stringify(attributePairs));
         if (formData.sku) variantData.append('sku', formData.sku);
         await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {

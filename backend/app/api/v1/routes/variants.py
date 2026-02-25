@@ -50,6 +50,9 @@ async def add_variant(
         description='JSON list of attribute-value pairs, e.g., [{"attribute_id": "id", "value_id": "id"}]',
         example='[{"attribute_id": "670e8b3f111111111", "value_id": "670e8b3f222222222"}]'
     ),
+    description: Optional[str] = Form(None, description="Description for this variant"),
+    product_condition: Optional[str] = Form(None, description="Condition: NEW, USED, REFURBISHED"),
+    brand: Optional[str] = Form(None, description="Brand name"),
     images: Optional[List[UploadFile]] = File(None, description="Optional images for this variant"),
     current_user: dict = Depends(get_current_user)
 ):
@@ -109,6 +112,9 @@ Size
         "stock": stock,
         "attributes": attrs,
         "images": img_urls,
+        "description": description,
+        "product_condition": product_condition,
+        "brand": brand,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
@@ -164,6 +170,9 @@ async def update_variant(
         None, 
         description='JSON list of attribute-value pairs to update, e.g., [{"attribute_id": "id", "value_id": "id"}]'
     ),
+    description: Optional[str] = Form(None, description="Updated description"),
+    product_condition: Optional[str] = Form(None, description="Updated condition: NEW, USED, REFURBISHED"),
+    brand: Optional[str] = Form(None, description="Updated brand name"),
     images: Optional[List[UploadFile]] = File(None, description="New images to add"),
     current_user: dict = Depends(get_current_user)
     
@@ -184,6 +193,12 @@ async def update_variant(
         update_data["price"] = price
     if stock is not None:
         update_data["stock"] = stock
+    if description is not None:
+        update_data["description"] = description
+    if product_condition is not None:
+        update_data["product_condition"] = product_condition
+    if brand is not None:
+        update_data["brand"] = brand
 
     if attribute_values:
         try:

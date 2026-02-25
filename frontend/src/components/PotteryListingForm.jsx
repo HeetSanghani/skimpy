@@ -96,6 +96,15 @@ const PotteryListingForm = ({ onBack }) => {
       submitData.append('product_condition', formData.product_condition);
       formData.files.forEach((file) => submitData.append('files', file));
 
+      // ✅ Send pottery-specific dimension fields as extra_fields JSON
+      const extraFields = {};
+      if (formData.capacity_ml) extraFields.capacity_ml = Number(formData.capacity_ml);
+      if (formData.volume_liters) extraFields.volume_liters = Number(formData.volume_liters);
+      if (formData.diameter_cm) extraFields.diameter_cm = Number(formData.diameter_cm);
+      if (Object.keys(extraFields).length > 0) {
+        submitData.append('extra_fields', JSON.stringify(extraFields));
+      }
+
       const product = await createProduct(submitData);
       const productId = product._id || product.id;
 
@@ -150,6 +159,8 @@ const PotteryListingForm = ({ onBack }) => {
         const variantData = new FormData();
         variantData.append('price', formData.price);
         variantData.append('stock', formData.stock);
+        variantData.append('product_condition', formData.product_condition);
+        variantData.append('description', formData.description);
         variantData.append('attribute_values', JSON.stringify(attributePairs));
         if (formData.sku) variantData.append('sku', formData.sku);
         await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
