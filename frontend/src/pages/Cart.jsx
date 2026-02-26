@@ -11,8 +11,9 @@ import { fetchProfileThunk } from "../features/auth/authSlice";
 import ProfileCompletionModal from "../components/ProfileCompletionModal";
 import AddressModal from "../components/AddressModal";
 import { useConfirmation } from "../context/ConfirmationContext";
+import { API_BASE_URL } from "../api/baseUrl";
 
-const BASE_URL = "";
+const BASE_URL = API_BASE_URL;
 // Normalize image URL
 const normalizeImage = (img) => {
     if (!img) return "https://via.placeholder.com/200x200?text=No+Image";
@@ -99,9 +100,19 @@ export default function Cart() {
         const fetchCartItems = async () => {
             try {
                 setLoading(true);
-                const items = await getCartItems();
+                const raw = await getCartItems();
+
+                // Normalize API payload to a flat array of cart items
+                const items = Array.isArray(raw)
+                    ? raw
+                    : Array.isArray(raw?.items)
+                        ? raw.items
+                        : Array.isArray(raw?.cart_items)
+                            ? raw.cart_items
+                            : [];
+
                 if (!mounted) return;
-                setCartItems(items || []);
+                setCartItems(items);
             } catch (err) {
                 console.error("Error fetching cart:", err);
                 setError("Failed to load cart items");
@@ -252,7 +263,7 @@ export default function Cart() {
     };
 
     // Calculate total
-    const totalPrice = cartItems.reduce((total, item) => {
+    const totalPrice = (Array.isArray(cartItems) ? cartItems : []).reduce((total, item) => {
         const price = item.variant?.price || item.product?.price || 0;
         return total + price * item.quantity;
     }, 0);
