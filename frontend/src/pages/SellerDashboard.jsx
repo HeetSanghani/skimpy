@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAccountDetails } from "../features/settings/settingsSlice";
 import Navbar from "../components/Navbar";
@@ -27,6 +27,15 @@ export default function SellerDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["overview", "listings", "earnings", "orders"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (!account) {

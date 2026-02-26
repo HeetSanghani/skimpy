@@ -115,9 +115,9 @@ const PotteryListingForm = ({ onBack }) => {
       ]);
       const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
       const allValues = allValsResp.data?.attribute_values || [];
-      const findAttributeByName = (name) => allAttributes.find(a => a.name === name);
+      const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
       const findValueId = (attributeId, valueName) => {
-        const found = allValues.find(v => v.attribute_id === attributeId && v.value === valueName);
+        const found = allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase());
         return found ? found._id : null;
       };
 
@@ -129,11 +129,21 @@ const PotteryListingForm = ({ onBack }) => {
         if (existingAttr) {
           attributeId = existingAttr._id;
         } else {
-          const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-          });
-          attributeId = addAttrResp.data?.id;
-          allAttributes.push({ _id: attributeId, name, values: [] });
+          try {
+            const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+            });
+            attributeId = addAttrResp.data?.id;
+            allAttributes.push({ _id: attributeId, name, values: [] });
+          } catch (err) {
+            const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`);
+            const freshAttrs = freshAttrsResp.data?.attributes || [];
+            allAttributes.length = 0;
+            allAttributes.push(...freshAttrs);
+            const refetchedAttr = findAttributeByName(name);
+            if (refetchedAttr) attributeId = refetchedAttr._id;
+            else throw err;
+          }
         }
         let valueId = findValueId(attributeId, chosenValue);
         if (!valueId) {
@@ -144,6 +154,10 @@ const PotteryListingForm = ({ onBack }) => {
             valueId = addValResp.data?.id;
             allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
           } catch (err) {
+            const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`);
+            const freshVals = freshValsResp.data?.attribute_values || [];
+            allValues.length = 0;
+            allValues.push(...freshVals);
             valueId = findValueId(attributeId, chosenValue);
             if (!valueId) throw err;
           }

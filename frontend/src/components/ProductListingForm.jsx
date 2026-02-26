@@ -148,19 +148,29 @@ const ProductListingForm = ({ category, onBack }) => {
   };
 
   const ensureAttributeAndValueExist = async (attributeName, chosenValue, allAttributes, allValues) => {
-    const findAttributeByName = (name) => allAttributes.find(a => a.name === name);
-    const findValueId = (attributeId, valueName) => allValues.find(v => v.attribute_id === attributeId && v.value === valueName)?._id;
+    const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
+    const findValueId = (attributeId, valueName) => allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase())?._id;
 
     let attributeId;
     let existingAttr = findAttributeByName(attributeName);
     if (existingAttr) {
       attributeId = existingAttr._id;
     } else {
-      const addAttrResp = await axios.post(`${API_BASE_URL}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-      });
-      attributeId = addAttrResp.data?.id;
-      allAttributes.push({ _id: attributeId, name: attributeName, values: [] });
+      try {
+        const addAttrResp = await axios.post(`${API_BASE_URL}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+        });
+        attributeId = addAttrResp.data?.id;
+        allAttributes.push({ _id: attributeId, name: attributeName, values: [] });
+      } catch (err) {
+        const freshAttrsResp = await axios.get(`${API_BASE_URL}/Attribute/`);
+        const freshAttrs = freshAttrsResp.data?.attributes || [];
+        allAttributes.length = 0;
+        allAttributes.push(...freshAttrs);
+        existingAttr = findAttributeByName(attributeName);
+        if (existingAttr) attributeId = existingAttr._id;
+        else throw err;
+      }
     }
 
     let valueId = findValueId(attributeId, chosenValue);
@@ -172,6 +182,10 @@ const ProductListingForm = ({ category, onBack }) => {
         valueId = addValResp.data?.id;
         allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
       } catch (err) {
+        const freshValsResp = await axios.get(`${API_BASE_URL}/AttributeValue/`);
+        const freshVals = freshValsResp.data?.attribute_values || [];
+        allValues.length = 0;
+        allValues.push(...freshVals);
         valueId = findValueId(attributeId, chosenValue);
         if (!valueId) throw err;
       }
