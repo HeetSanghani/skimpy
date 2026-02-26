@@ -17,15 +17,6 @@ const BASE_URL = API_BASE_URL;
 const getVariantId = (v) => String(v?.id ?? v?._id ?? "");
 
 const getVariantLabel = (v) => {
-  const attrs = Array.isArray(v?.attributes) ? v.attributes : [];
-  const parts = attrs
-    .map((a) => {
-      const k = (a?.attribute_name || "").trim();
-      const val = (a?.value_name || "").trim();
-      return k && val ? `${k}: ${val}` : "";
-    })
-    .filter(Boolean);
-  if (parts.length > 0) return parts.join(" | ");
   return v?.sku || "Option";
 };
 
@@ -496,7 +487,7 @@ const ProductDetails = () => {
                   </button>
                 </div>
                 <button
-                  onClick={() => {}}
+                  onClick={() => { }}
                   className="hidden"
                 />
               </div>
