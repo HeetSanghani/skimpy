@@ -17,10 +17,6 @@ const BASE_URL = API_BASE_URL;
 const getVariantId = (v) => String(v?.id ?? v?._id ?? "");
 
 const getVariantLabel = (v) => {
-  const attrs = Array.isArray(v?.attributes) ? v.attributes : [];
-  if (attrs.length > 0) {
-    return attrs.map(a => a.value_name).filter(Boolean).join(' / ') || v?.sku || 'Option';
-  }
   return v?.sku || 'Option';
 };
 
