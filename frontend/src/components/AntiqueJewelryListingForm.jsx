@@ -88,7 +88,7 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
     setLoading(true);
 
     try {
-      // 1) Create Product
+      // ── Step 1: Create the product ──
       const submitData = new FormData();
       submitData.append('category_id', formData.category_id);
       submitData.append('product_name', formData.product_name);
@@ -101,84 +101,91 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
       const product = await createProduct(submitData);
       const productId = product._id || product.id;
 
+      // ── Step 2: Fetch all known attributes + values once ──
+      let allAttributes = [];
+      let allValues = [];
       try {
-        // 2) Ensure attributes/values
-        const [allAttrsResp, allValsResp] = await Promise.all([
+        const [attrsResp, valsResp] = await Promise.all([
           axios.get(`${API_BASE}/Attribute/`),
-          axios.get(`${API_BASE}/AttributeValue/`)
+          axios.get(`${API_BASE}/AttributeValue/`),
         ]);
-        const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
-        const allValues = allValsResp.data?.attribute_values || [];
-        const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
-        const findValueId = (attributeId, valueName) => {
-          const found = allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase());
-          return found ? found._id : null;
-        };
+        allAttributes = (attrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name }));
+        allValues = valsResp.data?.attribute_values || [];
+      } catch (err) {
+        console.warn('Could not fetch attributes/values:', err);
+      }
 
-        const attributePairs = [];
-        for (const name of Object.keys(selectedAttributes)) {
-          const chosenValue = selectedAttributes[name];
-          if (!chosenValue) continue; // skip unselected attributes
+      const findAttributeByName = (name) =>
+        allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
+      const findValueId = (attrId, valueName) => {
+        const found = allValues.find(
+          v => v.attribute_id === attrId && v.value.toLowerCase() === valueName.toLowerCase()
+        );
+        return found ? found._id : null;
+      };
+
+      // ── Step 3: Resolve attribute/value IDs for each selected attribute ──
+      const attributePairs = [];
+      for (const name of Object.keys(selectedAttributes)) {
+        const chosenValue = selectedAttributes[name];
+        if (!chosenValue) continue;
+        try {
           let attributeId;
           const existingAttr = findAttributeByName(name);
           if (existingAttr) {
             attributeId = existingAttr._id;
           } else {
             try {
-              const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
+              const resp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
               });
-              attributeId = addAttrResp.data?.id;
-              allAttributes.push({ _id: attributeId, name, values: [] });
-            } catch (err) {
-              const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`);
-              const freshAttrs = freshAttrsResp.data?.attributes || [];
-              allAttributes.length = 0;
-              allAttributes.push(...freshAttrs);
-              const refetchedAttr = findAttributeByName(name);
-              if (refetchedAttr) attributeId = refetchedAttr._id;
-              else throw err;
+              attributeId = resp.data?.id;
+              allAttributes.push({ _id: attributeId, name });
+            } catch {
+              const fresh = await axios.get(`${API_BASE}/Attribute/`);
+              allAttributes = fresh.data?.attributes || [];
+              attributeId = findAttributeByName(name)?._id;
             }
           }
+          if (!attributeId) continue;
 
           let valueId = findValueId(attributeId, chosenValue);
           if (!valueId) {
             try {
-              const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-              });
-              valueId = addValResp.data?.id;
+              const resp = await axios.post(
+                `${API_BASE}/AttributeValue/add`,
+                new URLSearchParams({ attribute_id: attributeId, value: chosenValue }),
+                { headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() } }
+              );
+              valueId = resp.data?.id;
               allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
-            } catch (err) {
-              const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`);
-              const freshVals = freshValsResp.data?.attribute_values || [];
-              allValues.length = 0;
-              allValues.push(...freshVals);
+            } catch {
+              const fresh = await axios.get(`${API_BASE}/AttributeValue/`);
+              allValues = fresh.data?.attribute_values || [];
               valueId = findValueId(attributeId, chosenValue);
-              if (!valueId) throw err;
             }
           }
-          attributePairs.push({ attribute_id: attributeId, value_id: valueId });
+          if (valueId) attributePairs.push({ attribute_id: attributeId, value_id: valueId });
+        } catch (err) {
+          console.warn(`Skipping attribute "${name}" — could not resolve IDs:`, err);
         }
+      }
 
-        // 3) Create Variant (always, even if no attributes selected)
+      // ── Step 4: Create the single (main) variant ──
+      const variantData = new FormData();
+      variantData.append('price', formData.price);
+      variantData.append('stock', formData.stock);
+      variantData.append('product_condition', formData.product_condition);
+      variantData.append('description', formData.description);
+      variantData.append('attribute_values', JSON.stringify(attributePairs));
+      if (formData.sku) variantData.append('sku', formData.sku);
       try {
-        const variantData = new FormData();
-        variantData.append('price', formData.price);
-        variantData.append('stock', formData.stock);
-        variantData.append('product_condition', formData.product_condition);
-        variantData.append('description', formData.description);
-        variantData.append('attribute_values', JSON.stringify(attributePairs));
-        if (formData.sku) variantData.append('sku', formData.sku);
         await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
           headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
         });
+        console.log('Main variant saved successfully.');
       } catch (err) {
-        console.warn("Variant creation failed, but product was created.", err?.response?.data || err);
-        // We do not throw, so the redirect below will succeed!
-      }
-      } catch (err) {
-        console.warn("Variant creation failed, but product was created.", err);
+        console.warn('Variant save failed, but product was created:', err?.response?.data || err);
       }
 
       toast.success('Jewelry listed successfully!');
@@ -194,6 +201,7 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
 
 
   const attributesToShow = ANTIQUE_ATTRIBUTES;
+
 
   const handleBack = () => {
     if (onBack) onBack();

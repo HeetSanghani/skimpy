@@ -197,9 +197,10 @@ const ProductListingForm = ({ category, onBack }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const mainSpec = itemSpecs[0];
 
     try {
+      // ── Step 1: Create the product (uses main/first spec for title fields) ──
+      const mainSpec = itemSpecs[0];
       const productData = new FormData();
       productData.append('category_id', formData.category_id);
       productData.append('product_name', formData.product_name);
@@ -213,52 +214,97 @@ const ProductListingForm = ({ category, onBack }) => {
       const product = await createProduct(productData);
       const productId = product._id || product.id;
 
+      // ── Step 2: Fetch all known attributes + values once ──
+      let allAttributes = [];
+      let allValues = [];
       try {
-        const [allAttrsResp, allValsResp] = await Promise.all([
+        const [attrsResp, valsResp] = await Promise.all([
           axios.get(`${API_BASE_URL}/Attribute/`),
-          axios.get(`${API_BASE_URL}/AttributeValue/`)
+          axios.get(`${API_BASE_URL}/AttributeValue/`),
         ]);
-        const allAttributes = (allAttrsResp.data?.attributes || []);
-        const allValues = allValsResp.data?.attribute_values || [];
-
-        const attrKeyToName = {};
-        const attributesToShow = attributes && attributes.length > 0 ? attributes : (isClothingCategory(category) ? CLOTHING_ATTRIBUTES : isBookCategory(category) ? BOOK_ATTRIBUTES : []);
-        (attributesToShow || []).forEach(a => { attrKeyToName[a._id || a.name] = a.name; });
-
-        for (let i = 0; i < itemSpecs.length; i++) {
-          const spec = itemSpecs[i];
-          const attributePairs = [];
-          for (const key of Object.keys(spec.attributes)) {
-            const chosenValue = spec.attributes[key];
-            if (chosenValue) {
-              const attributeName = attrKeyToName[key] || key;
-              const pair = await ensureAttributeAndValueExist(attributeName, chosenValue, allAttributes, allValues);
-              attributePairs.push(pair);
-            }
-          }
-
-        try {
-          const variantData = new FormData();
-          variantData.append('price', spec.price);
-          variantData.append('stock', spec.stock);
-          variantData.append('product_condition', spec.product_condition);
-          variantData.append('description', spec.description);
-          variantData.append('attribute_values', JSON.stringify(attributePairs));
-          if (spec.sku) variantData.append('sku', spec.sku);
-          if (spec.brand) variantData.append('brand', spec.brand);
-
-          await axios.post(`${API_BASE_URL}/Variant/add/${productId}`, variantData, {
-            headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
-          });
-        } catch (err) {
-          console.warn("Variant creation failed for a spec, but product was created.", err?.response?.data || err);
-        }
-        }
+        allAttributes = attrsResp.data?.attributes || [];
+        allValues = valsResp.data?.attribute_values || [];
       } catch (err) {
-        console.warn("Variant creation failed, but product was created.", err);
+        console.warn('Could not fetch attributes/values. Proceeding without attribute mapping.', err);
       }
 
-      toast.success('Product and all variants created successfully!');
+      // Build a key→name map for the attribute dropdowns shown in the form
+      const attributesToShow =
+        attributes && attributes.length > 0
+          ? attributes
+          : isClothingCategory(category)
+            ? CLOTHING_ATTRIBUTES
+            : isBookCategory(category)
+              ? BOOK_ATTRIBUTES
+              : [];
+      const attrKeyToName = {};
+      attributesToShow.forEach((a) => {
+        attrKeyToName[a._id || a.name] = a.name;
+      });
+
+      // ── Step 3: Save each variant (always at least 1 — the main variant) ──
+      let savedCount = 0;
+      for (let i = 0; i < itemSpecs.length; i++) {
+        const spec = itemSpecs[i];
+
+        // Resolve each selected attribute → { attribute_id, value_id } pair
+        const attributePairs = [];
+        for (const key of Object.keys(spec.attributes || {})) {
+          const chosenValue = spec.attributes[key];
+          if (!chosenValue) continue;
+          const attributeName = attrKeyToName[key] || key;
+          try {
+            const pair = await ensureAttributeAndValueExist(
+              attributeName,
+              chosenValue,
+              allAttributes,
+              allValues
+            );
+            if (pair?.attribute_id && pair?.value_id) {
+              attributePairs.push(pair);
+            }
+          } catch (err) {
+            console.warn(`Skipping attribute "${attributeName}" = "${chosenValue}" — could not resolve IDs.`, err);
+          }
+        }
+
+        // POST this variant (main or additional)
+        const variantData = new FormData();
+        variantData.append('price', spec.price);
+        variantData.append('stock', spec.stock);
+        variantData.append('product_condition', spec.product_condition);
+        variantData.append('description', spec.description);
+        variantData.append('attribute_values', JSON.stringify(attributePairs));
+        if (spec.sku) variantData.append('sku', spec.sku);
+        if (spec.brand) variantData.append('brand', spec.brand);
+
+        try {
+          await axios.post(
+            `${API_BASE_URL}/Variant/add/${productId}`,
+            variantData,
+            { headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() } }
+          );
+          savedCount++;
+          console.log(`Variant ${i + 1} saved successfully.`);
+        } catch (err) {
+          const detail = err?.response?.data?.detail || err?.message || 'Unknown error';
+          console.error(`Variant ${i + 1} failed to save:`, detail);
+          // Don't block the rest — try saving remaining variants
+        }
+      }
+
+      if (savedCount === itemSpecs.length) {
+        toast.success(
+          itemSpecs.length === 1
+            ? 'Product listed successfully!'
+            : `Product listed with ${savedCount} variants!`
+        );
+      } else {
+        toast.success(
+          `Product created. ${savedCount} of ${itemSpecs.length} variant(s) saved.`
+        );
+      }
+
       if (onBack) onBack();
       else navigate('/seller/dashboard?tab=listings');
     } catch (error) {
