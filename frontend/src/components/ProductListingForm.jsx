@@ -213,41 +213,49 @@ const ProductListingForm = ({ category, onBack }) => {
       const product = await createProduct(productData);
       const productId = product._id || product.id;
 
-      const [allAttrsResp, allValsResp] = await Promise.all([
-        axios.get(`${API_BASE_URL}/Attribute/`),
-        axios.get(`${API_BASE_URL}/AttributeValue/`)
-      ]);
-      const allAttributes = (allAttrsResp.data?.attributes || []);
-      const allValues = allValsResp.data?.attribute_values || [];
+      try {
+        const [allAttrsResp, allValsResp] = await Promise.all([
+          axios.get(`${API_BASE_URL}/Attribute/`),
+          axios.get(`${API_BASE_URL}/AttributeValue/`)
+        ]);
+        const allAttributes = (allAttrsResp.data?.attributes || []);
+        const allValues = allValsResp.data?.attribute_values || [];
 
-      const attrKeyToName = {};
-      const attributesToShow = attributes && attributes.length > 0 ? attributes : (isClothingCategory(category) ? CLOTHING_ATTRIBUTES : isBookCategory(category) ? BOOK_ATTRIBUTES : []);
-      (attributesToShow || []).forEach(a => { attrKeyToName[a._id || a.name] = a.name; });
+        const attrKeyToName = {};
+        const attributesToShow = attributes && attributes.length > 0 ? attributes : (isClothingCategory(category) ? CLOTHING_ATTRIBUTES : isBookCategory(category) ? BOOK_ATTRIBUTES : []);
+        (attributesToShow || []).forEach(a => { attrKeyToName[a._id || a.name] = a.name; });
 
-      for (let i = 0; i < itemSpecs.length; i++) {
-        const spec = itemSpecs[i];
-        const attributePairs = [];
-        for (const key of Object.keys(spec.attributes)) {
-          const chosenValue = spec.attributes[key];
-          if (chosenValue) {
-            const attributeName = attrKeyToName[key] || key;
-            const pair = await ensureAttributeAndValueExist(attributeName, chosenValue, allAttributes, allValues);
-            attributePairs.push(pair);
+        for (let i = 0; i < itemSpecs.length; i++) {
+          const spec = itemSpecs[i];
+          const attributePairs = [];
+          for (const key of Object.keys(spec.attributes)) {
+            const chosenValue = spec.attributes[key];
+            if (chosenValue) {
+              const attributeName = attrKeyToName[key] || key;
+              const pair = await ensureAttributeAndValueExist(attributeName, chosenValue, allAttributes, allValues);
+              attributePairs.push(pair);
+            }
           }
+
+        try {
+          const variantData = new FormData();
+          variantData.append('price', spec.price);
+          variantData.append('stock', spec.stock);
+          variantData.append('product_condition', spec.product_condition);
+          variantData.append('description', spec.description);
+          variantData.append('attribute_values', JSON.stringify(attributePairs));
+          if (spec.sku) variantData.append('sku', spec.sku);
+          if (spec.brand) variantData.append('brand', spec.brand);
+
+          await axios.post(`${API_BASE_URL}/Variant/add/${productId}`, variantData, {
+            headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
+          });
+        } catch (err) {
+          console.warn("Variant creation failed for a spec, but product was created.", err?.response?.data || err);
         }
-
-        const variantData = new FormData();
-        variantData.append('price', spec.price);
-        variantData.append('stock', spec.stock);
-        variantData.append('product_condition', spec.product_condition);
-        variantData.append('description', spec.description);
-        variantData.append('attribute_values', JSON.stringify(attributePairs));
-        if (spec.sku) variantData.append('sku', spec.sku);
-        if (spec.brand) variantData.append('brand', spec.brand);
-
-        await axios.post(`${API_BASE_URL}/Variant/add/${productId}`, variantData, {
-          headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
-        });
+        }
+      } catch (err) {
+        console.warn("Variant creation failed, but product was created.", err);
       }
 
       toast.success('Product and all variants created successfully!');

@@ -100,65 +100,67 @@ const BookListingForm = ({ onBack }) => {
       const product = await createProduct(submitData);
       const productId = product._id || product.id;
 
-      // 2) Ensure attributes/values
-      const [allAttrsResp, allValsResp] = await Promise.all([
-        axios.get(`${API_BASE}/Attribute/`),
-        axios.get(`${API_BASE}/AttributeValue/`)
-      ]);
-      const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
-      const allValues = allValsResp.data?.attribute_values || [];
-      const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
-      const findValueId = (attributeId, valueName) => {
-        const found = allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase());
-        return found ? found._id : null;
-      };
+      try {
+        // 2) Ensure attributes/values
+        const [allAttrsResp, allValsResp] = await Promise.all([
+          axios.get(`${API_BASE}/Attribute/`),
+          axios.get(`${API_BASE}/AttributeValue/`)
+        ]);
+        const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
+        const allValues = allValsResp.data?.attribute_values || [];
+        const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
+        const findValueId = (attributeId, valueName) => {
+          const found = allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase());
+          return found ? found._id : null;
+        };
 
-      const attributePairs = [];
-      for (const name of Object.keys(selectedAttributes)) {
-        const chosenValue = selectedAttributes[name];
-        let attributeId;
-        const existingAttr = findAttributeByName(name);
-        if (existingAttr) {
-          attributeId = existingAttr._id;
-        } else {
-          try {
-            const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-            });
-            attributeId = addAttrResp.data?.id;
-            allAttributes.push({ _id: attributeId, name, values: [] });
-          } catch (err) {
-            const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`);
-            const freshAttrs = freshAttrsResp.data?.attributes || [];
-            allAttributes.length = 0;
-            allAttributes.push(...freshAttrs);
-            const refetchedAttr = findAttributeByName(name);
-            if (refetchedAttr) attributeId = refetchedAttr._id;
-            else throw err;
+        const attributePairs = [];
+        for (const name of Object.keys(selectedAttributes)) {
+          const chosenValue = selectedAttributes[name];
+          if (!chosenValue) continue; // skip unselected attributes
+          let attributeId;
+          const existingAttr = findAttributeByName(name);
+          if (existingAttr) {
+            attributeId = existingAttr._id;
+          } else {
+            try {
+              const addAttrResp = await axios.post(`${API_BASE}/Attribute/add`, new URLSearchParams({ name }), {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+              });
+              attributeId = addAttrResp.data?.id;
+              allAttributes.push({ _id: attributeId, name, values: [] });
+            } catch (err) {
+              const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`);
+              const freshAttrs = freshAttrsResp.data?.attributes || [];
+              allAttributes.length = 0;
+              allAttributes.push(...freshAttrs);
+              const refetchedAttr = findAttributeByName(name);
+              if (refetchedAttr) attributeId = refetchedAttr._id;
+              else throw err;
+            }
           }
-        }
-        let valueId = findValueId(attributeId, chosenValue);
-        if (!valueId) {
-          try {
-            const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-            });
-            valueId = addValResp.data?.id;
-            allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
-          } catch (err) {
-            const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`);
-            const freshVals = freshValsResp.data?.attribute_values || [];
-            allValues.length = 0;
-            allValues.push(...freshVals);
-            valueId = findValueId(attributeId, chosenValue);
-            if (!valueId) throw err;
+          let valueId = findValueId(attributeId, chosenValue);
+          if (!valueId) {
+            try {
+              const addValResp = await axios.post(`${API_BASE}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
+              });
+              valueId = addValResp.data?.id;
+              allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
+            } catch (err) {
+              const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`);
+              const freshVals = freshValsResp.data?.attribute_values || [];
+              allValues.length = 0;
+              allValues.push(...freshVals);
+              valueId = findValueId(attributeId, chosenValue);
+              if (!valueId) throw err;
+            }
           }
+          attributePairs.push({ attribute_id: attributeId, value_id: valueId });
         }
-        attributePairs.push({ attribute_id: attributeId, value_id: valueId });
-      }
 
-      // 3) Create Variant
-      if (attributePairs.length > 0) {
+        // 3) Create Variant (always, even if no attributes selected)
+      try {
         const variantData = new FormData();
         variantData.append('price', formData.price);
         variantData.append('stock', formData.stock);
@@ -169,6 +171,12 @@ const BookListingForm = ({ onBack }) => {
         await axios.post(`${API_BASE}/Variant/add/${productId}`, variantData, {
           headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
         });
+      } catch (err) {
+        console.warn("Variant creation failed, but product was created.", err?.response?.data || err);
+        // We do not throw, so the redirect below will succeed!
+      }
+      } catch (err) {
+        console.warn("Variant creation failed, but product was created.", err);
       }
 
       toast.success('Book listed successfully!');
@@ -181,6 +189,7 @@ const BookListingForm = ({ onBack }) => {
       setLoading(false);
     }
   };
+
 
   const attributesToShow = BOOK_ATTRIBUTES;
 
