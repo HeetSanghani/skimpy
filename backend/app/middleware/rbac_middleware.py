@@ -124,7 +124,11 @@ class RBACMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.scope.get("path", "")
-        method = request.scope.get("method", "GET")
+        method = request.scope.get("method", "GET").upper()
+
+        # Always allow CORS preflight requests without auth
+        if method == "OPTIONS":
+            return await call_next(request)
 
         # Public paths - no auth
         if _is_public_path(path):
