@@ -9,7 +9,7 @@ router = APIRouter(prefix="/payment", tags=["Payment"])
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 from ....db.mongodb import cate_db, user_collection
-from app.core.security import get_current_user
+from app.security.dependencies import get_current_user
 from fastapi import Depends
 from bson import ObjectId
 
@@ -400,11 +400,20 @@ async def verify_session(request: Request):
 
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
+    """Stripe webhook. Verifies signature with STRIPE_WEBHOOK_SECRET."""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    if not webhook_secret:
+        return JSONResponse(status_code=500, content={"error": "STRIPE_WEBHOOK_SECRET not configured"})
+    if not sig_header:
+        return JSONResponse(status_code=400, content={"error": "Missing stripe-signature header"})
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": f"Invalid payload: {e}"})
+    except stripe.exceptions.SignatureVerificationError as e:
+        return JSONResponse(status_code=400, content={"error": f"Invalid signature: {e}"})
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": str(e)})
         

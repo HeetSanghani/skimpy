@@ -1,8 +1,10 @@
 import logging
 from fastapi import HTTPException, BackgroundTasks
-from app.db.mongodb import user_collection, otp_collection
-from app.core.security import get_password_hash, verify_password, create_access_token
-from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest,VerifyForgotOtpRequest
+from app.db.mongodb import user_collection, otp_collection, login_attempts_collection
+from app.core.security import get_password_hash, verify_password
+from app.security.jwt_handler import create_access_token, create_refresh_token, verify_refresh_token, revoke_token
+from app.core.config import settings
+from app.schemas.auth import UserRegisterSchema, ResetPasswordRequest, VerifyForgotOtpRequest
 from datetime import datetime, timedelta
 import uuid, os, shutil, random
 from app.utils.email_service import (
@@ -14,14 +16,55 @@ from app.utils.email_service import (
 
 logger = logging.getLogger(__name__)
 
+
+def _check_account_locked(email: str) -> None:
+    """Raise 429 if account is locked due to failed attempts."""
+    rec = login_attempts_collection.find_one({"email": email})
+    if not rec or not rec.get("locked_until"):
+        return
+    from datetime import datetime
+    if datetime.utcnow() < rec["locked_until"]:
+        mins = int((rec["locked_until"] - datetime.utcnow()).total_seconds() / 60)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Account temporarily locked. Try again in {mins} minutes.",
+        )
+
+
+def _record_failed_login(email: str) -> None:
+    """Record failed attempt; lock account if threshold reached."""
+    from datetime import datetime, timedelta
+    rec = login_attempts_collection.find_one({"email": email})
+    attempts = (rec.get("attempts") or 0) + 1
+    update = {"attempts": attempts}
+    if attempts >= settings.MAX_LOGIN_ATTEMPTS:
+        update["locked_until"] = datetime.utcnow() + timedelta(minutes=settings.LOCKOUT_MINUTES)
+    login_attempts_collection.update_one(
+        {"email": email},
+        {"$set": update, "$setOnInsert": {"email": email}},
+        upsert=True,
+    )
+
+
+def _clear_login_attempts(email: str) -> None:
+    """Clear failed attempts on successful login."""
+    login_attempts_collection.delete_one({"email": email})
+
+
 def login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
+    _check_account_locked(email)
     user = user_collection.find_one({"email": email})
 
     if not user or not verify_password(password, user["password"]):
+        _record_failed_login(email)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access_token = create_access_token(data={"sub": user["email"]})
-    
+    _clear_login_attempts(email)
+    role = (user.get("role") or "user").lower()
+    user_id = user.get("user_id") or user.get("email", "")
+    access_token = create_access_token(user_id=str(user_id), role=role)
+    refresh_token = create_refresh_token(user_id=str(user_id), role=role)
+
     user_for_notify = user.copy() if user else {}
     user_for_notify["ip"] = ip
     user_for_notify["device"] = device
@@ -32,7 +75,91 @@ def login_logic(email: str, password: str, ip: str = None, device: str = None, b
     else:
         send_login_alert_email(user_for_notify)
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "role": role,
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
+
+def user_login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
+    """Login for buyers (user role). Accepts user and seller roles (both can access user APIs)."""
+    return login_logic(email, password, ip=ip, device=device, background_tasks=background_tasks)
+
+
+def seller_login_logic(email: str, password: str, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):
+    """Login for sellers. Only users with role 'seller' can use seller APIs."""
+    _check_account_locked(email)
+    user = user_collection.find_one({"email": email})
+    if not user or not verify_password(password, user["password"]):
+        _record_failed_login(email)
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    role = (user.get("role") or "").lower()
+    if role != "seller":
+        raise HTTPException(status_code=403, detail="Seller access required. Use user login for buyer access.")
+    _clear_login_attempts(email)
+    user_id = user.get("user_id") or user.get("email", "")
+    access_token = create_access_token(user_id=str(user_id), role="seller")
+    refresh_token = create_refresh_token(user_id=str(user_id), role="seller")
+    user_for_notify = user.copy()
+    user_for_notify["ip"] = ip
+    user_for_notify["device"] = device
+    user_for_notify["login_time"] = datetime.now().isoformat()
+    if background_tasks:
+        background_tasks.add_task(send_login_alert_email, user_for_notify)
+    else:
+        send_login_alert_email(user_for_notify)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "role": "seller",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
+
+def admin_login_logic(email: str, password: str):
+    """Login for superadmin. Credentials verified against ENV variables only."""
+    admin_email = settings.ADMIN_EMAIL
+    admin_password = settings.ADMIN_PASSWORD
+    if not admin_email or not admin_password:
+        raise HTTPException(status_code=503, detail="Admin login not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD.")
+    if email != admin_email or password != admin_password:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    access_token = create_access_token(user_id="admin", role="admin")
+    refresh_token = create_refresh_token(user_id="admin", role="admin")
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "role": "admin",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
+
+def refresh_token_logic(refresh_token: str):
+    """Exchange refresh token for new access token."""
+    payload = verify_refresh_token(refresh_token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    access_token = create_access_token(
+        user_id=str(payload["user_id"]),
+        role=payload["role"],
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": payload["role"],
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
+
+def logout_logic(token: str):
+    """Revoke access token (logout)."""
+    revoke_token(token)
+    return {"message": "Logged out successfully"}
 
 
 def register_user_logic(request: UserRegisterSchema, ip: str = None, device: str = None, background_tasks: BackgroundTasks = None):

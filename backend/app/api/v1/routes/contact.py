@@ -1,11 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Request, Depends, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional
 from bson import ObjectId
 
-from ....db.mongodb import contact_messages_collection, cate_db
-from app.core.security import get_current_user
+from ....db.mongodb import contact_messages_collection, cate_db, user_collection
 from .chat import SKIMPY_SUPPORT_ID
 
 # Chat collections
@@ -25,16 +24,27 @@ class ContactMessage(BaseModel):
 async def send_contact_message(
     contact_data: ContactMessage,
     background_tasks: BackgroundTasks,
-    current_user: Optional[dict] = Depends(get_current_user)
+    request: Request,
 ):
     """
     Submit a contact form message.
-    If authenticated -> Starts a Chat with SKIMPY_SUPPORT_ID.
+    If authenticated (Bearer token) -> Starts a Chat with SKIMPY_SUPPORT_ID.
     If guest -> Saves to contact_messages collection.
     """
+    user_id = None
     try:
-        user_id = str(current_user.get("user_id")) if current_user else None
-
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            from app.security.jwt_handler import verify_access_token
+            token = auth_header[7:].strip()
+            payload = verify_access_token(token)
+            if payload:
+                user = user_collection.find_one({"user_id": str(payload.get("user_id"))})
+                if user:
+                    user_id = str(user.get("user_id"))
+    except Exception:
+        pass
+    try:
         # ---------------- LOGGED IN: SEND VIA CHAT ----------------
         if user_id:
             # 1. Find or Create Conversation

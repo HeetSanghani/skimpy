@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 import os, uuid, json
 from ....db.mongodb import cate_db
-from app.core.security import get_current_user
+from app.security.dependencies import get_current_user
 from app.services.image_upload import upload_image_to_imgbb
 
 

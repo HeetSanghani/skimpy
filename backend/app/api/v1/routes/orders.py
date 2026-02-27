@@ -7,7 +7,7 @@ import random
 from app.db.mongodb import order_collection, cart_collection, product_collection, vendor_collection, user_collection, variant_collection
 from app.api.v1.routes.products import validate_objectid, objectid_str
 from app.utils.email_service import send_order_invoice_email
-from app.core.security import get_current_user
+from app.security.dependencies import get_current_user
 from app.schemas.order import OrderResponse, OrderItem
 
 router = APIRouter(prefix="/orders", tags=["Orders"])

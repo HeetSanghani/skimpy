@@ -7,7 +7,7 @@ from typing import Optional
 from ....db.mongodb import cate_db, user_collection
 from ....services.chat_manager import manager
 
-from app.core.security import get_current_user
+from app.security.dependencies import get_current_user
 
 router = APIRouter()
 

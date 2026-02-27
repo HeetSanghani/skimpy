@@ -5,9 +5,9 @@ from datetime import datetime
 from ....db.mongodb import cate_db, user_db
 from ....schemas.dashboard import SellerDashboardResponse, DashboardStats
 from ....schemas.product import ProductResponse
-from app.core.security import get_current_user
+from app.security.dependencies import get_current_user
 
-router = APIRouter(prefix="/api/seller/dashboard", tags=["Seller Dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["Seller Dashboard"])
 
 # Collections
 product_collection = cate_db.products

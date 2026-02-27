@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends,UploadFile,File,Query
-from app.schemas.user import GetUserDetails, CreateUser,AddAccountDetails, AddDeliveryAddress, GetDeliveryAddress
-from app.core.security import get_current_user
+from fastapi import APIRouter, Depends, UploadFile, File, Query
+from app.schemas.user import GetUserDetails, CreateUser, AddAccountDetails, AddDeliveryAddress, GetDeliveryAddress
+from app.security.dependencies import get_current_user
 from app.services.users import account_details_logic,get_account_details_logic,delete_user_logic, add_delivery_address_logic, update_delivery_address_logic,get_delivery_address_logic, delete_delivery_address_logic,add_profile_avatar_logic,delete_profile_avatar_logic,get_profile_avatar_logic
 from typing import List
 
 
-router = APIRouter(prefix="/user/settings")
+router = APIRouter(prefix="/user/settings", tags=["User"])
 
 @router.get("/get-account-details", response_model=GetUserDetails,tags=["User account "])
 async def get_account_details(current_user: dict = Depends(get_current_user)):
@@ -30,7 +30,11 @@ def add_delivery_address(request: AddDeliveryAddress, current_user: dict = Depen
     return add_delivery_address_logic(request, current_user)
 
 @router.put("/update-delivery-address", tags=["Delivery Address"])
-def update_delivery_address(address_id:str, request:AddDeliveryAddress,current_user: dict = Depends(get_current_user)):
+def update_delivery_address(
+    request: AddDeliveryAddress,
+    current_user: dict = Depends(get_current_user),
+    address_id: str = Query(..., alias="address_id"),
+):
     return update_delivery_address_logic(address_id, request, current_user)
 
 

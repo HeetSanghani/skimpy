@@ -29,12 +29,20 @@ user_collection = user_db["users"]
 otp_collection = user_db["otp"]
 delivery_addresses_collection = user_db["delivery_addresses"]
 contact_messages_collection = user_db["contact_messages"]
+revoked_tokens_collection = user_db["revoked_tokens"]
+login_attempts_collection = user_db["login_attempts"]
+audit_log_collection = user_db["audit_logs"]
 
 # User Indexes
 user_collection.create_index("email", unique=True)
 user_collection.create_index("user_id", unique=True)
 # Auto-remove OTP documents when expires_at has passed (TTL index)
 otp_collection.create_index("expires_at", expireAfterSeconds=0)
+revoked_tokens_collection.create_index("token", unique=True)
+revoked_tokens_collection.create_index("expires_at", expireAfterSeconds=0)
+login_attempts_collection.create_index("email")
+login_attempts_collection.create_index("locked_until")
+audit_log_collection.create_index("created_at")
 
 # Collections for product DB
 # Collections for product DB

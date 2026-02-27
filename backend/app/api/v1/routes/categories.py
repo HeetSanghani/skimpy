@@ -6,7 +6,7 @@ from ....db.mongodb import cate_db
 from ....schemas.category import CategoryResponse
 from ....utils.slug import simple_slugify, generate_unique_slug, delete_category_and_children  
 import os, shutil
-from app.core.security import get_current_user 
+from app.security.dependencies import get_current_user 
 from app.services.image_upload import upload_image_to_imgbb
 
 
