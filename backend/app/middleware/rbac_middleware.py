@@ -69,7 +69,10 @@ def _get_required_roles(path: str, method: str) -> frozenset | None:
     # Seller only
     if path.startswith("/api/seller"):
         return SELLER_ROLES
+    # Variant management (POST/PUT/DELETE) is seller-only, but variant listing (GET) is public
     if path.startswith("/Variant"):
+        if method == "GET":
+            return None  # allow public/buyer browsing of variant info
         return SELLER_ROLES
     if path.startswith("/AttributeValue"):
         return SELLER_ROLES

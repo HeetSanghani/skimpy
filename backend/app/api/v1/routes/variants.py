@@ -127,7 +127,15 @@ async def add_variant(
     description="Retrieve all variants for a product along with their attribute names and values."
 )
 def get_variants(product_id: str):
-    variants = variant_collection.find({"product_id": ObjectId(product_id)})
+    """
+    Return all variants for a product.
+    Supports both legacy documents where product_id is stored as a string,
+    and newer ones where product_id is an ObjectId.
+    """
+    query = {"$or": [{"product_id": ObjectId(product_id)}]}
+    # Also match string form for backward compatibility
+    query["$or"].append({"product_id": product_id})
+    variants = variant_collection.find(query)
     result = []
     for v in variants:
         details = []
