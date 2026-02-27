@@ -23,7 +23,7 @@ from app.api.v1.routes import (
     variants,
     attributes,
     attribute_values,
-    seller_dashboard,
+    seller_routes,
     admin,
 )
 
@@ -110,7 +110,7 @@ app.include_router(vendors.router)
 app.include_router(variants.router)
 app.include_router(attributes.router)
 app.include_router(attribute_values.router)
-app.include_router(seller_dashboard.router)
+app.include_router(seller_routes.router)
 app.include_router(admin.router)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
