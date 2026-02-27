@@ -17,6 +17,9 @@ from bson import ObjectId
 product_collection = cate_db.products
 variant_collection = cate_db.variants
 
+# Frontend base URL for redirect after Stripe checkout
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://skimpy.vercel.app").rstrip("/")
+
 # CHECKOUT REQUEST MODEL (Only IDs and Quantity)
 class CheckoutItem(BaseModel):
     product_id: str
@@ -142,8 +145,8 @@ async def create_checkout_session(
             # We already collected the address in our app.
             # Passing customer_email pre-fills the email field.
             customer_email=user_doc.get("email"),
-            success_url="http://localhost:5173/order-confirmation?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="http://localhost:5173/my-cart",
+            success_url=f"{FRONTEND_URL}/order-confirmation?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL}/my-cart",
             client_reference_id=user_id,
             metadata={
                 "selected_address_id": address_id 
