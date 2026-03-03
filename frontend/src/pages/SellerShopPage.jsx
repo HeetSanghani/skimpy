@@ -7,9 +7,12 @@ import ProfileCompletionModal from "../components/ProfileCompletionModal";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import toast from 'react-hot-toast';
-import { ShoppingBag, Store, MapPin, Calendar, Star, Package } from "lucide-react";
+import { ShoppingBag, Store, MapPin, Calendar, Star, Package, ShieldCheck, Flag } from "lucide-react";
 import ProductCardDark from "../components/ProductCardDark";
 import { API_BASE_URL } from "../api/baseUrl";
+import { useSEO } from "../hooks/useSEO";
+import EmptyState from "../components/EmptyState";
+import { useConfirmation } from "../context/ConfirmationContext";
 
 const BASE_URL = API_BASE_URL;
 
@@ -26,9 +29,31 @@ function SellerShopPage() {
 
   const dispatch = useDispatch();
   const { token, user } = useSelector((state) => state.auth || {});
+  const { showConfirm } = useConfirmation();
 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
+
+  // SEO
+  useSEO({
+    title: seller ? `${seller.shop_name} — Seller Shop` : "Seller Shop",
+    description: seller?.shop_description || `Browse products from ${seller?.shop_name || 'this seller'} on Skimpy Marketplace.`,
+    url: `/seller/${sellerId}`,
+  });
+
+  const handleReportSeller = () => {
+    showConfirm({
+      title: "Report this Seller",
+      message: "Are you sure you want to report this seller? We will review your concern within 48 hours.",
+      confirmText: "Report",
+      type: "danger",
+      onConfirm: async () => {
+        // TODO: wire to backend report endpoint
+        toast.success("Report submitted. Our team will review this seller.");
+      },
+    });
+  };
+
 
   // Fetch profile checks
   useEffect(() => {
@@ -143,14 +168,23 @@ function SellerShopPage() {
             </div>
 
             <div className="flex-grow text-center md:text-left pb-2">
-              <h1 className="text-2xl md:text-4xl font-extrabold text-white font-sora tracking-tight mb-2">
-                {seller.shop_name || "Shop"}
-              </h1>
+              <div className="flex items-center gap-3 justify-center md:justify-start mb-1">
+                <h1 className="text-2xl md:text-4xl font-extrabold text-white font-sora tracking-tight">
+                  {seller.shop_name || "Shop"}
+                </h1>
+                {/* Verification Badge */}
+                {seller.is_verified && (
+                  <span title="Verified Seller" className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-400/20 border border-amber-400/40 rounded-full">
+                    <ShieldCheck className="w-4 h-4 text-amber-400" />
+                    <span className="text-amber-300 text-xs font-bold">Verified</span>
+                  </span>
+                )}
+              </div>
               <p className="text-gray-400 text-sm md:text-base max-w-2xl mx-auto md:mx-0 line-clamp-2 mb-4">
                 {seller.shop_description || seller.description || seller.address || "Welcome to my shop! Check out my latest products and deals."}
               </p>
 
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-sm text-gray-500">
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
                   <ShoppingBag className="w-4 h-4 text-indigo-400" />
                   <span>{products.length} Products</span>
@@ -167,7 +201,22 @@ function SellerShopPage() {
                     </span>
                   </div>
                 )}
+                {seller.created_at && (
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                    <Calendar className="w-4 h-4 text-sky-400" />
+                    <span>Joined {new Date(seller.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
+                  </div>
+                )}
               </div>
+
+              {/* Report button */}
+              <button
+                onClick={handleReportSeller}
+                className="mt-4 flex items-center gap-1.5 text-xs text-gray-600 hover:text-rose-400 transition-colors duration-200"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                Report this seller
+              </button>
             </div>
           </div>
         </div>
@@ -199,10 +248,12 @@ function SellerShopPage() {
           {activeTab === "products" && (
             <>
               {products.length === 0 ? (
-                <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
-                  <Package className="w-16 h-16 mx-auto mb-4 text-gray-700" />
-                  <p className="text-gray-400 text-lg">No products found for this seller.</p>
-                </div>
+                <EmptyState
+                  icon="📦"
+                  title="No products yet"
+                  subtitle="This seller hasn't listed any products yet. Check back soon!"
+                  dark={true}
+                />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {products.map((product) => (

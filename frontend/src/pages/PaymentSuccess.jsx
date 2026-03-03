@@ -5,6 +5,7 @@ import { createOrderFromCart } from "../api/orderApi";
 import { fetchAddresses } from "../features/settings/settingsSlice";
 import { verifyPaymentSession } from "../api/paymentApi";
 import toast from "react-hot-toast";
+import { Analytics } from "../utils/analytics";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
@@ -31,12 +32,11 @@ const PaymentSuccess = () => {
       // New Verify Flow
       if (sessionId) {
         try {
-          console.log("Verifying payment session:", sessionId);
           await verifyPaymentSession(sessionId);
           setOrderId("success");
           toast.success("Order placed successfully!");
+          Analytics.purchase(sessionId, null);
         } catch (err) {
-          console.error("Payment verification failed:", err);
           toast.error("Failed to verify payment. Please contact support.");
         } finally {
           setLoading(false);

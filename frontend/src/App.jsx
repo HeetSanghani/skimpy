@@ -2,32 +2,44 @@ import React from "react";
 import { BrowserRouter as Router } from "react-router-dom";
 import AppRouter from "./routes/AppRouter";
 import { ConfirmationProvider } from "./context/ConfirmationContext";
-
-// If you have a Navbar or Footer, you can import them too
-// import Navbar from "./components/Navbar";
-// import Footer from "./components/Footer";
-
-
+import { LoadingProvider } from "./context/LoadingContext";
+import PageLoader from "./components/PageLoader";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   return (
-    <ConfirmationProvider>
-      <Router>
-        <div className="flex flex-col min-h-screen bg-gray-50 text-gray-800 overflow-x-hidden">
-          {/* Optional Navbar */}
-          {/* <Navbar /> */}
+    <LoadingProvider>
+      <ConfirmationProvider>
+        <Router>
+          <div className="flex flex-col min-h-screen bg-gray-50 text-gray-800 overflow-x-hidden">
+            {/* Global loading overlay (200ms threshold) */}
+            <PageLoader />
 
-          <main className="flex-grow w-full min-h-screen">
-            {/* All your route-based pages will load here */}
-            <AppRouter />
+            {/* Toast notifications */}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background: "#1a1a2e",
+                  color: "#e2e8f0",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  fontFamily: "Inter, sans-serif",
+                },
+                success: { iconTheme: { primary: "#6366f1", secondary: "#fff" } },
+                error: { iconTheme: { primary: "#f43f5e", secondary: "#fff" } },
+              }}
+            />
 
-          </main>
-
-          {/* Optional Footer */}
-          {/* <Footer /> */}
-        </div>
-      </Router>
-    </ConfirmationProvider>
+            <main className="flex-grow w-full min-h-screen">
+              <AppRouter />
+            </main>
+          </div>
+        </Router>
+      </ConfirmationProvider>
+    </LoadingProvider>
   );
 }
 

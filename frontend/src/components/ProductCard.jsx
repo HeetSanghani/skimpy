@@ -144,6 +144,8 @@ const ProductCard = ({ product }) => {
                     <img
                         src={images[idx]}
                         alt={product.product_name}
+                        loading="lazy"
+                        decoding="async"
                         onLoad={() => setImageLoaded(true)}
                         className={`
                             absolute inset-0 h-full w-full object-cover 

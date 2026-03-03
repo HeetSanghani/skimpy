@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -85,14 +86,46 @@ def home():
 
 @app.get("/health")
 def health():
-    """Health check for Render/monitoring. Returns 200 when API is up."""
-    return {"status": "ok", "service": "skimpy-api"}
+    """Health check for Render/monitoring. Returns 200 when API is up. Also verifies DB."""
+    db_ok = False
+    try:
+        from app.db.mongodb import cate_db
+        cate_db.command("ping")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "service": "skimpy-api",
+        "database": "connected" if db_ok else "unreachable",
+    }
 
 
 @app.get("/ping")
 def ping():
     """Simple ping. Alias for /health."""
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version():
+    """API version and environment info."""
+    env = "production" if os.getenv("ENVIRONMENT", "development").lower() in ("prod", "production") else "development"
+    db_ok = False
+    try:
+        from app.db.mongodb import cate_db
+        cate_db.command("ping")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {
+        "version": "1.0.0",
+        "environment": env,
+        "service": "skimpy-api",
+        "database": "connected" if db_ok else "unreachable",
+        "image_upload": "imgbb" if os.getenv("IMGBB_API_KEY") else "not configured",
+        "email": "configured" if any(os.getenv(k) for k in ["GMAIL_CLIENT_ID", "sender_email"]) else "not configured",
+    }
 
 
 # ---------- API Routes (frontend-compatible paths) ----------

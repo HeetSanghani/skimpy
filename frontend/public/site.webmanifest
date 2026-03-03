@@ -1,0 +1,22 @@
+{
+    "name": "Skimpy Marketplace",
+    "short_name": "Skimpy",
+    "description": "Discover handcrafted goods, thrifted finds, antiques, books and more on Skimpy — India's curated online marketplace.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#6366f1",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "shopping",
+        "marketplace"
+    ]
+}

@@ -6,6 +6,7 @@ import CategoryNavbar from "../components/CategoryNavbar";
 import Footer from "../components/Footer";
 import ProductCard from "../components/ProductCard";
 import { fetchAllCategories, fetchAllProducts } from "../api/settingsApi";
+import { useSEO } from "../hooks/useSEO";
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || "";
 
@@ -24,6 +25,11 @@ const normalizeImageUrl = (path) => {
 };
 
 export default function Home() {
+  useSEO({
+    title: "Skimpy — Thrifted & Handcrafted Marketplace",
+    description: "Discover unique thrifted finds, handcrafted treasures, antiques, books, and more on Skimpy — India's curated online marketplace.",
+    url: "/",
+  });
   const [categories, setCategories] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [isCategoriesLoading, setCategoriesLoading] = useState(true);

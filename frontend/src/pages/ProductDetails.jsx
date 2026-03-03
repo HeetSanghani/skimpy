@@ -11,6 +11,9 @@ import toast from 'react-hot-toast';
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { API_BASE_URL } from "../api/baseUrl";
+import { useSEO } from "../hooks/useSEO";
+import { Analytics } from "../utils/analytics";
+import { useConfirmation } from "../context/ConfirmationContext";
 
 const BASE_URL = API_BASE_URL;
 
@@ -87,7 +90,8 @@ const ProductDetails = () => {
         if (!mounted) return;
         setProduct(data);
 
-        // Vendor info
+        // Track product view
+        Analytics.productView(data._id || data.id, data.product_name || data.name);
         if (data?.vendor) setVendor(data.vendor);
         else if (data?.vendor_id) {
           try {
@@ -112,7 +116,6 @@ const ProductDetails = () => {
           }
           if (!mounted) return;
           setVariants(fetchedVariants);
-          console.log("Variants loaded:", fetchedVariants.length);
           if (fetchedVariants.length > 0) {
             setSelectedVariant((prev) => {
               const prevId = getVariantId(prev);
@@ -321,6 +324,15 @@ const ProductDetails = () => {
     : Array.isArray(current.attribute_values)
       ? current.attribute_values
       : [];
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useSEO({
+    title: displayName,
+    description: displayDesc || `Buy ${displayName} on Skimpy Marketplace.`,
+    image: mainImage || (product?.images?.[0]) || undefined,
+    url: `/product/${id}`,
+    type: "product",
+  });
 
   return (
     <>

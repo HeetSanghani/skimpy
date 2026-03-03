@@ -143,10 +143,8 @@ export default function Cart() {
         try {
             await updateCartItemQuantity(cartItemId, newQuantity);
         } catch (err) {
-            console.error("Error updating quantity:", err);
-            console.error("Error updating quantity:", err);
             toast.error("Failed to update quantity");
-            // Revert on failure: refetch or revert locally (simple approach: refetch)
+            // Revert on failure
             try {
                 const fresh = await getCartItems();
                 setCartItems(fresh || []);
@@ -234,8 +232,6 @@ export default function Cart() {
                 items: itemsPayload,
                 address_id: selectedAddr.address_id || selectedAddr._id || selectedAddr.id
             };
-
-            console.log("🛒 Sending secure payload to Stripe:", payload);
 
             const response = await axios.post(
                 `${BASE_URL}/payment/create-checkout-session`,

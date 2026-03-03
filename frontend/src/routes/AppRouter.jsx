@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from "../components/ProtectedRoute";
-// :white_tick: Pages
+// Pages
 import Home from '../pages/Home';
 import About from '../pages/About';
 import Contact from '../pages/Contact';
@@ -16,28 +16,30 @@ import SellerDashboard from '../pages/SellerDashboard';
 import Sell from '../pages/Sell';
 import ProductDetail from '../pages/ProductDetail';
 import ProductPage from '../pages/ProductPage';
-
-
-
 import Products from '../pages/Products';
 import ProductDetails from '../pages/ProductDetails';
 import Wishlist from '../pages/Wishlist';
 import Orders from '../pages/Orders';
 import OrderDetails from '../pages/OrderDetails';
 import PaymentSuccess from "../pages/PaymentSuccess";
-import SellerShopPage from '../pages/SellerShopPage.jsx'
+import SellerShopPage from '../pages/SellerShopPage.jsx';
 
+// Error pages
+import NotFoundPage from '../pages/NotFoundPage';
+import ServerErrorPage from '../pages/ServerErrorPage';
+import UnauthorizedPage from '../pages/UnauthorizedPage';
 
-// :white_tick: Components (Forms)
+// Listing Forms
 import BookListingForm from '../components/BookListingForm';
 import AntiqueJewelryListingForm from '../components/AntiqueJewelryListingForm';
 import PotteryListingForm from '../components/PotteryListingForm';
 import HomeDecorListingForm from '../components/HomeDecorListingForm';
 import FlowersHandcraftsListingForm from '../components/FlowersHandcraftsListingForm';
+
 function AppRouter() {
   return (
     <Routes>
-      {/* :small_blue_diamond: General Routes */}
+      {/* General Routes */}
       <Route path="/" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
@@ -62,7 +64,8 @@ function AppRouter() {
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      {/* :small_blue_diamond: Seller and Product Management */}
+
+      {/* Seller Routes */}
       <Route
         path="/seller/dashboard"
         element={
@@ -80,7 +83,7 @@ function AppRouter() {
         }
       />
 
-
+      {/* Products */}
       <Route path="/products" element={<Products />} />
       <Route path="/product/:id" element={<ProductDetails />} />
       <Route
@@ -103,45 +106,25 @@ function AppRouter() {
       <Route path="/order-confirmation" element={<PaymentSuccess />} />
       <Route path="/seller/:sellerId" element={<SellerShopPage />} />
 
-
-      {/* :small_blue_diamond: Category & Products */}
+      {/* Category & Products */}
       <Route path="/category/:id" element={<CategorySubcategories />} />
       <Route path="/seller/product/:productId" element={<ProductDetail />} />
       <Route path="/products/*" element={<ProductPage />} />
-      {/* :small_blue_diamond: Listing Forms */}
+
+      {/* Listing Forms */}
       <Route path="/book-listing-form/:id" element={<BookListingForm />} />
       <Route path="/antique-jewelry-listing-form/:id" element={<AntiqueJewelryListingForm />} />
       <Route path="/pottery-listing-form/:id" element={<PotteryListingForm />} />
       <Route path="/home-decor-listing-form/:id" element={<HomeDecorListingForm />} />
       <Route path="/flowers-handcrafts-listing-form/:id" element={<FlowersHandcraftsListingForm />} />
-      {/* :small_blue_diamond: 404 Fallback */}
 
+      {/* Error pages */}
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
+      <Route path="/500" element={<ServerErrorPage />} />
 
-
-
-
-
-
-
-
-      <Route
-        path="*"
-        element={
-          <h1 className="text-center mt-10 text-xl text-gray-600">
-            404 Page Not Found
-          </h1>
-        }
-      />
+      {/* 404 catch-all */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
 export default AppRouter;
-
-
-
-
-
-
-
-
-
