@@ -8,6 +8,7 @@ import { fetchAvatar, fetchCategories, fetchAccountDetails } from "../features/s
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Heart, ShoppingCart, Package, Store } from "lucide-react";
+import { API_BASE_URL } from "../api/baseUrl";
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -23,8 +24,7 @@ export default function Navbar() {
   // For any logged-in user, attempt to get their vendor. 404 = not a seller (silent).
   useEffect(() => {
     if (!token) { setVendorId(null); return; }
-    const BASE_URL = import.meta.env.VITE_BASE_URL || "";
-    axios.get(`${BASE_URL}/Vendor/by-user`, {
+    axios.get(`${API_BASE_URL}/Vendor/by-user`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => {
