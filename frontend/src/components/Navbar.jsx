@@ -17,35 +17,22 @@ export default function Navbar() {
   const { token } = useSelector((state) => state.auth);
   const { avatarUrl, categories, account } = useSelector((state) => state.settings);
 
-  // Seller detection
-  const isSeller = account?.role === "seller";
-  // Try multiple field names the backend might use
-  const [vendorId, setVendorId] = useState(
-    account?.vendor_id || account?.vendorId || account?._id || null
-  );
+  // vendorId — only sellers have a vendor doc; null = not a seller
+  const [vendorId, setVendorId] = useState(null);
 
-  // If account is loaded and user is a seller but we don't have vendor_id yet, fetch from API
+  // For any logged-in user, attempt to get their vendor. 404 = not a seller (silent).
   useEffect(() => {
-    if (!isSeller || !token) return;
-    const existing = account?.vendor_id || account?.vendorId;
-    if (existing) {
-      setVendorId(existing);
-      return;
-    }
-    // Fetch vendor profile to get the ID
+    if (!token) { setVendorId(null); return; }
     const BASE_URL = import.meta.env.VITE_BASE_URL || "";
-    axios.get(`${BASE_URL}/Vendor/me`, {
+    axios.get(`${BASE_URL}/Vendor/by-user`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => {
         const id = res.data?._id || res.data?.id || res.data?.vendor_id;
         if (id) setVendorId(id);
       })
-      .catch(() => {
-        // fallback: use account _id as vendor ID (sometimes the same)
-        if (account?._id) setVendorId(account._id);
-      });
-  }, [isSeller, token, account]);
+      .catch(() => setVendorId(null));
+  }, [token]);
 
   const [query, setQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -185,7 +172,7 @@ export default function Navbar() {
             )}
 
             {/* My Shop (sellers only) */}
-            {isSeller && vendorId && (
+            {vendorId && (
               <NavIconBtn to={`/seller/${vendorId}`} label="My Shop">
                 <Store size={18} strokeWidth={1.8} />
               </NavIconBtn>
@@ -303,7 +290,7 @@ export default function Navbar() {
               <MobileNavLink to="/wishlist" label="Wishlist" icon={Heart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-cart" label="Cart" icon={ShoppingCart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-orders" label="Orders" icon={Package} onClick={() => setIsMenuOpen(false)} />
-              {isSeller && vendorId && (
+              {vendorId && (
                 <MobileNavLink to={`/seller/${vendorId}`} label="My Shop" icon={Store} onClick={() => setIsMenuOpen(false)} />
               )}
             </div>
