@@ -146,7 +146,7 @@ async def create_checkout_session(
             # Passing customer_email pre-fills the email field.
             customer_email=user_doc.get("email"),
             success_url=f"{FRONTEND_URL}/order-confirmation?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{FRONTEND_URL}/my-cart",
+            cancel_url=f"{FRONTEND_URL}/payment-cancel",
             client_reference_id=user_id,
             metadata={
                 "selected_address_id": address_id 

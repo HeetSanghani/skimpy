@@ -22,6 +22,7 @@ import Wishlist from '../pages/Wishlist';
 import Orders from '../pages/Orders';
 import OrderDetails from '../pages/OrderDetails';
 import PaymentSuccess from "../pages/PaymentSuccess";
+import PaymentCancel from "../pages/PaymentCancel";
 import SellerShopPage from '../pages/SellerShopPage.jsx';
 
 // Error pages
@@ -104,6 +105,7 @@ function AppRouter() {
       />
 
       <Route path="/order-confirmation" element={<PaymentSuccess />} />
+      <Route path="/payment-cancel" element={<PaymentCancel />} />
       <Route path="/seller/:sellerId" element={<SellerShopPage />} />
 
       {/* Category & Products */}
