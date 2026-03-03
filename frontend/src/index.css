@@ -397,3 +397,15 @@ html {
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
+
+/* ── BackendGuard loading animations ── */
+@keyframes progress {
+  0%   { transform: translateX(-100%); width: 60%; }
+  50%  { transform: translateX(80%);  width: 60%; }
+  100% { transform: translateX(200%); width: 60%; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0);    opacity: 0.4; }
+  50%       { transform: translateY(-6px); opacity: 1;   }
+}
