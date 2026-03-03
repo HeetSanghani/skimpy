@@ -1,14 +1,13 @@
-// src/pages/Home.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CategoryNavbar from "../components/CategoryNavbar";
 import Footer from "../components/Footer";
 import ProductCard from "../components/ProductCard";
+import { SkeletonGrid } from "../components/Skeletons";
 import { fetchAllCategories, fetchAllProducts } from "../api/settingsApi";
 import { useSEO } from "../hooks/useSEO";
-
-const API_BASE_URL = import.meta.env.VITE_BASE_URL || "";
+import { API_BASE_URL } from "../api/baseUrl";
 
 const normalizeImageUrl = (path) => {
   if (!path) return null;
@@ -274,13 +273,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 stagger-children">
             {isProductsLoading ? (
-              [...Array(8)].map((_, i) => (
-                <div key={i} className="space-y-4">
-                  <div className="aspect-[4/5] bg-gray-200 rounded-2xl skeleton"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4 skeleton"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2 skeleton"></div>
-                </div>
-              ))
+              <div className="col-span-full"><SkeletonGrid count={8} /></div>
             ) : featuredProducts.length > 0 ? (
               featuredProducts.map((product) => (
                 <ProductCard key={product._id} product={product} />
