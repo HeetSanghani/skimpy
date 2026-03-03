@@ -2,11 +2,12 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
 import defaultAvatar from "../assets/default-avatar.png";
-import { fetchAvatar, fetchCategories } from "../features/settings/settingsSlice";
+import { fetchAvatar, fetchCategories, fetchAccountDetails } from "../features/settings/settingsSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
-import { Heart, ShoppingCart, Package } from "lucide-react";
+import { Heart, ShoppingCart, Package, Store } from "lucide-react";
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -14,7 +15,37 @@ export default function Navbar() {
   const location = useLocation();
 
   const { token } = useSelector((state) => state.auth);
-  const { avatarUrl, categories } = useSelector((state) => state.settings);
+  const { avatarUrl, categories, account } = useSelector((state) => state.settings);
+
+  // Seller detection
+  const isSeller = account?.role === "seller";
+  // Try multiple field names the backend might use
+  const [vendorId, setVendorId] = useState(
+    account?.vendor_id || account?.vendorId || account?._id || null
+  );
+
+  // If account is loaded and user is a seller but we don't have vendor_id yet, fetch from API
+  useEffect(() => {
+    if (!isSeller || !token) return;
+    const existing = account?.vendor_id || account?.vendorId;
+    if (existing) {
+      setVendorId(existing);
+      return;
+    }
+    // Fetch vendor profile to get the ID
+    const BASE_URL = import.meta.env.VITE_BASE_URL || "";
+    axios.get(`${BASE_URL}/Vendor/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => {
+        const id = res.data?._id || res.data?.id || res.data?.vendor_id;
+        if (id) setVendorId(id);
+      })
+      .catch(() => {
+        // fallback: use account _id as vendor ID (sometimes the same)
+        if (account?._id) setVendorId(account._id);
+      });
+  }, [isSeller, token, account]);
 
   const [query, setQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -24,6 +55,11 @@ export default function Navbar() {
   useEffect(() => {
     if (token) dispatch(fetchAvatar());
   }, [token, dispatch]);
+
+  // Fetch account details to determine if user is a seller
+  useEffect(() => {
+    if (token && !account) dispatch(fetchAccountDetails());
+  }, [token, account, dispatch]);
 
   useEffect(() => {
     if (!categories || categories.length === 0) dispatch(fetchCategories());
@@ -91,37 +127,37 @@ export default function Navbar() {
           {/* CENTER — Search */}
           <div className="w-full max-w-2xl mx-auto flex items-center gap-3">
             <form onSubmit={handleSearchSubmit} className="w-full">
-            <label htmlFor="nav-search-desktop" className="sr-only">Search products</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                <FontAwesomeIcon icon={faMagnifyingGlass} className="text-sm" />
-              </span>
-              <input
-                id="nav-search-desktop"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search for products, brands, categories…"
-                className={`
+              <label htmlFor="nav-search-desktop" className="sr-only">Search products</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <FontAwesomeIcon icon={faMagnifyingGlass} className="text-sm" />
+                </span>
+                <input
+                  id="nav-search-desktop"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  placeholder="Search for products, brands, categories…"
+                  className={`
                   w-full pl-11 pr-28 py-2.5 rounded-full text-sm
                   border transition-all duration-300
                   bg-white/8 text-white placeholder-gray-500
                   focus:outline-none
                   ${searchFocused
-                    ? "border-indigo-500/60 ring-2 ring-indigo-500/20 bg-white/12"
-                    : "border-white/12 hover:border-white/20"
-                  }
+                      ? "border-indigo-500/60 ring-2 ring-indigo-500/20 bg-white/12"
+                      : "border-white/12 hover:border-white/20"
+                    }
                 `}
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Search
-              </button>
-            </div>
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  Search
+                </button>
+              </div>
             </form>
           </div>
 
@@ -145,6 +181,13 @@ export default function Navbar() {
             {token && (
               <NavIconBtn to="/my-orders" label="Orders">
                 <Package size={18} strokeWidth={1.8} />
+              </NavIconBtn>
+            )}
+
+            {/* My Shop (sellers only) */}
+            {isSeller && vendorId && (
+              <NavIconBtn to={`/seller/${vendorId}`} label="My Shop">
+                <Store size={18} strokeWidth={1.8} />
               </NavIconBtn>
             )}
 
@@ -260,6 +303,9 @@ export default function Navbar() {
               <MobileNavLink to="/wishlist" label="Wishlist" icon={Heart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-cart" label="Cart" icon={ShoppingCart} onClick={() => setIsMenuOpen(false)} />
               <MobileNavLink to="/my-orders" label="Orders" icon={Package} onClick={() => setIsMenuOpen(false)} />
+              {isSeller && vendorId && (
+                <MobileNavLink to={`/seller/${vendorId}`} label="My Shop" icon={Store} onClick={() => setIsMenuOpen(false)} />
+              )}
             </div>
           ) : null}
 
