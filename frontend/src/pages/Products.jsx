@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import CategoryNavbar from "../components/CategoryNavbar";
 import ProductCard from "../components/ProductCard";
-import { SkeletonGrid } from "../components/SkeletonCard";
+import { SkeletonGrid } from "../components/Skeletons";
 import EmptyState from "../components/EmptyState";
 import { fetchAllProducts } from "../api/settingsApi";
 import { useSEO } from "../hooks/useSEO";

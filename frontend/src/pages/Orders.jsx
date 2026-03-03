@@ -4,6 +4,7 @@ import { getUserOrders } from "../api/orderApi";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { SkeletonList } from "../components/Skeletons";
 
 const INITIAL_LIMIT = 4;
 
@@ -39,13 +40,11 @@ const Orders = () => {
 
     if (loading && orders.length === 0)
         return (
-            <div className="flex min-h-screen flex-col bg-slate-50 font-sora">
+            <div className="flex min-h-screen flex-col bg-[#0a0a0a] font-sora">
                 <Navbar />
-                <div className="flex-1 flex items-center justify-center">
-                    <div className="animate-pulse flex flex-col items-center">
-                        <div className="h-12 w-12 bg-indigo-500/20 rounded-full mb-4"></div>
-                        <div className="text-indigo-600 font-medium tracking-wide">Resolving Orders...</div>
-                    </div>
+                <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-10">
+                    <div className="h-8 w-48 bg-white/8 rounded-lg mb-6 animate-pulse" />
+                    <SkeletonList rows={5} />
                 </div>
                 <Footer />
             </div>
