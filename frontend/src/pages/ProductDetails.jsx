@@ -40,31 +40,13 @@ const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { token, user } = useSelector((state) => state.auth || {}); // Added 'user' to destructuring
+  const { token, user } = useSelector((state) => state.auth || {});
+  const { showConfirm } = useConfirmation();
 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
 
-  // Fetch profile checks
-  useEffect(() => {
-    if (token && (!user || !user.email)) {
-      dispatch(fetchProfileThunk());
-    }
-  }, [dispatch, token, user]);
-
-  const validateProfile = () => {
-    if (!user) return ["Log in to continue"];
-
-    const missing = [];
-    if (!user.phone) missing.push("Mobile Number");
-    if (!user.DOB) missing.push("Date of Birth");
-    if (!user.gender) missing.push("Gender");
-    if (!user.has_delivery_address) missing.push("At least one Delivery Address");
-    if (!user.avatar) missing.push("Profile Avatar");
-
-    return missing;
-  };
-
+  // Product state — declared BEFORE useSEO so we can pass them to it
   const [product, setProduct] = useState(null);
   const [vendor, setVendor] = useState(null);
   const [variants, setVariants] = useState([]);
@@ -78,6 +60,22 @@ const ProductDetails = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [noStock, setNoStock] = useState(false);
+
+  // SEO — must be at top level (Rules of Hooks), uses product state which defaults to null
+  useSEO({
+    title: product ? (product.product_name || product.name) : undefined,
+    description: product?.description ? product.description : undefined,
+    image: mainImage || product?.images?.[0] || undefined,
+    url: `/product/${id}`,
+    type: "product",
+  });
+
+  // Fetch profile checks
+  useEffect(() => {
+    if (token && (!user || !user.email)) {
+      dispatch(fetchProfileThunk());
+    }
+  }, [dispatch, token, user]);
 
   // ✅ Fetch product, vendor, and variants
   useEffect(() => {
@@ -231,7 +229,19 @@ const ProductDetails = () => {
 
   // ✅ Buy Now Handler
   const handleBuyNow = async () => {
+    const validateProfile = () => {
+      if (!user) return ["Log in to continue"];
+      const missing = [];
+      if (!user.phone) missing.push("Mobile Number");
+      if (!user.DOB) missing.push("Date of Birth");
+      if (!user.gender) missing.push("Gender");
+      if (!user.has_delivery_address) missing.push("At least one Delivery Address");
+      if (!user.avatar) missing.push("Profile Avatar");
+      return missing;
+    };
+
     // Check stock
+
     const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
     if (currentStock <= 0) {
       setNoStock(true);
@@ -324,15 +334,6 @@ const ProductDetails = () => {
     : Array.isArray(current.attribute_values)
       ? current.attribute_values
       : [];
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useSEO({
-    title: displayName,
-    description: displayDesc || `Buy ${displayName} on Skimpy Marketplace.`,
-    image: mainImage || (product?.images?.[0]) || undefined,
-    url: `/product/${id}`,
-    type: "product",
-  });
 
   return (
     <>
