@@ -52,7 +52,14 @@ def upload_image_to_imgbb(file_or_bytes: Union[UploadFile, bytes]) -> Tuple[str,
         raise HTTPException(status_code=502, detail="Failed to upload image to ImgBB")
 
     data = response.json().get("data", {})
-    image_url = data.get("url")
+
+    # ImgBB free plan: data["url"] is the VIEWER page (blocked for embedding).
+    # data["image"]["url"] and data["display_url"] are the real direct CDN URLs.
+    image_url = (
+        (data.get("image") or {}).get("url")   # preferred: direct CDN link
+        or data.get("display_url")              # fallback 1
+        or data.get("url")                      # fallback 2 (viewer page — may block)
+    )
     delete_url = data.get("delete_url")
 
     if not image_url:
