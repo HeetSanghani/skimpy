@@ -263,6 +263,25 @@ export default function ProductDetail() {
     }
   };
 
+  const handleDeleteVariant = (variantId) => {
+    showConfirm({
+      title: "Delete Variant",
+      message: "Are you sure you want to delete this variant? This action cannot be undone.",
+      confirmText: "Delete",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteVariant(variantId);
+          toast.success("Variant deleted successfully!");
+          setVariants((prev) => prev.filter((v) => (v.id || v._id) !== variantId));
+        } catch (err) {
+          console.error("Failed to delete variant:", err);
+          toast.error("Failed to delete variant.");
+        }
+      },
+    });
+  };
+
   // --- Fetch product, variants, attribute-values ---
   useEffect(() => {
     if (!productId) return;
@@ -774,11 +793,24 @@ export default function ProductDetail() {
                             <td className="px-4 py-3">
                               {isEditing ? (
                                 <div className="flex gap-2">
-                                  <button onClick={saveVariant} className="text-green-400 hover:text-green-300">Save</button>
-                                  <button onClick={cancelEditingVariant} className="text-red-400 hover:text-red-300">Cancel</button>
+                                  <button onClick={saveVariant} className="text-green-400 hover:text-green-300 font-medium">Save</button>
+                                  <button onClick={cancelEditingVariant} className="text-gray-400 hover:text-gray-300">Cancel</button>
                                 </div>
                               ) : (
-                                <button onClick={() => startEditingVariant(v)} className="text-indigo-400 hover:text-indigo-300">Edit</button>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => startEditingVariant(v)}
+                                    className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteVariant(getVariantId(v))}
+                                    className="text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
