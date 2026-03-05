@@ -262,25 +262,44 @@ def search_products(q: str = ""):
             p["vendor_id"] = str(p["vendor_id"])
         results.append(p)
 
-    # If we haven't yet applied category-based matching but have a query_str,
-    # also fetch products by matching category names and merge
+    # Also fetch products by matching category names (including all descendant categories)
     if query_str:
         words = query_str.split()
         cat_regex_clauses = [{"$or": [
-            {"name": {"$regex": w, "$options": "i"}},
             {"category_name": {"$regex": w, "$options": "i"}},
+            {"name": {"$regex": w, "$options": "i"}},
         ]} for w in words]
         matching_cats = list(cate_db.categories.find({"$and": cat_regex_clauses} if cat_regex_clauses else {}))
-        cat_oids = [c["_id"] for c in matching_cats]
-        if cat_oids:
+
+        # Recursively collect all descendant category IDs
+        def collect_descendants(parent_ids):
+            if not parent_ids:
+                return []
+            children = list(cate_db.categories.find({
+                "$or": [
+                    {"parent_id": {"$in": parent_ids}},
+                    {"parent_id": {"$in": [str(pid) for pid in parent_ids]}},
+                ]
+            }))
+            if not children:
+                return []
+            child_ids = [c["_id"] for c in children]
+            return children + collect_descendants(child_ids)
+
+        all_cat_oids = [c["_id"] for c in matching_cats]
+        descendants = collect_descendants(all_cat_oids)
+        all_cat_oids += [c["_id"] for c in descendants]
+
+        if all_cat_oids:
             already_ids = {r["_id"] for r in results}
-            extra = list(product_collection.find({"category_id": {"$in": cat_oids}}))
+            extra = list(product_collection.find({"category_id": {"$in": all_cat_oids}}))
             for p in extra:
-                if str(p["_id"]) not in already_ids:
-                    p["_id"] = str(p["_id"])
+                pid_str = str(p["_id"])
+                if pid_str not in already_ids:
+                    p["_id"] = pid_str
                     cat_doc = cate_db.categories.find_one({"_id": p.get("category_id")})
                     if cat_doc:
-                        p["category_name"] = cat_doc.get("name") or cat_doc.get("category_name", "")
+                        p["category_name"] = cat_doc.get("category_name") or cat_doc.get("name", "")
                     if "category_id" in p and p["category_id"]:
                         p["category_id"] = str(p["category_id"])
                     if "vendor_id" in p and p["vendor_id"]:

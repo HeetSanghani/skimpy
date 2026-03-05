@@ -121,13 +121,14 @@ export default function Navbar() {
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                   placeholder="Search for products, brands, categories…"
+                  style={{ colorScheme: "dark", caretColor: "#a5b4fc" }}
                   className={`
                   w-full pl-11 pr-28 py-2.5 rounded-full text-sm
                   border transition-all duration-300
-                  bg-white/8 text-white placeholder-gray-500
+                  bg-[#1a1a2e] text-white placeholder-gray-500
                   focus:outline-none
                   ${searchFocused
-                      ? "border-indigo-500/60 ring-2 ring-indigo-500/20 bg-white/12"
+                      ? "border-indigo-500/60 ring-2 ring-indigo-500/20 bg-[#1e1a38]"
                       : "border-white/12 hover:border-white/20"
                     }
                 `}
@@ -207,7 +208,7 @@ export default function Navbar() {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-sm">
               <span className="text-white font-black text-xs">S</span>
             </div>
-            <span className="font-sora font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="font-sora font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
               SKIMPY
             </span>
           </Link>
