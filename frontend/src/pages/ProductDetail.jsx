@@ -66,6 +66,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Variants + Attributes
   const [variants, setVariants] = useState([]);
@@ -397,6 +398,7 @@ export default function ProductDetail() {
 
   const handleUpdate = async () => {
     try {
+      setIsSaving(true);
       const formData = new FormData();
       formData.append("product_name", editForm.product_name);
       formData.append("description", editForm.description);
@@ -433,6 +435,8 @@ export default function ProductDetail() {
     } catch (err) {
       console.error("Update failed:", err);
       toast.error("Failed to update product.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -822,8 +826,24 @@ export default function ProductDetail() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <button onClick={() => setEditMode(false)} className={btnSecondary}>Cancel</button>
-                <button onClick={handleUpdate} className={btnPrimary}>Save Changes</button>
+                <button onClick={() => setEditMode(false)} disabled={isSaving} className={btnSecondary + (isSaving ? " opacity-50 cursor-not-allowed" : "")}>Cancel</button>
+                <button
+                  onClick={handleUpdate}
+                  disabled={isSaving}
+                  className={btnPrimary + " flex items-center gap-2" + (isSaving ? " opacity-80 cursor-not-allowed" : "")}
+                >
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving…
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
               </div>
             </div>
           </div>
