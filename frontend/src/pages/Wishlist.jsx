@@ -1,12 +1,13 @@
-// ✅ Wishlist.jsx (Final Updated Version with correct Move/Add logic)
+// Wishlist.jsx
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import "./Products.css";
 import toast from 'react-hot-toast';
+import { useSEO } from "../hooks/useSEO";
+import { API_BASE_URL } from "../api/baseUrl";
 
 import { addToCart } from "../api/cartApi";
 import { getWishlistItems, removeFromWishlist } from "../api/wishlistApi";
@@ -17,28 +18,28 @@ function formatPrice(price) {
   return new Intl.NumberFormat("en-IN").format(price);
 }
 
-// Normalize image
+// Normalize image — uses API_BASE_URL correctly
 function normalizeImageUrl(img) {
   if (!img) return "https://via.placeholder.com/800x800?text=No+Image";
   if (img.startsWith("http")) return img;
-  return `${import.meta.env.VITE_BASE_URL}/${img}`;
+  const clean = img.startsWith("/") ? img : `/${img}`;
+  return `${API_BASE_URL}${clean}`;
 }
 
-// Skeleton loader
+// Skeleton loader — Tailwind-only, no legacy CSS
 function WishlistSkeleton() {
   return (
-    <div className="grid-container">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4 sm:p-6">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="single-card skeleton">
-          <div className="image-container">
-            <div className="skeleton-box" style={{ width: "100%", height: 320 }} />
-          </div>
-          <div className="content">
-            <div className="skeleton-box" style={{ width: "60%", height: 20, marginBottom: 8 }} />
-            <div className="skeleton-box" style={{ width: "40%", height: 20, marginBottom: 12 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <div className="skeleton-box" style={{ width: 120, height: 40 }} />
-              <div className="skeleton-box" style={{ width: 48, height: 40 }} />
+        <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
+          <div className="aspect-[4/5] bg-gray-200" />
+          <div className="p-4 space-y-3">
+            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="h-4 bg-gray-200 rounded w-1/2" />
+            <div className="h-5 bg-gray-200 rounded w-1/3" />
+            <div className="flex gap-2 pt-2">
+              <div className="h-9 bg-gray-200 rounded-lg flex-1" />
+              <div className="h-9 w-16 bg-gray-200 rounded-lg" />
             </div>
           </div>
         </div>
@@ -52,6 +53,12 @@ export default function Wishlist() {
   const [loading, setLoading] = useState(true);
   const { token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+
+  useSEO({
+    title: "My Wishlist — Skimpy",
+    description: "Your saved products, ready to purchase anytime on Skimpy.",
+    url: "/wishlist",
+  });
 
   useEffect(() => {
     if (!token) return navigate("/login");
@@ -81,35 +88,42 @@ export default function Wishlist() {
   };
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC] font-inter">
       <Navbar />
 
-      <div className="min-h-screen bg-gray-100 flex flex-col">
-        {/* MAIN AREA */}
-        <div className="flex-grow products-container">
-
-          {loading ? (
-            <WishlistSkeleton />
-          ) : wishlistItems.length === 0 ? (
-            <EmptyWishlist navigate={navigate} />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4 sm:p-6">
-              {wishlistItems.map((item) => (
-                <WishlistCard
-                  key={item._id}
-                  item={item}
-                  onRemoveLocal={removeLocal}
-                />
-              ))}
-            </div>
-          )}
-
+      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Page Heading */}
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-sora font-extrabold tracking-tight text-slate-900">
+            My{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">
+              Wishlist
+            </span>
+          </h1>
+          <p className="mt-3 text-slate-500 font-medium text-lg">
+            {loading ? "Loading your saved items…" : `${wishlistItems.length} saved item${wishlistItems.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
 
-        {/* STATIC FOOTER */}
-        <Footer />
-      </div>
-    </>
+        {loading ? (
+          <WishlistSkeleton />
+        ) : wishlistItems.length === 0 ? (
+          <EmptyWishlist navigate={navigate} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {wishlistItems.map((item) => (
+              <WishlistCard
+                key={item._id}
+                item={item}
+                onRemoveLocal={removeLocal}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      <Footer />
+    </div>
   );
 }
 

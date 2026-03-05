@@ -69,10 +69,18 @@ function Footer() {
 
           {/* Social Icons */}
           <div className="flex space-x-3">
-            {[faTwitter, faFacebook, faInstagram, faDiscord].map((icon, i) => (
+            {[
+              { icon: faTwitter, href: "https://twitter.com/skimpy_in", label: "Twitter" },
+              { icon: faFacebook, href: "https://www.facebook.com/skimpy.in", label: "Facebook" },
+              { icon: faInstagram, href: "https://www.instagram.com/skimpy.in", label: "Instagram" },
+              { icon: faDiscord, href: "https://discord.gg/skimpy", label: "Discord" },
+            ].map(({ icon, href, label }) => (
               <a
-                key={i}
-                href="#"
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
                 className="w-10 h-10 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:border-indigo-500 hover:bg-indigo-600/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-300 hover:scale-110 hover:-translate-y-1"
               >
                 <FontAwesomeIcon icon={icon} />

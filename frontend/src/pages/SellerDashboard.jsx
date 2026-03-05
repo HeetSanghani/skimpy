@@ -13,6 +13,14 @@ import {
 import { Package, ShoppingCart, Plus, TrendingUp, IndianRupee, Check, X, Truck, Box } from "lucide-react";
 import { updateOrderStatus } from "../api/orderApi";
 import toast from "react-hot-toast";
+import { API_BASE_URL } from "../api/baseUrl";
+
+// Normalize image path to full URL
+const normalizeImage = (img) => {
+  if (!img) return null;
+  if (img.startsWith("http://") || img.startsWith("https://")) return img;
+  return `${API_BASE_URL}${img.startsWith("/") ? img : `/${img}`}`;
+};
 
 export default function SellerDashboard() {
   const dispatch = useDispatch();
@@ -418,7 +426,7 @@ export default function SellerDashboard() {
                         >
                           {product.images && product.images.length > 0 ? (
                             <img
-                              src={(product.images[0] || "").startsWith("http") ? product.images[0] : `/${product.images[0]}`}
+                              src={normalizeImage(product.images[0])}
                               alt={product.product_name}
                               className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-500"
                             />
@@ -501,7 +509,7 @@ export default function SellerDashboard() {
                       >
                         {product.images && product.images.length > 0 ? (
                           <img
-                            src={(product.images[0] || "").startsWith("http") ? product.images[0] : `/${product.images[0]}`}
+                            src={normalizeImage(product.images[0])}
                             alt={product.product_name}
                             className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-500"
                           />

@@ -12,6 +12,7 @@ import ProfileCompletionModal from "../components/ProfileCompletionModal";
 import AddressModal from "../components/AddressModal";
 import { useConfirmation } from "../context/ConfirmationContext";
 import { API_BASE_URL } from "../api/baseUrl";
+import { useSEO } from "../hooks/useSEO";
 
 const BASE_URL = API_BASE_URL;
 // Normalize image URL
@@ -29,6 +30,11 @@ const formatDeliveryDate = (daysFromNow = 4) => {
 };
 
 export default function Cart() {
+    useSEO({
+        title: "Shopping Cart — Skimpy",
+        description: "Review your cart items and checkout securely on Skimpy.",
+        url: "/my-cart",
+    });
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { token, user } = useSelector((state) => state.auth);

@@ -183,7 +183,7 @@ export default function Home() {
                 ];
                 const gradient = gradients[index % gradients.length];
 
-                return (
+                return cat.slug ? (
                   <Link
                     key={cat._id}
                     to={`/products/${cat.slug}`}

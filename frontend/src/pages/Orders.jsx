@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { SkeletonList } from "../components/Skeletons";
+import { useSEO } from "../hooks/useSEO";
 
 const INITIAL_LIMIT = 4;
 
@@ -14,6 +15,12 @@ const Orders = () => {
     const [loading, setLoading] = useState(true);
     const [loadingAll, setLoadingAll] = useState(false);
     const [showAll, setShowAll] = useState(false);
+
+    useSEO({
+        title: "My Orders — Skimpy",
+        description: "Track and manage all your Skimpy orders.",
+        url: "/my-orders",
+    });
 
     const fetchOrders = async () => {
         try {
@@ -40,10 +47,10 @@ const Orders = () => {
 
     if (loading && orders.length === 0)
         return (
-            <div className="flex min-h-screen flex-col bg-[#0a0a0a] font-sora">
+            <div className="flex min-h-screen flex-col bg-[#F8FAFC] font-sora">
                 <Navbar />
                 <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-10">
-                    <div className="h-8 w-48 bg-white/8 rounded-lg mb-6 animate-pulse" />
+                    <div className="h-8 w-48 bg-slate-200 rounded-lg mb-6 animate-pulse" />
                     <SkeletonList rows={5} />
                 </div>
                 <Footer />

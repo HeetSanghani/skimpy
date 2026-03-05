@@ -519,72 +519,67 @@ const ProductDetails = () => {
                     Buy Now
                   </button>
                 </div>
-                <button
-                  onClick={() => { }}
-                  className="hidden"
-                />
-              </div>
 
-              {/* SELLER CARD */}
-              {vendor && (
-                <div className="mt-4 relative overflow-hidden bg-white rounded-[2rem] border border-slate-100 shadow-xl p-6 group hover:shadow-indigo-100 transition-shadow">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-indigo-100 transition-colors"></div>
+                {/* SELLER CARD */}
+                {vendor && (
+                  <div className="mt-4 relative overflow-hidden bg-white rounded-[2rem] border border-slate-100 shadow-xl p-6 group hover:shadow-indigo-100 transition-shadow">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-indigo-100 transition-colors"></div>
 
-                  <div className="relative flex items-center gap-5">
-                    <div className="relative">
-                      <img
-                        src={normalizeImage(vendor.image || vendor.profile_image)}
-                        alt={vendor.shop_name || "Seller"}
-                        className="w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-md cursor-pointer hover:scale-105 transition-transform"
-                        onClick={() => {
-                          const sid = vendor._id || vendor.id || vendor.user_id;
-                          if (sid) navigate(`/seller/${sid}`);
-                        }}
-                      />
-                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
-                    </div>
-
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold font-sora text-slate-900 cursor-pointer hover:text-indigo-600 transition-colors"
-                        onClick={() => {
-                          const sid = vendor._id || vendor.id || vendor.user_id;
-                          if (sid) navigate(`/seller/${sid}`);
-                        }}
-                      >
-                        {vendor.shop_name || "Seller Shop"}
-                      </h3>
-                      <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">{vendor.shop_description || "Verified Top Seller"}</p>
-                      <div className="flex gap-4 mt-2 text-xs text-slate-400 font-medium">
-                        {vendor.address && <span>📍 {vendor.address}</span>}
-                        <span className="text-amber-500">★★★★★ 4.9</span>
+                    <div className="relative flex items-center gap-5">
+                      <div className="relative">
+                        <img
+                          src={normalizeImage(vendor.image || vendor.profile_image)}
+                          alt={vendor.shop_name || "Seller"}
+                          className="w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-md cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => {
+                            const sid = vendor._id || vendor.id || vendor.user_id;
+                            if (sid) navigate(`/seller/${sid}`);
+                          }}
+                        />
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
                       </div>
+
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold font-sora text-slate-900 cursor-pointer hover:text-indigo-600 transition-colors"
+                          onClick={() => {
+                            const sid = vendor._id || vendor.id || vendor.user_id;
+                            if (sid) navigate(`/seller/${sid}`);
+                          }}
+                        >
+                          {vendor.shop_name || "Seller Shop"}
+                        </h3>
+                        <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">{vendor.shop_description || "Verified Top Seller"}</p>
+                        <div className="flex gap-4 mt-2 text-xs text-slate-400 font-medium">
+                          {vendor.address && <span>📍 {vendor.address}</span>}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold tracking-wide border border-emerald-100">✓ Verified Seller</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const sid = vendor._id || vendor.id || vendor.user_id;
+                          if (sid) navigate(`/seller/${sid}`);
+                        }}
+                        className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                      >
+                        Visit Shop
+                      </button>
                     </div>
-
-                    <button
-                      onClick={() => {
-                        const sid = vendor._id || vendor.id || vendor.user_id;
-                        if (sid) navigate(`/seller/${sid}`);
-                      }}
-                      className="px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                    >
-                      Visit Shop
-                    </button>
                   </div>
-                </div>
-              )}
+                )}
 
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <ProfileCompletionModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        missingFields={missingFields}
-      />
-      <Footer />
-    </>
-  );
+        <ProfileCompletionModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          missingFields={missingFields}
+        />
+        <Footer />
+      </>
+      );
 };
 
-export default ProductDetails;
+      export default ProductDetails;

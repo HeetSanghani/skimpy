@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass, faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { Heart, ShoppingCart, Package, Store } from "lucide-react";
 import { API_BASE_URL } from "../api/baseUrl";
+import { getCartItems } from "../api/cartApi";
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -38,6 +39,16 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+
+  // Fetch cart count for badge
+  useEffect(() => {
+    if (!token) { setCartCount(0); return; }
+    getCartItems().then(items => {
+      const count = Array.isArray(items) ? items.reduce((acc, i) => acc + (i.quantity || 1), 0) : 0;
+      setCartCount(count);
+    }).catch(() => setCartCount(0));
+  }, [token, location.pathname]);
 
   useEffect(() => {
     if (token) dispatch(fetchAvatar());
@@ -154,7 +165,14 @@ export default function Navbar() {
                 </NavIconBtn>
 
                 <NavIconBtn to="/my-cart" label="Cart">
-                  <ShoppingCart size={18} strokeWidth={1.8} />
+                  <div className="relative">
+                    <ShoppingCart size={18} strokeWidth={1.8} />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                        {cartCount > 99 ? "99+" : cartCount}
+                      </span>
+                    )}
+                  </div>
                 </NavIconBtn>
               </>
             )}
@@ -243,7 +261,7 @@ export default function Navbar() {
       <div
         className={`
           md:hidden overflow-hidden transition-all duration-300 ease-in-out
-          ${isMenuOpen ? "max-h-80 opacity-100" : "max-h-0 opacity-0"}
+          ${isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}
         `}
       >
         <div className="px-4 pt-3 pb-4 space-y-3 border-t border-white/10 bg-[#0d0d0d]">
@@ -270,7 +288,21 @@ export default function Navbar() {
           {token ? (
             <div className="flex justify-around items-center pt-1">
               <MobileNavLink to="/wishlist" label="Wishlist" icon={Heart} onClick={() => setIsMenuOpen(false)} />
-              <MobileNavLink to="/my-cart" label="Cart" icon={ShoppingCart} onClick={() => setIsMenuOpen(false)} />
+              {/* Cart with badge */}
+              <button
+                onClick={() => { navigate("/my-cart"); setIsMenuOpen(false); }}
+                className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-400 transition-colors duration-200"
+              >
+                <span className="relative">
+                  <ShoppingCart size={20} strokeWidth={1.8} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] font-medium">Cart</span>
+              </button>
               <MobileNavLink to="/my-orders" label="Orders" icon={Package} onClick={() => setIsMenuOpen(false)} />
               {vendorId && (
                 <MobileNavLink to={`/seller/${vendorId}`} label="My Shop" icon={Store} onClick={() => setIsMenuOpen(false)} />

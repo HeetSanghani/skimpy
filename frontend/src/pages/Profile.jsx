@@ -55,8 +55,6 @@ export default function Profile() {
   const { account, addresses, avatarUrl, categories, loading, error } =
     useSelector((state) => state.settings);
 
-  console.log("Categories in Redux:", categories);
-
   /* ── Load data on tab change ── */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
