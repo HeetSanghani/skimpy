@@ -578,8 +578,9 @@ const ProductDetails = () => {
           missingFields={missingFields}
         />
         <Footer />
-      </>
-      );
+      </div>
+    </>
+  );
 };
 
-      export default ProductDetails;
+export default ProductDetails;
