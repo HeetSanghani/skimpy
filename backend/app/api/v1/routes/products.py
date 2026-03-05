@@ -220,6 +220,76 @@ def list_products_by_category(slug: str):
     products = [objectid_str(p) for p in products_cursor]
     return products
 
+# ---------- SEARCH PRODUCTS ----------
+@router.get("/search", response_model=List[dict])
+def search_products(q: str = ""):
+    """
+    Full-text search across product_name, brand, description, and category name.
+    Usage: GET /Product/search?q=vintage+shoes
+    """
+    query_str = q.strip()
+    if not query_str:
+        # Return all products when query is empty
+        products = list(product_collection.find({}))
+    else:
+        words = query_str.split()
+        # Build an OR query across product fields per word
+        and_clauses = []
+        for word in words:
+            regex = {"$regex": word, "$options": "i"}
+            and_clauses.append({
+                "$or": [
+                    {"product_name": regex},
+                    {"brand": regex},
+                    {"description": regex},
+                ]
+            })
+        if and_clauses:
+            products = list(product_collection.find({"$and": and_clauses}))
+        else:
+            products = list(product_collection.find({}))
+
+    # Enrich with category name
+    results = []
+    for p in products:
+        p["_id"] = str(p["_id"])
+        if "category_id" in p and p["category_id"]:
+            cat_doc = cate_db.categories.find_one({"_id": p["category_id"]})
+            if cat_doc:
+                p["category_name"] = cat_doc.get("name") or cat_doc.get("category_name", "")
+            p["category_id"] = str(p["category_id"])
+        if "vendor_id" in p and p["vendor_id"]:
+            p["vendor_id"] = str(p["vendor_id"])
+        results.append(p)
+
+    # If we haven't yet applied category-based matching but have a query_str,
+    # also fetch products by matching category names and merge
+    if query_str:
+        words = query_str.split()
+        cat_regex_clauses = [{"$or": [
+            {"name": {"$regex": w, "$options": "i"}},
+            {"category_name": {"$regex": w, "$options": "i"}},
+        ]} for w in words]
+        matching_cats = list(cate_db.categories.find({"$and": cat_regex_clauses} if cat_regex_clauses else {}))
+        cat_oids = [c["_id"] for c in matching_cats]
+        if cat_oids:
+            already_ids = {r["_id"] for r in results}
+            extra = list(product_collection.find({"category_id": {"$in": cat_oids}}))
+            for p in extra:
+                if str(p["_id"]) not in already_ids:
+                    p["_id"] = str(p["_id"])
+                    cat_doc = cate_db.categories.find_one({"_id": p.get("category_id")})
+                    if cat_doc:
+                        p["category_name"] = cat_doc.get("name") or cat_doc.get("category_name", "")
+                    if "category_id" in p and p["category_id"]:
+                        p["category_id"] = str(p["category_id"])
+                    if "vendor_id" in p and p["vendor_id"]:
+                        p["vendor_id"] = str(p["vendor_id"])
+                    results.append(p)
+
+    return results
+
+
 # ---------- GET SINGLE PRODUCT ----------
 @router.get("/{product_id}")
 def get_product(product_id: str):

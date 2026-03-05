@@ -60,16 +60,17 @@ export default function Navbar() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    setQuery(params.get("search") || "");
+    // Sync query bar with ?q= (search page) or ?search= (products page)
+    setQuery(params.get("q") || params.get("search") || "");
   }, [location.search]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) {
-      navigate("/products", { replace: location.pathname.startsWith("/products") });
+      navigate("/products");
     } else {
-      navigate(`/products?search=${encodeURIComponent(trimmed)}`);
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     }
     setIsMenuOpen(false);
   };

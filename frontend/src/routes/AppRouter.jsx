@@ -17,6 +17,7 @@ import Sell from '../pages/Sell';
 import ProductDetail from '../pages/ProductDetail';
 import ProductPage from '../pages/ProductPage';
 import Products from '../pages/Products';
+import SearchResults from '../pages/SearchResults';
 import ProductDetails from '../pages/ProductDetails';
 import Wishlist from '../pages/Wishlist';
 import Orders from '../pages/Orders';
@@ -86,6 +87,7 @@ function AppRouter() {
 
       {/* Products */}
       <Route path="/products" element={<Products />} />
+      <Route path="/search" element={<SearchResults />} />
       <Route path="/product/:id" element={<ProductDetails />} />
       <Route
         path="/my-orders"
