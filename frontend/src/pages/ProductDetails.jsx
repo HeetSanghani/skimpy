@@ -20,17 +20,7 @@ const BASE_URL = API_BASE_URL;
 const getVariantId = (v) => String(v?.id ?? v?._id ?? "");
 
 const getVariantLabel = (v) => {
-  // Build a human-readable label from attribute values: "L / Brown / Linen"
-  const attrs = Array.isArray(v?.attributes) ? v.attributes : [];
-  if (attrs.length > 0) {
-    // Use only the first 2–3 most important attributes to keep button compact
-    return attrs
-      .slice(0, 3)
-      .map(a => a.value_name)
-      .filter(Boolean)
-      .join(" / ") || v?.sku || "Option";
-  }
-  // Fall back to seller SKU (if readable / not a UUID hash)
+  // Show only the SKU on the variant button
   if (v?.sku) return v.sku;
   return "Option";
 };
