@@ -257,6 +257,7 @@ export default function Profile() {
           <div className="flex items-center gap-2">
             <input
               name="email" value={formData.email || ""} onChange={handleChange} placeholder="Email"
+              type="email"
               className={`${inputCls} flex-1 ${!isEditingEmail ? "opacity-60 cursor-not-allowed" : ""}`}
               readOnly={!isEditingEmail}
             />
@@ -274,8 +275,23 @@ export default function Profile() {
 
         {/* Phone */}
         <div>
-          <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone</label>
-          <input name="phone" value={formData.phone || ""} onChange={handleChange} placeholder="Phone" className={inputCls} />
+          <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone (10 digits)</label>
+          <input
+            name="phone"
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            value={formData.phone || ""}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+              setFormData({ ...formData, phone: digits });
+            }}
+            placeholder="9876543210"
+            className={inputCls}
+          />
+          {formData.phone && !/^\d{10}$/.test(formData.phone) && (
+            <p className="mt-1 text-xs text-red-400">Phone must be exactly 10 digits</p>
+          )}
         </div>
 
         {/* DOB + Gender */}
@@ -339,20 +355,97 @@ export default function Profile() {
           <p className="text-gray-400 text-sm">{editId ? "Edit your address" : "Add a new delivery address"}</p>
         </div>
 
-        {/* Address form */}
+        {/* Address form — fully typed fields */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Object.keys(deliveryForm)
-              .filter((key) => key !== "address_id")
-              .map((key) => (
-                <div key={key}>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{fieldLabel(key)}</label>
-                  <input name={key} value={deliveryForm[key] || ""} onChange={handleDeliveryChange} placeholder={fieldLabel(key)} className={inputCls} />
-                </div>
-              ))}
+
+            {/* First Name */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">First Name</label>
+              <input type="text" name="first_name" value={deliveryForm.first_name || ""}
+                onChange={handleDeliveryChange} placeholder="First Name" className={inputCls} />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Last Name</label>
+              <input type="text" name="last_name" value={deliveryForm.last_name || ""}
+                onChange={handleDeliveryChange} placeholder="Last Name" className={inputCls} />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone (10 digits)</label>
+              <input
+                type="tel" name="phone" inputMode="numeric" maxLength={10}
+                value={deliveryForm.phone || ""}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                placeholder="9876543210" className={inputCls}
+              />
+              {deliveryForm.phone && !/^\d{10}$/.test(deliveryForm.phone) && (
+                <p className="mt-1 text-xs text-red-400">Must be 10 digits</p>
+              )}
+            </div>
+
+            {/* PIN Code */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">PIN Code (6 digits)</label>
+              <input
+                type="text" name="postcode" inputMode="numeric" maxLength={6}
+                value={deliveryForm.postcode || ""}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, postcode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                placeholder="395001" className={inputCls}
+              />
+              {deliveryForm.postcode && !/^\d{6}$/.test(deliveryForm.postcode) && (
+                <p className="mt-1 text-xs text-red-400">PIN must be 6 digits</p>
+              )}
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">City</label>
+              <input type="text" name="city" value={deliveryForm.city || ""}
+                onChange={handleDeliveryChange} placeholder="Surat" className={inputCls} />
+            </div>
+
+            {/* State */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">State</label>
+              <input type="text" name="state" value={deliveryForm.state || ""}
+                onChange={handleDeliveryChange} placeholder="Gujarat" className={inputCls} />
+            </div>
+
+            {/* Country */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Country</label>
+              <input type="text" name="country" value={deliveryForm.country || ""}
+                onChange={handleDeliveryChange} placeholder="India" className={inputCls} />
+            </div>
+
+            {/* Street Address — full width */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Street Address</label>
+              <textarea name="street_address" rows={2} value={deliveryForm.street_address || ""}
+                onChange={handleDeliveryChange} placeholder="House / Flat, Building, Street, Area"
+                className={`${inputCls} resize-none`} />
+            </div>
+
           </div>
+
           <div className="flex gap-3 pt-1">
-            <button onClick={handleSaveDelivery} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+            <button
+              onClick={() => {
+                // Validate before save
+                if (deliveryForm.phone && !/^\d{10}$/.test(deliveryForm.phone)) {
+                  toast.error("Phone must be 10 digits"); return;
+                }
+                if (deliveryForm.postcode && !/^\d{6}$/.test(deliveryForm.postcode)) {
+                  toast.error("PIN code must be 6 digits"); return;
+                }
+                handleSaveDelivery();
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+            >
               <Check size={16} /> {editId ? "Update Address" : "Add Address"}
             </button>
             {editId && (
