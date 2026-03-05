@@ -69,15 +69,36 @@ async def add_variant(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # If seller provided a SKU, honour it — reject if duplicate
+    # ─── SKU handling ───────────────────────────────────────────────
     if sku:
-        if variant_collection.find_one({"sku": sku}):
+        # SKU must be unique within this product only (not globally).
+        # Two different products can share the same SKU (e.g., both have size "L").
+        duplicate_in_product = variant_collection.find_one({
+            "sku": sku,
+            "$or": [
+                {"product_id": ObjectId(product_id)},
+                {"product_id": product_id},
+            ]
+        })
+        if duplicate_in_product:
             raise HTTPException(
                 status_code=400,
-                detail=f"SKU '{sku}' already exists. Please use a unique SKU."
+                detail=f"SKU '{sku}' already exists for this product. Use a different SKU for each variant."
             )
+        # Clean up any orphan variants (from deleted products) that happen to use this SKU globally
+        orphans = list(variant_collection.find({"sku": sku}))
+        for orphan in orphans:
+            op_id = orphan.get("product_id")
+            still_exists = False
+            try:
+                p_oid = op_id if isinstance(op_id, ObjectId) else ObjectId(str(op_id))
+                still_exists = bool(product_collection.find_one({"_id": p_oid}))
+            except Exception:
+                pass
+            if not still_exists:
+                variant_collection.delete_one({"_id": orphan["_id"]})
     else:
-        # Auto-generate only when seller left SKU empty
+        # Auto-generate a unique SKU when seller leaves the field blank
         sku = str(uuid.uuid4()).replace("-", "")[:10]
         while variant_collection.find_one({"sku": sku}):
             sku = str(uuid.uuid4()).replace("-", "")[:10]
