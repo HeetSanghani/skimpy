@@ -224,35 +224,73 @@ def list_products_by_category(slug: str):
 @router.get("/search", response_model=List[dict])
 def search_products(q: str = ""):
     """
-    Full-text search across product_name, brand, description, and category name.
-    Usage: GET /Product/search?q=vintage+shoes
+    Fuzzy full-text search across product_name, brand, description, and category name.
+    Generates word variants (plural, singular, prefix) so 'shirts' also matches 'shirt', 't-shirt', etc.
     """
     query_str = q.strip()
+
+    def build_word_variants(word: str):
+        """
+        Given a search word, return a list of regex patterns to try:
+        - the word itself
+        - singular (strip trailing 's' or 'es')
+        - common sub-string forms (strip 'es', replace 's' with '-', etc.)
+        """
+        w = word.lower()
+        variants = {w}  # always include original
+
+        # Strip common plural suffixes to get root
+        if w.endswith("ies") and len(w) > 4:
+            variants.add(w[:-3] + "y")     # babies -> baby
+        if w.endswith("ves") and len(w) > 4:
+            variants.add(w[:-3] + "f")     # scarves -> scarf
+            variants.add(w[:-3] + "fe")
+        if w.endswith("sses") and len(w) > 5:
+            variants.add(w[:-2])            # dresses -> dress
+        if w.endswith("es") and len(w) > 3:
+            variants.add(w[:-2])            # patches -> patch
+            variants.add(w[:-1])            # shoes -> shoe
+        if w.endswith("s") and len(w) > 2:
+            variants.add(w[:-1])            # shirts -> shirt
+
+        # Also add plural in case user typed singular
+        variants.add(w + "s")
+        variants.add(w + "es")
+
+        # Hyphen / space style variants: tshirt -> t-shirt, t shirt
+        if "-" not in w and len(w) > 4:
+            # try inserting hyphen after first 1-2 chars (t-shirt, v-neck)
+            for i in [1, 2]:
+                variants.add(w[:i] + "-" + w[i:])
+
+        return list(variants)
+
+    def make_or_clause(variants):
+        """Build a MongoDB $or clause matching any variant across key product fields."""
+        clauses = []
+        for v in variants:
+            regex = {"$regex": v, "$options": "i"}
+            clauses.extend([
+                {"product_name": regex},
+                {"brand": regex},
+                {"description": regex},
+            ])
+        return {"$or": clauses}
+
     if not query_str:
-        # Return all products when query is empty
         products = list(product_collection.find({}))
     else:
         words = query_str.split()
-        # Build an OR query across product fields per word
-        and_clauses = []
-        for word in words:
-            regex = {"$regex": word, "$options": "i"}
-            and_clauses.append({
-                "$or": [
-                    {"product_name": regex},
-                    {"brand": regex},
-                    {"description": regex},
-                ]
-            })
-        if and_clauses:
-            products = list(product_collection.find({"$and": and_clauses}))
-        else:
-            products = list(product_collection.find({}))
+        # Each word must match at least one of its variants in any field
+        and_clauses = [make_or_clause(build_word_variants(w)) for w in words]
+        products = list(product_collection.find({"$and": and_clauses}))
 
     # Enrich with category name
+    already_ids = set()
     results = []
     for p in products:
         p["_id"] = str(p["_id"])
+        already_ids.add(p["_id"])
         if "category_id" in p and p["category_id"]:
             cat_doc = cate_db.categories.find_one({"_id": p["category_id"]})
             if cat_doc:
@@ -262,16 +300,20 @@ def search_products(q: str = ""):
             p["vendor_id"] = str(p["vendor_id"])
         results.append(p)
 
-    # Also fetch products by matching category names (including all descendant categories)
+    # Also match by category name (including all descendants) using the same fuzzy variants
     if query_str:
         words = query_str.split()
-        cat_regex_clauses = [{"$or": [
-            {"category_name": {"$regex": w, "$options": "i"}},
-            {"name": {"$regex": w, "$options": "i"}},
-        ]} for w in words]
-        matching_cats = list(cate_db.categories.find({"$and": cat_regex_clauses} if cat_regex_clauses else {}))
+        all_variants = []
+        for w in words:
+            all_variants.extend(build_word_variants(w))
 
-        # Recursively collect all descendant category IDs
+        cat_or = [{"$or": [
+            {"category_name": {"$regex": v, "$options": "i"}},
+            {"name": {"$regex": v, "$options": "i"}},
+        ]} for v in all_variants]
+
+        matching_cats = list(cate_db.categories.find({"$or": [c["$or"][0] for c in cat_or] + [c["$or"][1] for c in cat_or]}))
+
         def collect_descendants(parent_ids):
             if not parent_ids:
                 return []
@@ -291,12 +333,12 @@ def search_products(q: str = ""):
         all_cat_oids += [c["_id"] for c in descendants]
 
         if all_cat_oids:
-            already_ids = {r["_id"] for r in results}
             extra = list(product_collection.find({"category_id": {"$in": all_cat_oids}}))
             for p in extra:
                 pid_str = str(p["_id"])
                 if pid_str not in already_ids:
                     p["_id"] = pid_str
+                    already_ids.add(pid_str)
                     cat_doc = cate_db.categories.find_one({"_id": p.get("category_id")})
                     if cat_doc:
                         p["category_name"] = cat_doc.get("category_name") or cat_doc.get("name", "")
