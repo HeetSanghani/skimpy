@@ -106,8 +106,8 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
       let allValues = [];
       try {
         const [attrsResp, valsResp] = await Promise.all([
-          axios.get(`${API_BASE}/Attribute/`),
-          axios.get(`${API_BASE}/AttributeValue/`),
+          axios.get(`${API_BASE}/Attribute/`, { headers: getAuthHeaders() }),
+          axios.get(`${API_BASE}/AttributeValue/`, { headers: getAuthHeaders() }),
         ]);
         allAttributes = (attrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name }));
         allValues = valsResp.data?.attribute_values || [];
@@ -142,8 +142,9 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
               attributeId = resp.data?.id;
               allAttributes.push({ _id: attributeId, name });
             } catch {
-              const fresh = await axios.get(`${API_BASE}/Attribute/`);
-              allAttributes = fresh.data?.attributes || [];
+              // 400 = already exists — re-fetch and find it
+              const fresh = await axios.get(`${API_BASE}/Attribute/`, { headers: getAuthHeaders() });
+              allAttributes = (fresh.data?.attributes || []).map(a => ({ _id: a._id, name: a.name }));
               attributeId = findAttributeByName(name)?._id;
             }
           }
@@ -160,7 +161,8 @@ const AntiqueJewelryListingForm = ({ onBack }) => {
               valueId = resp.data?.id;
               allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
             } catch {
-              const fresh = await axios.get(`${API_BASE}/AttributeValue/`);
+              // 400 = already exists — re-fetch and find it
+              const fresh = await axios.get(`${API_BASE}/AttributeValue/`, { headers: getAuthHeaders() });
               allValues = fresh.data?.attribute_values || [];
               valueId = findValueId(attributeId, chosenValue);
             }

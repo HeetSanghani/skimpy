@@ -110,8 +110,8 @@ const PotteryListingForm = ({ onBack }) => {
 
       try {
         const [allAttrsResp, allValsResp] = await Promise.all([
-          axios.get(`${API_BASE}/Attribute/`),
-          axios.get(`${API_BASE}/AttributeValue/`)
+          axios.get(`${API_BASE}/Attribute/`, { headers: getAuthHeaders() }),
+          axios.get(`${API_BASE}/AttributeValue/`, { headers: getAuthHeaders() })
         ]);
         const allAttributes = (allAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
         const allValues = allValsResp.data?.attribute_values || [];
@@ -137,8 +137,9 @@ const PotteryListingForm = ({ onBack }) => {
               attributeId = addAttrResp.data?.id;
               allAttributes.push({ _id: attributeId, name, values: [] });
             } catch (err) {
-              const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`);
-              const freshAttrs = freshAttrsResp.data?.attributes || [];
+              // 400 = already exists — re-fetch with auth and find it
+              const freshAttrsResp = await axios.get(`${API_BASE}/Attribute/`, { headers: getAuthHeaders() });
+              const freshAttrs = (freshAttrsResp.data?.attributes || []).map(a => ({ _id: a._id, name: a.name, values: a.values || [] }));
               allAttributes.length = 0;
               allAttributes.push(...freshAttrs);
               const refetchedAttr = findAttributeByName(name);
@@ -155,7 +156,8 @@ const PotteryListingForm = ({ onBack }) => {
               valueId = addValResp.data?.id;
               allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
             } catch (err) {
-              const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`);
+              // 400 = already exists — re-fetch with auth and find it
+              const freshValsResp = await axios.get(`${API_BASE}/AttributeValue/`, { headers: getAuthHeaders() });
               const freshVals = freshValsResp.data?.attribute_values || [];
               allValues.length = 0;
               allValues.push(...freshVals);

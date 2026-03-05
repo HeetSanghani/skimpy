@@ -13,6 +13,7 @@ router = APIRouter(prefix="/Product", tags=["Products"])
 
 # Collections
 product_collection = cate_db.products
+variant_collection = cate_db.variants
 
 
 # ---------- Helpers ----------
@@ -288,6 +289,24 @@ def get_product(product_id: str):
     except Exception as e:
         print(f"SQL Stock Fetch Failed: {e}")
 
+    # Resolve category name from category_id
+    category_name = None
+    if category_id:
+        try:
+            cat_doc = cate_db.categories.find_one({"_id": ObjectId(category_id)})
+            if cat_doc:
+                category_name = cat_doc.get("name") or cat_doc.get("category_name")
+        except Exception:
+            pass
+
+    # Collect any extra category-specific fields (pottery, etc.)
+    STANDARD_KEYS = {
+        "_id", "product_name", "name", "description", "price", "stock",
+        "product_condition", "condition", "brand", "images",
+        "category_id", "vendor_id", "created_at", "updated_at"
+    }
+    extra_fields = {k: v for k, v in product.items() if k not in STANDARD_KEYS}
+
     return {
         "id": str(product["_id"]),
         "_id": str(product["_id"]),
@@ -303,8 +322,12 @@ def get_product(product_id: str):
         "brand": product.get("brand"),
         "images": product.get("images", []),
         "category_id": category_id,
+        "category_name": category_name,
         "vendor_id": vendor_id,
         "vendor": vendor_data,
+        "created_at": str(product["created_at"]) if product.get("created_at") else None,
+        "updated_at": str(product["updated_at"]) if product.get("updated_at") else None,
+        "extra_fields": extra_fields if extra_fields else None,
     }
 
 
@@ -434,6 +457,15 @@ def delete_product(product_id: str, current_user: dict = Depends(get_current_use
     result = product_collection.delete_one({"_id": product_oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # Cascade-delete all variants belonging to this product
+    variant_collection.delete_many({
+        "$or": [
+            {"product_id": product_oid},
+            {"product_id": str(product_oid)},
+        ]
+    })
+
     return {"message": "Product deleted successfully"}
 
 

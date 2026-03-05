@@ -165,6 +165,8 @@ def get_variants(product_id: str):
             "description": v.get("description"),
             "product_condition": v.get("product_condition"),
             "brand": v.get("brand"),
+            "created_at": str(v["created_at"]) if v.get("created_at") else None,
+            "updated_at": str(v["updated_at"]) if v.get("updated_at") else None,
         })
     return {"variants": result}
 

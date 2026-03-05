@@ -148,46 +148,54 @@ const ProductListingForm = ({ category, onBack }) => {
   };
 
   const ensureAttributeAndValueExist = async (attributeName, chosenValue, allAttributes, allValues) => {
-    const findAttributeByName = (name) => allAttributes.find(a => a.name.toLowerCase() === name.toLowerCase());
-    const findValueId = (attributeId, valueName) => allValues.find(v => v.attribute_id === attributeId && v.value.toLowerCase() === valueName.toLowerCase())?._id;
+    const norm = s => (s || '').trim().toLowerCase();
+    const findAttrByName = name => allAttributes.find(a => norm(a.name) === norm(name));
+    const findValueId = (attributeId, valueName) =>
+      allValues.find(v => v.attribute_id === attributeId && norm(v.value) === norm(valueName))?._id;
 
+    // ─── Resolve attribute ID ────────────────────────────────────────────
     let attributeId;
-    let existingAttr = findAttributeByName(attributeName);
+    const existingAttr = findAttrByName(attributeName);
     if (existingAttr) {
       attributeId = existingAttr._id;
     } else {
       try {
-        const addAttrResp = await axios.post(`${API_BASE_URL}/Attribute/add`, new URLSearchParams({ name: attributeName }), {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-        });
-        attributeId = addAttrResp.data?.id;
+        const resp = await axios.post(
+          `${API_BASE_URL}/Attribute/add`,
+          new URLSearchParams({ name: attributeName }),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() } }
+        );
+        attributeId = resp.data?.id;
         allAttributes.push({ _id: attributeId, name: attributeName, values: [] });
       } catch (err) {
-        const freshAttrsResp = await axios.get(`${API_BASE_URL}/Attribute/`);
-        const freshAttrs = freshAttrsResp.data?.attributes || [];
-        allAttributes.length = 0;
-        allAttributes.push(...freshAttrs);
-        existingAttr = findAttributeByName(attributeName);
-        if (existingAttr) attributeId = existingAttr._id;
-        else throw err;
+        // 400 means attribute already exists — fetch and use its ID
+        const freshResp = await axios.get(`${API_BASE_URL}/Attribute/`, { headers: getAuthHeaders() });
+        const freshAttrs = freshResp.data?.attributes || [];
+        allAttributes.length = 0; allAttributes.push(...freshAttrs);
+        const found = findAttrByName(attributeName);
+        if (!found) throw new Error(`Cannot resolve attribute: ${attributeName}`);
+        attributeId = found._id;
       }
     }
 
+    // ─── Resolve value ID ────────────────────────────────────────────────
     let valueId = findValueId(attributeId, chosenValue);
     if (!valueId) {
       try {
-        const addValResp = await axios.post(`${API_BASE_URL}/AttributeValue/add`, new URLSearchParams({ attribute_id: attributeId, value: chosenValue }), {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() }
-        });
-        valueId = addValResp.data?.id;
+        const resp = await axios.post(
+          `${API_BASE_URL}/AttributeValue/add`,
+          new URLSearchParams({ attribute_id: attributeId, value: chosenValue }),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...getAuthHeaders() } }
+        );
+        valueId = resp.data?.id;
         allValues.push({ _id: valueId, attribute_id: attributeId, value: chosenValue });
       } catch (err) {
-        const freshValsResp = await axios.get(`${API_BASE_URL}/AttributeValue/`);
-        const freshVals = freshValsResp.data?.attribute_values || [];
-        allValues.length = 0;
-        allValues.push(...freshVals);
+        // 400 means value already exists — refresh and find it
+        const freshResp = await axios.get(`${API_BASE_URL}/AttributeValue/`, { headers: getAuthHeaders() });
+        const freshVals = freshResp.data?.attribute_values || [];
+        allValues.length = 0; allValues.push(...freshVals);
         valueId = findValueId(attributeId, chosenValue);
-        if (!valueId) throw err;
+        if (!valueId) throw new Error(`Cannot resolve value: ${chosenValue}`);
       }
     }
 
@@ -219,8 +227,8 @@ const ProductListingForm = ({ category, onBack }) => {
       let allValues = [];
       try {
         const [attrsResp, valsResp] = await Promise.all([
-          axios.get(`${API_BASE_URL}/Attribute/`),
-          axios.get(`${API_BASE_URL}/AttributeValue/`),
+          axios.get(`${API_BASE_URL}/Attribute/`, { headers: getAuthHeaders() }),
+          axios.get(`${API_BASE_URL}/AttributeValue/`, { headers: getAuthHeaders() }),
         ]);
         allAttributes = attrsResp.data?.attributes || [];
         allValues = valsResp.data?.attribute_values || [];
