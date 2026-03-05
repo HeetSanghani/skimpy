@@ -125,7 +125,7 @@ export default function Register() {
                 <div className="relative">
                   <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                   <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required
-                    className={inputCls} placeholder="Heet" />
+                    className={inputCls} placeholder="First Name" />
                 </div>
               </div>
               <div>
@@ -133,7 +133,7 @@ export default function Register() {
                 <div className="relative">
                   <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                   <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required
-                    className={inputCls} placeholder="Sanghani" />
+                    className={inputCls} placeholder="Last Name" />
                 </div>
               </div>
             </div>
