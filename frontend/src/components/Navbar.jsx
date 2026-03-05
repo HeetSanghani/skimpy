@@ -74,14 +74,7 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
-  const safeCategories = Array.isArray(categories) ? categories : [];
-  const visibleCategories = safeCategories.slice(0, 12);
-  const handleCategoryNavigate = (cat) => {
-    const id = cat?._id || cat?.id;
-    if (!id) return;
-    navigate(`/category/${id}`);
-    setIsMenuOpen(false);
-  };
+
 
   return (
     <nav
@@ -252,19 +245,6 @@ export default function Navbar() {
         `}
       >
         <div className="px-4 pt-3 pb-4 space-y-3 border-t border-white/10 bg-[#0d0d0d]">
-          {/* Mobile Categories */}
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {visibleCategories.slice(0, 8).map((cat) => (
-              <button
-                key={cat._id || cat.id}
-                type="button"
-                onClick={() => handleCategoryNavigate(cat)}
-                className="flex-shrink-0 px-4 py-2 rounded-full bg-white/6 border border-white/10 text-sm text-gray-200"
-              >
-                {cat.category_name || cat.name || "Category"}
-              </button>
-            ))}
-          </div>
 
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit}>

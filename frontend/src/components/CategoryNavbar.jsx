@@ -64,7 +64,7 @@ const CategoryNavbar = () => {
 
   return (
     <nav className="glass-nav top-[72px] z-40 py-2">
-      <ul className="flex justify-center items-center gap-3 px-6 overflow-x-auto scrollbar-hide py-2">
+      <ul className="flex justify-start md:justify-center items-center gap-3 px-6 overflow-x-auto scrollbar-hide py-2">
 
         {/* "All Categories" — navigates to /products */}
         <li className="flex-shrink-0">
@@ -81,11 +81,10 @@ const CategoryNavbar = () => {
             <button
               onClick={() => handleNavigate(it.slug)}
               disabled={!it.slug}
-              className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 font-inter border hover:-translate-y-0.5 hover:scale-105 ${
-                isActive(it.slug)
+              className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 font-inter border hover:-translate-y-0.5 hover:scale-105 ${isActive(it.slug)
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-lg"
                   : "bg-white/50 text-gray-800 border-transparent hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600 hover:text-white hover:shadow-lg"
-              } ${!it.slug ? "opacity-50 cursor-not-allowed hover:scale-100 hover:-translate-y-0" : ""}`}
+                } ${!it.slug ? "opacity-50 cursor-not-allowed hover:scale-100 hover:-translate-y-0" : ""}`}
             >
               {it.label}
             </button>
