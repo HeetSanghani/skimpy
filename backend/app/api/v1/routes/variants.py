@@ -69,13 +69,18 @@ async def add_variant(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Auto-generate SKU if not provided
-    if not sku:
+    # If seller provided a SKU, honour it — reject if duplicate
+    if sku:
+        if variant_collection.find_one({"sku": sku}):
+            raise HTTPException(
+                status_code=400,
+                detail=f"SKU '{sku}' already exists. Please use a unique SKU."
+            )
+    else:
+        # Auto-generate only when seller left SKU empty
         sku = str(uuid.uuid4()).replace("-", "")[:10]
-
-    # Ensure SKU uniqueness — if duplicate, generate a new one automatically
-    while variant_collection.find_one({"sku": sku}):
-        sku = str(uuid.uuid4()).replace("-", "")[:10]
+        while variant_collection.find_one({"sku": sku}):
+            sku = str(uuid.uuid4()).replace("-", "")[:10]
 
     # Parse attribute_values JSON (gracefully, never crash)
     attrs = []

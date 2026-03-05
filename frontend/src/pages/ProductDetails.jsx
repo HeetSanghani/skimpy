@@ -20,7 +20,19 @@ const BASE_URL = API_BASE_URL;
 const getVariantId = (v) => String(v?.id ?? v?._id ?? "");
 
 const getVariantLabel = (v) => {
-  return v?.sku || 'Option';
+  // Build a human-readable label from attribute values: "L / Brown / Linen"
+  const attrs = Array.isArray(v?.attributes) ? v.attributes : [];
+  if (attrs.length > 0) {
+    // Use only the first 2–3 most important attributes to keep button compact
+    return attrs
+      .slice(0, 3)
+      .map(a => a.value_name)
+      .filter(Boolean)
+      .join(" / ") || v?.sku || "Option";
+  }
+  // Fall back to seller SKU (if readable / not a UUID hash)
+  if (v?.sku) return v.sku;
+  return "Option";
 };
 
 // ✅ Local SVG Fallback (Gray square with "No Image" text)
@@ -452,8 +464,8 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {/* Product Attributes */}
-              {selectedAttrs.length > 0 && (
+              {/* Key Specifications */}
+              {(selectedAttrs.length > 0 || current.sku || current.product_condition || current.brand || product.brand) && (
                 <div className="bg-white/60 border border-slate-200 rounded-2xl p-6 backdrop-blur-md">
                   <h3 className="font-sora font-bold text-slate-900 mb-4 text-base">Key Specifications</h3>
                   <div className="grid grid-cols-2 gap-y-3 gap-x-6">
@@ -463,6 +475,24 @@ const ProductDetails = () => {
                         <span className="text-slate-800 font-semibold text-sm sm:text-base">{attr.value_name}</span>
                       </div>
                     ))}
+                    {current.sku && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-0.5">SKU</span>
+                        <span className="text-slate-800 font-semibold text-sm sm:text-base font-mono">{current.sku}</span>
+                      </div>
+                    )}
+                    {current.product_condition && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-0.5">Condition</span>
+                        <span className="text-slate-800 font-semibold text-sm sm:text-base capitalize">{current.product_condition?.toLowerCase()}</span>
+                      </div>
+                    )}
+                    {(current.brand || product.brand) && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider mb-0.5">Brand</span>
+                        <span className="text-slate-800 font-semibold text-sm sm:text-base">{current.brand || product.brand}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
