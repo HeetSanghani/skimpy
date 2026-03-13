@@ -355,12 +355,12 @@ const ProductDetails = () => {
                     <button
                       key={i}
                       onClick={() => setMainImage(img)}
-                      className={`relative w-20 h-24 lg:w-full lg:h-24 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 border border-slate-100 ${mainImage === img
+                      className={`relative w-20 h-24 lg:w-full lg:h-24 flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 border border-slate-100 bg-white ${mainImage === img
                         ? "ring-2 ring-indigo-600 ring-offset-2 scale-105 shadow-md"
                         : "opacity-60 hover:opacity-100 hover:scale-105"
                         }`}
                     >
-                      <img src={img} alt={`thumb-${i}`} className="w-full h-full object-cover" />
+                      <img src={img} alt={`thumb-${i}`} className="w-full h-full object-contain" />
                     </button>
                   ))}
                 </div>
@@ -368,13 +368,10 @@ const ProductDetails = () => {
 
               {/* Main Image (Centered & Contained) */}
               <div className="relative group flex-1 w-full max-w-xl mx-auto order-1 lg:order-2">
-                {/* Back Glow */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
                 <img
                   src={mainImage}
                   alt={displayName}
-                  className="w-full h-auto aspect-[4/5] object-cover rounded-[2rem] shadow-xl shadow-indigo-100/50 transition-transform duration-500 group-hover:scale-[1.01] border border-white/50"
+                  className="w-full h-auto aspect-[4/5] object-contain rounded-[2rem] shadow-xl transition-transform duration-500 group-hover:scale-[1.01] border border-slate-100 bg-white"
                   onError={(e) => (e.target.src = DEFAULT_IMAGE)}
                 />
 
