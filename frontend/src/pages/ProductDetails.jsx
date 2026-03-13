@@ -340,7 +340,7 @@ const ProductDetails = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-[#F8FAFC] font-inter pb-20">
+      <div className="min-h-screen bg-[#F8FAFC] font-inter">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
